@@ -9,5 +9,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Revolution.Core.Tests/Revolution.Core.Tests.vbproj" />
+    <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
+    <Project Path="tests/Revolution.Services.Tests/Revolution.Services.Tests.vbproj" />
   </Folder>
 </Solution>
