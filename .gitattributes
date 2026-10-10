@@ -1,0 +1,11 @@
+* text=auto
+*.vb text eol=crlf
+*.vbproj text eol=crlf
+*.slnx text eol=crlf
+*.props text eol=crlf
+*.resx text eol=crlf
+*.sql text eol=crlf
+*.sh text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+CODEOWNERS text eol=lf

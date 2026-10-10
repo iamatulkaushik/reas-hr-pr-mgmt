@@ -1,0 +1,18 @@
+# Sigma owns every shared project and the database schema.
+# Replace @SIGMA-GITHUB / @BRAVE-GITHUB with the real GitHub usernames, then
+# enable "Require review from Code Owners" in branch protection for main.
+/src/Revolution.Core/        @SIGMA-GITHUB
+/src/Revolution.Data/        @SIGMA-GITHUB
+/src/Revolution.Services/    @SIGMA-GITHUB
+/src/Revolution.UI.Common/   @SIGMA-GITHUB
+/database/                   @SIGMA-GITHUB
+/Directory.Build.props       @SIGMA-GITHUB
+/Revolution.slnx             @SIGMA-GITHUB
+/docs/adr/                   @SIGMA-GITHUB
+/.github/                    @SIGMA-GITHUB
+/scripts/                    @SIGMA-GITHUB
+
+# Brave owns the feature modules (created from Phase 3 onward).
+/src/Revolution.Modules.*/   @BRAVE-GITHUB
+/src/Revolution.Reports/     @BRAVE-GITHUB
+/src/Revolution.BiometricAgent/ @BRAVE-GITHUB

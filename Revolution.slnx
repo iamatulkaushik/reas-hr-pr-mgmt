@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Revolution.Core/Revolution.Core.vbproj" />
+    <Project Path="src/Revolution.Data/Revolution.Data.vbproj" />
+    <Project Path="src/Revolution.Services/Revolution.Services.vbproj" />
+    <Project Path="src/Revolution.UI.Common/Revolution.UI.Common.vbproj" />
+    <Project Path="src/Revolution.App/Revolution.App.vbproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Revolution.Core.Tests/Revolution.Core.Tests.vbproj" />
+  </Folder>
+</Solution>

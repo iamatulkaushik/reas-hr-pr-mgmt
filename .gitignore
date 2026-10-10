@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+*.mdf
+*.ldf
+*.bak
+appsettings.json
+*.pfx
+*.key
