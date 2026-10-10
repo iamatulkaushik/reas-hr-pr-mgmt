@@ -3,5 +3,5 @@ Public Enum UserRole
     Developer = 1
     Owner = 2
     Associate = 3
-    Operator = 4
+    [Operator] = 4
 End Enum
