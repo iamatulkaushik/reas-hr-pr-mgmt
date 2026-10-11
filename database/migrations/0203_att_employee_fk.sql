@@ -1,6 +1,7 @@
 /* 0203_att_employee_fk.sql
-   Real foreign key from attendance to mst.Employee (0100). Composite on (CompanyID, EmployeeID), so a row can never point at another company's employee.
-   Brave lane 0200-0299 (ADR 0008 addendum). Needs 0100 to be applied first; numeric order guarantees it. Idempotent. */
+   Adds the employee key promised in 0200: att.AttendanceDaily (CompanyID, EmployeeID) must be an employee of the same company.
+   Composite, so a day row can never point at another company's employee. Needs mst.Employee (0103). Idempotent.
+   Fails if attendance rows already exist for employees that are not in mst.Employee: clean those first. */
 SET XACT_ABORT ON;
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_AttendanceDaily_Employee')
