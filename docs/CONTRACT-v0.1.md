@@ -23,7 +23,7 @@ Public NotInheritable Class EmployeeListForm
     Public Sub New(permissions As IPermissionService)
         MyBase.New("Employees")
         ' Add controls to Content. Toolbar items go in Toolbar.Items.
-        ' Ctrl+S, F5 and F1 call OnSaveRequested, OnRefreshRequested and OnHelpRequested.
+        ' Ctrl+S, F5 and F1 call OnSaveRequested, OnRefreshRequested and OnHelpKeyPressed.
     End Sub
 End Class
 ```

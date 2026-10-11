@@ -3,7 +3,7 @@ Imports System.Windows.Forms
 
 ''' <summary>
 ''' Base for every form (ADR 0006): header, toolbar, status bar, validation display, hotkeys, busy state.
-''' Add your controls to Content. Override OnSaveRequested / OnRefreshRequested / OnHelpRequested for Ctrl+S, F5, F1.
+''' Add your controls to Content. Override OnSaveRequested / OnRefreshRequested / OnHelpKeyPressed for Ctrl+S, F5, F1.
 ''' </summary>
 Public MustInherit Class BaseForm
     Inherits Form
@@ -139,7 +139,7 @@ Public MustInherit Class BaseForm
     Protected Overridable Sub OnRefreshRequested()
     End Sub
 
-    Protected Overridable Sub OnHelpRequested()
+    Protected Overridable Sub OnHelpKeyPressed()
     End Sub
 
     Protected Overrides Function ProcessCmdKey(ByRef msg As Message, keyData As Keys) As Boolean
@@ -151,7 +151,7 @@ Public MustInherit Class BaseForm
                 OnRefreshRequested()
                 Return True
             Case Keys.F1
-                OnHelpRequested()
+                OnHelpKeyPressed()
                 Return True
             Case Else
                 Return MyBase.ProcessCmdKey(msg, keyData)

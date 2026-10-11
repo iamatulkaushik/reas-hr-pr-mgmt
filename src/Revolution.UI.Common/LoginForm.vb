@@ -1,5 +1,6 @@
 Imports System.Drawing
 Imports System.Windows.Forms
+Imports System.ComponentModel
 
 ''' <summary>The sign-in dialog. Returns DialogResult.OK with Session set. Forces a password change when required.</summary>
 Public NotInheritable Class LoginForm
@@ -20,6 +21,7 @@ Public NotInheritable Class LoginForm
     End Sub
 
     ''' <summary>The signed-in session after DialogResult.OK.</summary>
+    <Browsable(False), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property SignedInSession As UserSession
 
     Private Sub BuildLayout()
