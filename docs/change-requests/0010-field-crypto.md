@@ -11,4 +11,11 @@
   5. Never log plain or cipher values. `Mask` stays in the Employees module (`SensitiveIdMask`).
   6. Schema is ready: migration 0100 has the five `*Enc` columns and the two `*Index` columns.
 - Workaround until done: Brave keeps the employee repository and service on a branch. The columns stay empty. Nothing merges.
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted with changes, 2026-10-11.** Full design in ADR 0011. What changed from the proposal:
+  1. Signatures. `Encrypt(plain, context)`, `Decrypt(cipher, keyVersion, context)`, `BlindIndex(companyId, field, plain)`, plus `CurrentKeyVersion`. The context binds a value to its company, employee and field (build it with `FieldContext.Build`). Store `CurrentKeyVersion` in `IdKeyVersion` beside the ciphertext; pass the stored version to `Decrypt`.
+  2. Key rotation. Keys have versions, so old rows still decrypt after a new key is added. The index key does not rotate with the encryption key, so duplicate checks keep working.
+  3. Blind index covers all four employee ids (Aadhaar, PAN, UAN, ESI IP), not only Aadhaar and PAN. The columns are in the ADR 0010 schema (`UanHash`, `EsiIpHash`, `PanHash`, `AadhaarHash`). The index normalises case, spaces and hyphens itself.
+  4. Delivered by Sigma, in Core and Services: `IFieldCrypto`, `IFieldKeyProvider`, `FieldKeyPurpose`, `FieldContext`, `AesGcmFieldCrypto`, 21 test cases. Your module only calls `IFieldCrypto`.
+  5. NOT delivered yet: the Windows key store (DPAPI, machine scope) and the key setup step in `Revolution.Setup`. Needs the Windows CI to compile and test. Until then the repository can be built and tested with a fake key provider, but the app cannot save ids on a real machine.
+  6. Database. Your repository calls the `mst.usp_Employee_*` procedures of ADR 0010 (one set of migrations, 0100 to 0106). Your earlier 0100, 0103, 0105 and 0108 are superseded.
+  7. Unblocked: EmployeeRepository, EmployeeService. Do not log plain or cipher values.

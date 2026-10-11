@@ -42,5 +42,11 @@ for t in $tables; do
   grep -h "FILTER PREDICATE" database/migrations/*.sql 2>/dev/null | grep -qi "ON $t\b" || err "Table with CompanyID has no tenant security policy: $t"
 done
 
+# 7. A table or a security policy is created in one script only. A second CREATE TABLE is skipped by the IF OBJECT_ID guard and hides a different shape.
+duptab=$(grep -rhoiE 'CREATE TABLE[[:space:]]+[A-Za-z]+\.\[?[A-Za-z_]+\]?' database/migrations 2>/dev/null | tr -d '\r' | sed -E 's/.*TABLE[[:space:]]+//I; s/[][]//g' | tr 'A-Z' 'a-z' | sort | uniq -d)
+[ -n "$duptab" ] && err "Table created in more than one migration: $(echo $duptab)"
+duppol=$(grep -rhoiE 'CREATE SECURITY POLICY[[:space:]]+[A-Za-z]+\.[A-Za-z_]+' database/migrations 2>/dev/null | tr -d '\r' | sed -E 's/.*POLICY[[:space:]]+//I' | tr 'A-Z' 'a-z' | sort | uniq -d)
+[ -n "$duppol" ] && err "Security policy created in more than one migration: $(echo $duppol)"
+
 [ "$fail" -eq 0 ] && echo "All guards passed."
 exit "$fail"
