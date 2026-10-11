@@ -1,0 +1,62 @@
+/* 15_Seed.sql - reference data. RATES ARE STARTING VALUES. Verify every Verified=0 row with your CA / consultant before payroll. */
+USE HRMS_Master;
+GO
+INSERT ref.State(Code,Name,GSTCode,IsUT) VALUES
+('AP',N'Andhra Pradesh','37',0),('AR',N'Arunachal Pradesh','12',0),('AS',N'Assam','18',0),('BR',N'Bihar','10',0),('CG',N'Chhattisgarh','22',0),('GA',N'Goa','30',0),('GJ',N'Gujarat','24',0),
+('HR',N'Haryana','06',0),('HP',N'Himachal Pradesh','02',0),('JH',N'Jharkhand','20',0),('KA',N'Karnataka','29',0),('KL',N'Kerala','32',0),('MP',N'Madhya Pradesh','23',0),('MH',N'Maharashtra','27',0),
+('MN',N'Manipur','14',0),('ML',N'Meghalaya','17',0),('MZ',N'Mizoram','15',0),('NL',N'Nagaland','13',0),('OD',N'Odisha','21',0),('PB',N'Punjab','03',0),('RJ',N'Rajasthan','08',0),('SK',N'Sikkim','11',0),
+('TN',N'Tamil Nadu','33',0),('TS',N'Telangana','36',0),('TR',N'Tripura','16',0),('UP',N'Uttar Pradesh','09',0),('UK',N'Uttarakhand','05',0),('WB',N'West Bengal','19',0),
+('AN',N'Andaman and Nicobar Islands','35',1),('CH',N'Chandigarh','04',1),('DD',N'Dadra and Nagar Haveli and Daman and Diu','26',1),('DL',N'Delhi','07',1),('JK',N'Jammu and Kashmir','01',1),
+('LA',N'Ladakh','38',1),('LD',N'Lakshadweep','31',1),('PY',N'Puducherry','34',1);
+
+INSERT ref.Shift(Code,Name,StartTime,EndTime,IsNight,FullDayMinutes,HalfDayMinutes,GraceInMinutes,BreakMinutes) VALUES
+('GEN',N'General','09:00','18:00',0,480,240,10,60),('A',N'Shift A','06:00','14:30',0,480,240,10,30),
+('B',N'Shift B','14:00','22:30',0,480,240,10,30),('C',N'Shift C (Night)','22:00','06:30',1,480,240,10,30);
+INSERT ref.WeeklyOffRule(FactoryId,IsoDow,EffectiveFrom) VALUES (0,7,'2000-01-01');
+INSERT ref.LeaveType(Code,Name,AnnualQuota,AccrualBasis,DaysWorkedPerLeave,IsPaid,CarryForward,MaxCarry,MaxAccumulate,Encashable) VALUES
+('CL',N'Casual Leave',7,'Yearly',NULL,1,0,NULL,NULL,0),('SL',N'Sick Leave',7,'Yearly',NULL,1,0,NULL,NULL,0),
+('EL',N'Earned Leave',0,'DaysWorked',20,1,1,30,30,1),('LOP',N'Loss of Pay',0,'Yearly',NULL,0,0,NULL,NULL,0);
+INSERT ref.Grade(Code,Name,Level) VALUES ('G1',N'Grade 1',1),('G2',N'Grade 2',2),('G3',N'Grade 3',3),('G4',N'Grade 4',4),('M1',N'Manager 1',10);
+INSERT ref.Designation(Code,Name,GradeId,Category) VALUES
+('HLP',N'Helper',1,'Unskilled'),('OPR',N'Machine Operator',2,'Semi-Skilled'),('TCH',N'Technician',3,'Skilled'),('SUP',N'Supervisor',4,'Supervisory'),('CLK',N'Clerk',3,'Clerical'),('MGR',N'Manager',5,'Managerial');
+INSERT ref.Bank(Name,IFSCPrefix) VALUES (N'State Bank of India','SBIN'),(N'HDFC Bank','HDFC'),(N'ICICI Bank','ICIC'),(N'Axis Bank','UTIB'),(N'Punjab National Bank','PUNB'),
+ (N'Bank of Baroda','BARB'),(N'Canara Bank','CNRB'),(N'Union Bank of India','UBIN'),(N'Kotak Mahindra Bank','KKBK'),(N'Indian Bank','IDIB'),(N'India Post Payments Bank','IPOS');
+INSERT ref.DocumentType(Name,IsMandatory,HasExpiry) VALUES (N'Aadhaar',1,0),(N'PAN',0,0),(N'Bank passbook / cancelled cheque',1,0),(N'Age proof',1,0),(N'Educational certificate',0,0),
+ (N'Medical fitness certificate',0,1),(N'Police verification',0,1),(N'Appointment letter',1,0),(N'Form 11 (EPF declaration)',0,0),(N'Photo',1,0);
+
+/* Statutory rates (verify). EPF/EPS/EDLI ceiling 15000; ESI ceiling 21000. */
+INSERT ref.StatutoryRate(Code,RatePct,WageCeiling,EffectiveFrom,SourceRef,Verified) VALUES
+('EPF_EE',12.0000,15000,'2014-09-01',N'EPF scheme - verify with EPFO circulars',0),('EPF_ER',3.6700,15000,'2014-09-01',N'Employer EPF share',0),
+('EPS_ER',8.3300,15000,'2014-09-01',N'Employer pension share',0),('EDLI',0.5000,15000,'2014-09-01',N'EDLI contribution',0),
+('EPF_ADMIN',0.5000,15000,'2014-09-01',N'EPF admin charge (min per establishment in ref.Config EPF_ADMIN_MIN)',0),
+('ESI_EE',0.7500,21000,'2019-07-01',N'ESIC - verify ceiling',0),('ESI_ER',3.2500,21000,'2019-07-01',N'ESIC employer',0);
+INSERT ref.WageRule(EffectiveFrom,UseCodeWage,WageFloorPct,Notes) VALUES
+('2000-01-01',0,50,N'Legacy: component flags decide EPF/gratuity wages'),
+('2025-11-21',1,50,N'Code on Wages definition (50% rule). Labour codes reported in force 21-Nov-2025. Verify state rules.');
+INSERT ref.OTRule(FactoryId,EffectiveFrom,Multiplier,MinOTMinutes,RoundToMinutes,HoursPerDay,DivisorDays,MaxHoursPerWeek,MaxHoursPerQuarter) VALUES (0,'2000-01-01',2.00,30,15,8,NULL,60,75);
+INSERT ref.GratuityRule(EffectiveFrom,MinYearsRegular,MinYearsFixedTerm,DaysPerYear,MonthDivisor,RoundUpMonths,CapAmount,Verified) VALUES ('2000-01-01',5,1,15,26,6,2000000,0);
+INSERT ref.BonusRule(EffectiveFrom,MinPct,MaxPct,EligibilityWageCeiling,CalculationWageCeiling,MinDaysWorked,Verified) VALUES ('2000-01-01',8.33,20,21000,7000,30,0);
+INSERT ref.Config(ConfigKey,ConfigValue,Description) VALUES
+('CURRENCY','INR',N'All amounts in Indian rupees'),('EPF_ADMIN_MIN','500',N'Minimum EPF admin charge per establishment per month (verify)'),
+('BACKUP_PATH',N'$(BackupPath)',N'Backup folder'),('DB_LIVE','HRMS_Live',N'Current financial-year database');
+INSERT ref.FinancialYear(FYCode,StartDate,EndDate,DbName,IsCurrent) VALUES ('$(FYCode)','$(FYStart)',DATEADD(DAY,-1,DATEADD(YEAR,1,'$(FYStart)')),'HRMS_Live',1);
+/* PT slabs, LWF rates and minimum wages are STATE-SPECIFIC. Insert yours here, e.g.:
+   INSERT ref.PTSlab(StateId,Gender,FromAmt,ToAmt,TaxAmt,FebTaxAmt,EffectiveFrom) VALUES (<state>,NULL,0,24999.99,0,NULL,'2026-04-01'); */
+GO
+USE HRMS_Live;
+GO
+INSERT payroll.SalaryComponent(Code,Name,Type,IsFixed,IsProrata,IsWageExcluded,ExcludeFromWageTest,IsEPFWage,IsESIWage,IsGratuityWage,IsOTBase,IsBonusWage,DisplayOrder) VALUES
+('BASIC',N'Basic','E',1,1,0,0,1,1,1,1,1,1),('DA',N'Dearness Allowance','E',1,1,0,0,1,1,1,1,1,2),
+('HRA',N'House Rent Allowance','E',1,1,1,0,0,1,0,0,0,3),('CONV',N'Conveyance','E',1,1,1,0,0,1,0,0,0,4),('SPL',N'Special Allowance','E',1,1,0,0,0,1,0,1,0,5),
+('OT',N'Overtime','E',0,0,1,1,0,1,0,0,0,20),('INCENT',N'Incentive','E',0,0,0,0,0,1,0,0,0,21),('BONUS',N'Bonus','E',0,0,1,0,0,0,0,0,0,22),
+('ARREAR',N'Arrears','E',0,0,0,0,0,0,0,0,0,23),('REIMB',N'Reimbursement','E',0,0,1,0,0,0,0,0,0,24);
+INSERT payroll.SalaryComponent(Code,Name,Type,IsFixed,IsProrata,DisplayOrder) VALUES
+('EPF',N'EPF (Employee)','D',0,0,50),('ESI',N'ESI (Employee)','D',0,0,51),('PT',N'Professional Tax','D',0,0,52),('LWF',N'Labour Welfare Fund','D',0,0,53),
+('ADV',N'Advance Recovery','D',0,0,54),('TDS',N'Income Tax (TDS)','D',0,0,55),('OTHD',N'Other Deduction','D',0,0,56);
+INSERT compliance.FilingCalendar(Code,Name,Frequency,DueDay,DueMonthOffset,Authority,Notes) VALUES
+('EPF_ECR',N'EPF ECR and payment','Monthly',15,1,N'EPFO',N'Verify'),('ESI',N'ESI contribution','Monthly',15,1,N'ESIC',N'Verify'),
+('TDS',N'TDS deposit','Monthly',7,1,N'Income Tax',N'Verify'),('PT',N'Professional tax','Monthly',30,1,N'State',N'State specific - set yours'),
+('LWF',N'Labour welfare fund','Monthly',15,1,N'State',N'State specific - set yours');
+INSERT compliance.RuleChangeLog(Area,Description,EffectiveFrom,SourceRef) VALUES
+('LabourCodes',N'Four labour codes reported in force; Code on Wages 50% rule and gratuity changes seeded in ref.WageRule/GratuityRule. Confirm state rules and final definitions.','2025-11-21',N'Web search 2026; verify against official gazette/consultant');
+GO

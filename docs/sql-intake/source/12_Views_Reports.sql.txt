@@ -1,0 +1,119 @@
+/* 12_Views_Reports.sql - HRMS_Live schema rpt: read-only reporting layer for the VB.NET app / PDF / XLS / TXT exports */
+USE HRMS_Live;
+GO
+CREATE VIEW rpt.vw_EmployeeMaster AS
+SELECT e.EmpId,e.EmpCode,e.FullName,e.Gender,e.DOB,e.DOJ,e.DOL,e.EmploymentType,e.WorkerType,e.Status,f.Code AS FactoryCode,f.Name AS Factory,d.Name AS Department,dg.Name AS Designation,dg.Category,g.Name AS Grade,s.Name AS Shift,e.Mobile,e.Email
+FROM hr.Employee e JOIN ref.Factory f ON f.FactoryId=e.FactoryId LEFT JOIN ref.Department d ON d.DeptId=e.DeptId LEFT JOIN ref.Designation dg ON dg.DesigId=e.DesigId LEFT JOIN ref.Grade g ON g.GradeId=e.GradeId LEFT JOIN ref.Shift s ON s.ShiftId=e.ShiftId;
+GO
+CREATE VIEW rpt.vw_Headcount AS
+SELECT f.Name AS Factory,d.Name AS Department,e.EmploymentType,e.Gender,COUNT(*) AS Employees FROM hr.Employee e JOIN ref.Factory f ON f.FactoryId=e.FactoryId LEFT JOIN ref.Department d ON d.DeptId=e.DeptId WHERE e.IsActive=1 GROUP BY f.Name,d.Name,e.EmploymentType,e.Gender;
+GO
+CREATE VIEW rpt.vw_JoinersLeavers AS
+SELECT e.EmpCode,e.FullName,e.FactoryId,'Joined' AS Event,e.DOJ AS EventDate FROM hr.Employee e WHERE e.DOJ>=DATEADD(DAY,-90,CAST(GETDATE() AS DATE))
+UNION ALL SELECT e.EmpCode,e.FullName,e.FactoryId,'Left',e.DOL FROM hr.Employee e WHERE e.DOL>=DATEADD(DAY,-90,CAST(GETDATE() AS DATE));
+GO
+CREATE VIEW rpt.vw_ProbationDue AS
+SELECT e.EmpCode,e.FullName,e.FactoryId,c.DueDate,DATEDIFF(DAY,CAST(GETDATE() AS DATE),c.DueDate) AS DaysLeft FROM hr.Confirmation c JOIN hr.Employee e ON e.EmpId=c.EmpId WHERE c.Status IN ('Probation','Extended') AND c.DueDate<=DATEADD(DAY,30,CAST(GETDATE() AS DATE));
+GO
+CREATE VIEW rpt.vw_AttendanceDaily AS
+SELECT a.WorkDate,a.FactoryId,e.EmpCode,e.FullName,sh.Code AS Shift,a.InTime,a.OutTime,a.WorkedMinutes,a.LateMinutes,a.OTMinutes,a.DayStatus,a.PayFraction,a.Flags,a.Source FROM att.Attendance a JOIN hr.Employee e ON e.EmpId=a.EmpId JOIN ref.Shift sh ON sh.ShiftId=a.ShiftId;
+GO
+CREATE VIEW rpt.vw_Muster AS
+SELECT m.PayYear,m.PayMonth,m.FactoryId,e.EmpCode,e.FullName,m.DaysInMonth,m.PresentDays,m.HalfDays,m.AbsentDays,m.WeeklyOffs,m.Holidays,m.PaidLeaveDays,m.UnpaidLeaveDays,m.PaidDays,m.LOPDays,CAST(m.OTMinutes/60.0 AS DECIMAL(8,2)) AS OTHours,m.IsLocked
+FROM att.MonthlyAttendance m JOIN hr.Employee e ON e.EmpId=m.EmpId;
+GO
+CREATE VIEW rpt.vw_AttendanceExceptions AS
+SELECT a.WorkDate,a.FactoryId,e.EmpCode,e.FullName,a.DayStatus,a.InTime,a.OutTime,CASE WHEN a.Flags='MP' THEN 'Missing punch' WHEN a.LateMinutes>60 THEN 'Late > 60 min' END AS Exception
+FROM att.Attendance a JOIN hr.Employee e ON e.EmpId=a.EmpId WHERE a.Flags='MP' OR a.LateMinutes>60;
+GO
+CREATE VIEW rpt.vw_OvertimeRegister AS
+SELECT o.WorkDate,o.FactoryId,e.EmpCode,e.FullName,CAST(o.OTMinutes/60.0 AS DECIMAL(6,2)) AS OTHours,o.OnOffDay,o.Status,o.EnteredBy,o.ApprovedBy FROM att.Overtime o JOIN hr.Employee e ON e.EmpId=o.EmpId;
+GO
+CREATE VIEW rpt.vw_LeaveBalance AS
+SELECT b.FYCode,e.EmpCode,e.FullName,e.FactoryId,lt.Code AS LeaveType,b.Opening,b.Earned,b.Taken,b.Encashed,b.Lapsed,b.Balance FROM att.LeaveBalance b JOIN hr.Employee e ON e.EmpId=b.EmpId JOIN ref.LeaveType lt ON lt.LeaveTypeId=b.LeaveTypeId;
+GO
+CREATE VIEW rpt.vw_PayslipHeader AS
+SELECT d.DetailId,d.RunId,d.PayMonth,d.PayYear,e.EmpCode,e.FullName,f.Name AS Factory,dp.Name AS Department,dg.Name AS Designation,e.DOJ,st.UAN,st.ESIIPNo,'XXXXXX'+st.PANLast4 AS PAN_Masked,'XXXXXX'+b.AccountLast4 AS AccountMasked,b.IFSC,
+ d.PaidDays,d.LOPDays,d.OTHours,d.GrossEarnings,d.TotalDeductions,d.NetPay,d.IsHeld
+FROM payroll.PayrollDetail d JOIN hr.Employee e ON e.EmpId=d.EmpId JOIN ref.Factory f ON f.FactoryId=d.FactoryId LEFT JOIN ref.Department dp ON dp.DeptId=e.DeptId LEFT JOIN ref.Designation dg ON dg.DesigId=e.DesigId
+LEFT JOIN hr.EmployeeStatutory st ON st.EmpId=e.EmpId LEFT JOIN hr.EmployeeBank b ON b.EmpId=e.EmpId;
+GO
+CREATE VIEW rpt.vw_PayslipLines AS
+SELECT d.DetailId,d.RunId,d.EmpId,d.PayMonth,d.PayYear,c.Type,c.Code,c.Name AS Component,c.DisplayOrder,l.Amount FROM payroll.PayrollDetailLine l JOIN payroll.PayrollDetail d ON d.DetailId=l.DetailId JOIN payroll.SalaryComponent c ON c.CompId=l.CompId;
+GO
+CREATE VIEW rpt.vw_SalaryRegister AS
+SELECT d.RunId,d.PayYear,d.PayMonth,d.FactoryId,e.EmpCode,e.FullName,d.PaidDays,d.OTHours,
+ SUM(CASE WHEN c.Code='BASIC' THEN l.Amount END) AS Basic,SUM(CASE WHEN c.Code='DA' THEN l.Amount END) AS DA,SUM(CASE WHEN c.Code='HRA' THEN l.Amount END) AS HRA,
+ SUM(CASE WHEN c.Code='CONV' THEN l.Amount END) AS Conveyance,SUM(CASE WHEN c.Code='SPL' THEN l.Amount END) AS SpecialAllowance,SUM(CASE WHEN c.Code='OT' THEN l.Amount END) AS Overtime,
+ SUM(CASE WHEN c.Type='E' AND c.Code NOT IN ('BASIC','DA','HRA','CONV','SPL','OT') THEN l.Amount END) AS OtherEarnings,d.GrossEarnings,
+ SUM(CASE WHEN c.Code='EPF' THEN l.Amount END) AS EPF,SUM(CASE WHEN c.Code='ESI' THEN l.Amount END) AS ESI,SUM(CASE WHEN c.Code='PT' THEN l.Amount END) AS PT,SUM(CASE WHEN c.Code='LWF' THEN l.Amount END) AS LWF,
+ SUM(CASE WHEN c.Code='TDS' THEN l.Amount END) AS TDS,SUM(CASE WHEN c.Code='ADV' THEN l.Amount END) AS Advance,d.TotalDeductions,d.NetPay
+FROM payroll.PayrollDetail d JOIN hr.Employee e ON e.EmpId=d.EmpId JOIN payroll.PayrollDetailLine l ON l.DetailId=d.DetailId JOIN payroll.SalaryComponent c ON c.CompId=l.CompId
+GROUP BY d.RunId,d.PayYear,d.PayMonth,d.FactoryId,e.EmpCode,e.FullName,d.PaidDays,d.OTHours,d.GrossEarnings,d.TotalDeductions,d.NetPay;
+GO
+CREATE VIEW rpt.vw_BankAdvice AS
+SELECT a.RunId,l.EmpCode,l.EmpName AS FullName,'XXXXXX'+l.AccountLast4 AS AccountMasked,l.IFSC,l.Amount,l.UTR,l.PaidOn FROM payroll.BankAdviceLine l JOIN payroll.BankAdvice a ON a.AdviceId=l.AdviceId;   -- masked; full numbers only via payroll.usp_ExportBankAdvice
+GO
+CREATE VIEW rpt.vw_PayrollSummary AS
+SELECT r.RunId,f.Name AS Factory,r.PayYear,r.PayMonth,r.Status,r.EmpCount,r.TotalGross,r.TotalDeductions,r.TotalNet,r.ProcessedBy,r.ApprovedBy,r.LockedBy FROM payroll.PayrollRun r JOIN ref.Factory f ON f.FactoryId=r.FactoryId;
+GO
+CREATE VIEW rpt.vw_PayrollWarnings AS
+SELECT d.RunId,e.EmpCode,e.FullName,d.GrossEarnings,d.NetPay,d.WarningText,d.IsHeld FROM payroll.PayrollDetail d JOIN hr.Employee e ON e.EmpId=d.EmpId WHERE d.HasWarning=1 OR d.NetPay<=0 OR d.IsHeld=1;
+GO
+CREATE VIEW rpt.vw_EPFStatement AS
+SELECT c.PayYear,c.PayMonth,c.FactoryId,e.EmpCode,e.FullName,st.UAN,c.GrossWage,c.EPFWage,c.EPSWage,c.EDLIWage,c.EmployeeShare,c.EPSShare,c.EmployerEPFShare,c.EDLI,c.AdminCharge,c.NCPDays
+FROM compliance.EPFContribution c JOIN hr.Employee e ON e.EmpId=c.EmpId LEFT JOIN hr.EmployeeStatutory st ON st.EmpId=c.EmpId;
+GO
+CREATE VIEW rpt.vw_ESIStatement AS
+SELECT c.PayYear,c.PayMonth,c.FactoryId,e.EmpCode,e.FullName,st.ESIIPNo,c.DaysWorked,c.ESIWage,c.EmployeeShare,c.EmployerShare FROM compliance.ESIContribution c JOIN hr.Employee e ON e.EmpId=c.EmpId LEFT JOIN hr.EmployeeStatutory st ON st.EmpId=c.EmpId;
+GO
+CREATE VIEW rpt.vw_PTLWFStatement AS
+SELECT 'PT' AS Kind,p.PayYear,p.PayMonth,p.FactoryId,e.EmpCode,e.FullName,p.Amount AS EmployeeAmt,CAST(0 AS DECIMAL(10,2)) AS EmployerAmt FROM compliance.PTDeduction p JOIN hr.Employee e ON e.EmpId=p.EmpId
+UNION ALL SELECT 'LWF',l.PayYear,l.PayMonth,l.FactoryId,e.EmpCode,e.FullName,l.EmployeeAmt,l.EmployerAmt FROM compliance.LWFDeduction l JOIN hr.Employee e ON e.EmpId=l.EmpId;
+GO
+CREATE VIEW rpt.vw_ChallanStatus AS
+SELECT c.ChallanId,f.Name AS Factory,c.ChallanType,c.PayYear,c.PayMonth,c.Amount,c.DueDate,c.PaidDate,c.ReferenceNo,
+ CASE WHEN c.PaidDate IS NOT NULL AND c.PaidDate>c.DueDate THEN 'Paid late' WHEN c.PaidDate IS NOT NULL THEN 'Paid' WHEN c.DueDate<CAST(GETDATE() AS DATE) THEN 'OVERDUE' ELSE 'Due' END AS ComputedStatus FROM compliance.Challan c JOIN ref.Factory f ON f.FactoryId=c.FactoryId;
+GO
+CREATE VIEW rpt.vw_ComplianceDue AS
+SELECT f.Name AS Factory,cal.Name AS Filing,fs.PeriodMonth,fs.PeriodYear,fs.DueDate,DATEDIFF(DAY,CAST(GETDATE() AS DATE),fs.DueDate) AS DaysLeft,fs.Status FROM compliance.FilingStatus fs JOIN compliance.FilingCalendar cal ON cal.CalendarId=fs.CalendarId JOIN ref.Factory f ON f.FactoryId=fs.FactoryId WHERE fs.Status='Pending';
+GO
+CREATE VIEW rpt.vw_MinWageShortfall AS
+SELECT m.RunId,e.EmpCode,e.FullName,m.PaidDays,m.WagePerDay,m.MinDailyRate,m.Shortfall FROM compliance.MinWageCheck m JOIN hr.Employee e ON e.EmpId=m.EmpId;
+GO
+CREATE VIEW rpt.vw_BonusRegister AS
+SELECT b.AccFromDate,b.AccToDate,e.EmpCode,e.FullName,b.DaysWorked,b.EligibleWage,b.BonusPct,b.BonusAmount,b.Status FROM payroll.Bonus b JOIN hr.Employee e ON e.EmpId=b.EmpId;
+GO
+CREATE VIEW rpt.vw_AdvanceOutstanding AS
+SELECT e.EmpCode,e.FullName,a.AdvDate,a.Amount,a.EMI,a.Recovered,a.Balance FROM payroll.Advance a JOIN hr.Employee e ON e.EmpId=a.EmpId WHERE a.Status='Open';
+GO
+CREATE VIEW rpt.vw_GratuityLiability AS     -- estimate if every active employee left today
+SELECT e.EmpCode,e.FullName,e.DOJ,g.ServiceMonths,w.Wage AS WageBase,CASE WHEN g.IsEligible=1 THEN CASE WHEN g.UncappedAmount>g.CapAmount THEN g.CapAmount ELSE g.UncappedAmount END ELSE 0 END AS EstimatedGratuity
+FROM hr.Employee e CROSS APPLY payroll.fn_FixedWages(e.EmpId,CAST(GETDATE() AS DATE)) fw
+CROSS APPLY (SELECT ISNULL((SELECT TOP (1) WageFloorPct FROM ref.WageRule ORDER BY EffectiveFrom DESC),50) AS Fl) fl
+CROSS APPLY payroll.fn_CodeWage(fw.Remuneration,fw.ExcludedAmt,fl.Fl) cw
+CROSS APPLY (SELECT CASE WHEN ISNULL((SELECT TOP (1) UseCodeWage FROM ref.WageRule WHERE EffectiveFrom<=CAST(GETDATE() AS DATE) ORDER BY EffectiveFrom DESC),1)=1 THEN cw.CodeWage ELSE fw.GratWage END AS Wage) w
+CROSS APPLY payroll.fn_Gratuity(e.DOJ,CAST(GETDATE() AS DATE),w.Wage,e.EmploymentType,'Resignation') g WHERE e.IsActive=1;
+GO
+CREATE VIEW rpt.vw_LicenceExpiry AS
+SELECT 'Factory licence' AS Item,f.Name AS Subject,f.LicenceValidTo AS ValidTo,DATEDIFF(DAY,CAST(GETDATE() AS DATE),f.LicenceValidTo) AS DaysLeft FROM ref.Factory f WHERE f.LicenceValidTo<=DATEADD(DAY,90,CAST(GETDATE() AS DATE))
+UNION ALL SELECT l.LicenceType,CAST(l.FactoryId AS NVARCHAR(20)),l.ValidTo,DATEDIFF(DAY,CAST(GETDATE() AS DATE),l.ValidTo) FROM compliance.EstablishmentLicence l WHERE l.ValidTo<=DATEADD(DAY,l.RenewalRemindDays,CAST(GETDATE() AS DATE))
+UNION ALL SELECT 'Contractor licence',CAST(c.ContractorId AS NVARCHAR(20)),c.ValidTo,DATEDIFF(DAY,CAST(GETDATE() AS DATE),c.ValidTo) FROM compliance.ContractorLicence c WHERE c.ValidTo<=DATEADD(DAY,60,CAST(GETDATE() AS DATE))
+UNION ALL SELECT 'Medical due',e.EmpCode,m.NextDue,DATEDIFF(DAY,CAST(GETDATE() AS DATE),m.NextDue) FROM hr.EmployeeMedical m JOIN hr.Employee e ON e.EmpId=m.EmpId WHERE m.NextDue<=DATEADD(DAY,30,CAST(GETDATE() AS DATE))
+UNION ALL SELECT 'Adolescent certificate',e.EmpCode,a.ValidTo,DATEDIFF(DAY,CAST(GETDATE() AS DATE),a.ValidTo) FROM compliance.AdolescentCertificate a JOIN hr.Employee e ON e.EmpId=a.EmpId WHERE a.ValidTo<=DATEADD(DAY,30,CAST(GETDATE() AS DATE));
+GO
+CREATE VIEW rpt.vw_AdolescentWithoutCertificate AS
+SELECT e.EmpCode,e.FullName,e.DOB FROM hr.Employee e WHERE e.IsAdolescent=1 AND e.IsActive=1 AND NOT EXISTS (SELECT 1 FROM compliance.AdolescentCertificate a WHERE a.EmpId=e.EmpId AND a.ValidTo>=CAST(GETDATE() AS DATE));
+GO
+CREATE VIEW rpt.vw_FnFStatement AS
+SELECT e.EmpCode,e.FullName,f.LastWorkingDay,f.SalaryDue,f.LeaveEncashment,f.Gratuity,f.Bonus,f.NoticeRecovery,f.AdvanceRecovery,f.OtherAdj,f.NetPayable,f.Status FROM payroll.FnF f JOIN hr.Employee e ON e.EmpId=f.EmpId;
+GO
+CREATE VIEW rpt.vw_WageRuleExceptions AS
+SELECT e.EmpCode,e.FullName,w.Remuneration,w.ExcludedAmt,w.CodeWage,w.WagePct,w.CheckedOn FROM payroll.WageRuleCheck w JOIN hr.Employee e ON e.EmpId=w.EmpId WHERE w.IsCompliant=0;
+GO
+CREATE VIEW rpt.vw_BackupStatus AS
+SELECT TOP (500) DbName,BackupType,FilePath,StartedAt,FinishedAt,SizeMB,Status,Verified,Message FROM HRMS_Master.audit.BackupLog ORDER BY BackupId DESC;
+GO
+CREATE VIEW rpt.vw_AuditRecent AS
+SELECT TOP (1000) 'Live' AS Db,TableName,PKValue,Action,ChangedBy,ChangedAt FROM audit.AuditLog ORDER BY AuditId DESC;
+GO

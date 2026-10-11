@@ -1,0 +1,140 @@
+/* 02_Master_HR.sql - HRMS_Master, schema hr: persistent people records */
+USE HRMS_Master;
+GO
+CREATE TABLE hr.Employee(
+ EmpId INT IDENTITY(1000,1) PRIMARY KEY, EmpCode VARCHAR(20) NOT NULL UNIQUE,
+ CompanyId INT NOT NULL REFERENCES ref.Company, FactoryId INT NOT NULL REFERENCES ref.Factory,
+ DeptId INT REFERENCES ref.Department, SectionId INT REFERENCES ref.Section,
+ DesigId INT REFERENCES ref.Designation, GradeId INT REFERENCES ref.Grade, ShiftId INT REFERENCES ref.Shift,
+ Title VARCHAR(10), FirstName NVARCHAR(80) NOT NULL, MiddleName NVARCHAR(80), LastName NVARCHAR(80),
+ FullName AS (FirstName+ISNULL(N' '+MiddleName,N'')+ISNULL(N' '+LastName,N'')) PERSISTED,
+ FatherOrSpouseName NVARCHAR(120), Gender CHAR(1) NOT NULL CHECK (Gender IN ('M','F','O')),
+ DOB DATE NOT NULL, DOJ DATE NOT NULL, DOL DATE NULL,
+ EmploymentType VARCHAR(12) NOT NULL CHECK (EmploymentType IN ('Permanent','Contract','FixedTerm','Casual','Apprentice','Trainee')),
+ WorkerType VARCHAR(10) NOT NULL DEFAULT 'Worker' CHECK (WorkerType IN ('Worker','Staff','Manager')),
+ ContractorId INT NULL REFERENCES ref.Contractor, ReportingToEmpId INT NULL, BiometricId INT NULL,
+ MaritalStatus VARCHAR(10), Nationality VARCHAR(30) DEFAULT 'Indian', Mobile VARCHAR(15), Email NVARCHAR(150),
+ IsAdolescent AS (CASE WHEN DATEADD(YEAR,18,DOB)>DOJ THEN 1 ELSE 0 END),        -- 14-17 at joining: fitness certificate needed
+ Status VARCHAR(10) NOT NULL DEFAULT 'Active' CHECK (Status IN ('Active','Notice','Left','Retired','Deceased','Absconded')),
+ IsActive BIT NOT NULL DEFAULT 1,
+ CreatedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(), CreatedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(),
+ RowVer ROWVERSION,
+ CONSTRAINT CK_Emp_MinAge CHECK (DOJ>=DATEADD(YEAR,14,DOB)),                    -- Factories Act: no child employment
+ CONSTRAINT CK_Emp_Dates  CHECK (DOL IS NULL OR DOL>=DOJ));
+CREATE UNIQUE INDEX UX_Emp_Bio ON hr.Employee(BiometricId) WHERE BiometricId IS NOT NULL;
+CREATE INDEX IX_Emp_Factory ON hr.Employee(FactoryId,DeptId,SectionId) INCLUDE(EmpCode,FirstName,Status) WHERE IsActive=1;
+CREATE INDEX IX_Emp_Name ON hr.Employee(LastName,FirstName);
+
+CREATE TABLE hr.EmployeeStatutory(
+ EmpId INT PRIMARY KEY REFERENCES hr.Employee,
+ IsEPFMember BIT NOT NULL DEFAULT 0, UAN VARCHAR(12), PFNumber VARCHAR(30), EPFJoinDate DATE,
+ IsPensionMember BIT NOT NULL DEFAULT 1, HigherWageOption BIT NOT NULL DEFAULT 0, ExistingMember BIT NOT NULL DEFAULT 0,
+ IsESIMember BIT NOT NULL DEFAULT 0, ESIIPNo VARCHAR(17), ESIDispensary NVARCHAR(100),
+ PAN_Enc VARBINARY(160) NULL, PANLast4 CHAR(4) NULL, Aadhaar_Enc VARBINARY(160) NULL, AadhaarLast4 CHAR(4) NULL,   -- AES-256 ciphertext; set only through hr.usp_SaveIds
+ PTApplicable BIT NOT NULL DEFAULT 1, LWFApplicable BIT NOT NULL DEFAULT 1,
+ TaxRegime CHAR(3) NOT NULL DEFAULT 'NEW' CHECK (TaxRegime IN ('NEW','OLD')), IsInternationalWorker BIT NOT NULL DEFAULT 0);
+CREATE UNIQUE INDEX UX_Stat_UAN ON hr.EmployeeStatutory(UAN) WHERE UAN IS NOT NULL;
+CREATE UNIQUE INDEX UX_Stat_ESI ON hr.EmployeeStatutory(ESIIPNo) WHERE ESIIPNo IS NOT NULL;
+
+CREATE TABLE hr.EmployeeBank(
+ EmpId INT PRIMARY KEY REFERENCES hr.Employee, BankId INT REFERENCES ref.Bank,
+ AccountNo_Enc VARBINARY(160) NULL, AccountLast4 CHAR(4) NULL, IFSC CHAR(11),   -- set only through hr.usp_SaveBankAccount
+ PaymentMode VARCHAR(8) NOT NULL DEFAULT 'Bank' CHECK (PaymentMode IN ('Bank','Cash','Cheque')),
+ UpdatedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+
+CREATE TABLE hr.EmployeeAddress(
+ AddressId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee,
+ AddrType VARCHAR(10) NOT NULL CHECK (AddrType IN ('Current','Permanent')), Line1 NVARCHAR(200), Line2 NVARCHAR(200),
+ City NVARCHAR(80), StateId INT REFERENCES ref.State, Pincode CHAR(6), CONSTRAINT UQ_Addr UNIQUE(EmpId,AddrType));
+
+CREATE TABLE hr.EmployeeFamily(
+ FamilyId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, Name NVARCHAR(120) NOT NULL,
+ Relation VARCHAR(20) NOT NULL, DOB DATE, IsDependent BIT NOT NULL DEFAULT 0, IsResiding BIT NOT NULL DEFAULT 1);
+
+CREATE TABLE hr.EmployeeNominee(
+ NomineeId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee,
+ Scheme VARCHAR(10) NOT NULL CHECK (Scheme IN ('EPF','EPS','Gratuity','ESI','Insurance')),
+ FamilyId INT NOT NULL REFERENCES hr.EmployeeFamily, SharePct DECIMAL(5,2) NOT NULL CHECK (SharePct>0 AND SharePct<=100),
+ CONSTRAINT UQ_Nom UNIQUE(EmpId,Scheme,FamilyId));
+
+CREATE TABLE hr.EmployeeEducation(
+ EduId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, Qualification NVARCHAR(100), Institute NVARCHAR(150), PassYear SMALLINT);
+
+CREATE TABLE hr.EmployeeExperience(
+ ExpId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, Employer NVARCHAR(150), Designation NVARCHAR(100),
+ FromDate DATE, ToDate DATE, LastDrawnGross DECIMAL(14,2));
+
+CREATE TABLE hr.EmployeeDocument(
+ DocId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, DocTypeId INT NOT NULL REFERENCES ref.DocumentType,
+ DocNo_Enc VARBINARY(160) NULL, DocNoLast4 CHAR(4) NULL, ValidTo DATE, FilePath NVARCHAR(400), VerifiedBy SYSNAME, VerifiedOn DATE);
+
+CREATE TABLE hr.EmployeeContract(
+ ContractId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, ContractorId INT REFERENCES ref.Contractor,
+ FromDate DATE NOT NULL, ToDate DATE NOT NULL, Terms NVARCHAR(500), CHECK (ToDate>=FromDate));
+
+CREATE TABLE hr.Confirmation(
+ EmpId INT PRIMARY KEY REFERENCES hr.Employee, ProbationMonths TINYINT NOT NULL DEFAULT 6, DueDate DATE NOT NULL,
+ ConfirmedOn DATE, Status VARCHAR(10) NOT NULL DEFAULT 'Probation' CHECK (Status IN ('Probation','Confirmed','Extended','Terminated')), Remarks NVARCHAR(300));
+
+CREATE TABLE hr.EmployeeShift(
+ EmpShiftId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, ShiftId INT NOT NULL REFERENCES ref.Shift,
+ FromDate DATE NOT NULL, ToDate DATE NULL);
+
+/* Maker-checker: approver must differ from requester */
+CREATE TABLE hr.Promotion(
+ PromotionId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee,
+ FromDesigId INT REFERENCES ref.Designation, ToDesigId INT NOT NULL REFERENCES ref.Designation,
+ FromGradeId INT REFERENCES ref.Grade, ToGradeId INT REFERENCES ref.Grade,
+ EffectiveDate DATE NOT NULL, OldGross DECIMAL(14,2), NewGross DECIMAL(14,2), Remarks NVARCHAR(300),
+ Status VARCHAR(10) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending','Approved','Rejected','Applied')),
+ RequestedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), RequestedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+ ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL,
+ CONSTRAINT CK_Promo_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>RequestedBy));
+
+CREATE TABLE hr.Increment(
+ IncrementId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, EffectiveDate DATE NOT NULL,
+ OldGross DECIMAL(14,2) NOT NULL, NewGross DECIMAL(14,2) NOT NULL,
+ IncrementPct AS (CASE WHEN OldGross>0 THEN ROUND((NewGross-OldGross)*100.0/OldGross,2) END),
+ Reason VARCHAR(20) NOT NULL DEFAULT 'Annual', Status VARCHAR(10) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending','Approved','Rejected','Applied')),
+ RequestedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), RequestedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+ ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL, CONSTRAINT CK_Inc_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>RequestedBy));
+
+CREATE TABLE hr.Transfer(
+ TransferId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee,
+ FromFactoryId INT REFERENCES ref.Factory, ToFactoryId INT REFERENCES ref.Factory,
+ FromDeptId INT REFERENCES ref.Department, ToDeptId INT REFERENCES ref.Department,
+ EffectiveDate DATE NOT NULL, Remarks NVARCHAR(300), ApprovedBy SYSNAME NULL);
+
+CREATE TABLE hr.Disciplinary(
+ CaseId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, IncidentDate DATE NOT NULL,
+ CaseType VARCHAR(30) NOT NULL, Description NVARCHAR(1000), ActionTaken NVARCHAR(300), Status VARCHAR(10) NOT NULL DEFAULT 'Open');
+
+CREATE TABLE hr.Training(
+ TrainingId INT IDENTITY PRIMARY KEY, Title NVARCHAR(150) NOT NULL, IsStatutory BIT NOT NULL DEFAULT 0, ValidityMonths INT NULL);
+CREATE TABLE hr.EmployeeTraining(
+ EmpId INT NOT NULL REFERENCES hr.Employee, TrainingId INT NOT NULL REFERENCES hr.Training, CompletedOn DATE NOT NULL, ValidTo DATE NULL, CertNo VARCHAR(40),
+ PRIMARY KEY(EmpId,TrainingId,CompletedOn));
+
+CREATE TABLE hr.EmployeeSkill(
+ SkillId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, Skill NVARCHAR(80) NOT NULL, SkillLevel VARCHAR(12), CertNo VARCHAR(40), ValidTo DATE);
+
+/* Factory medical exams (hazardous processes, adolescent fitness) */
+CREATE TABLE hr.EmployeeMedical(
+ ExamId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, ExamDate DATE NOT NULL,
+ ExamType VARCHAR(15) NOT NULL CHECK (ExamType IN ('PreEmployment','Periodic','Hazard','Fitness')),
+ Result VARCHAR(10) NOT NULL DEFAULT 'Fit', CertificateNo VARCHAR(40), NextDue DATE);
+
+CREATE TABLE hr.EmployeeAsset(
+ AssetId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, AssetName NVARCHAR(100) NOT NULL,
+ IssuedOn DATE NOT NULL, ReturnedOn DATE NULL, Remarks NVARCHAR(200));
+
+CREATE TABLE hr.Separation(
+ SeparationId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee,
+ Reason VARCHAR(15) NOT NULL CHECK (Reason IN ('Resignation','Retirement','Death','Disablement','Termination','Absconding','ContractEnd','Retrenchment')),
+ NoticeDate DATE, LastWorkingDay DATE NOT NULL, NoticePeriodDays INT NOT NULL DEFAULT 30, NoticeServedDays INT NOT NULL DEFAULT 0,
+ FnFStatus VARCHAR(10) NOT NULL DEFAULT 'Open' CHECK (FnFStatus IN ('Open','Calculated','Approved','Paid')), ExitInterviewDone BIT NOT NULL DEFAULT 0);
+
+CREATE TABLE hr.Rehire(
+ RehireId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL REFERENCES hr.Employee, PreviousEmpId INT NULL REFERENCES hr.Employee,
+ RehireDate DATE NOT NULL, ServiceBreakDays INT NULL, ServiceContinuity BIT NOT NULL DEFAULT 0);
+GO

@@ -1,0 +1,129 @@
+/* 04_Live_Attendance.sql - HRMS_Live: synonyms to master, local sec/audit, attendance tables */
+USE HRMS_Live;
+GO
+/* ---- synonyms: Live code reads masters in HRMS_Master with the same schema names ---- */
+DECLARE @sql NVARCHAR(MAX)=(
+ SELECT STRING_AGG(CAST(N'IF OBJECT_ID(N'''+s.name+N'.'+t.name+N''') IS NULL CREATE SYNONYM '+QUOTENAME(s.name)+N'.'+QUOTENAME(t.name)+
+        N' FOR HRMS_Master.'+QUOTENAME(s.name)+N'.'+QUOTENAME(t.name)+N';' AS NVARCHAR(MAX)),CHAR(10))
+ FROM HRMS_Master.sys.tables t JOIN HRMS_Master.sys.schemas s ON s.schema_id=t.schema_id WHERE s.name IN (N'ref',N'hr'));
+EXEC(@sql);
+GO
+/* ---- local security map (synced from master) + audit ---- */
+CREATE TABLE sec.UserFactory(LoginName SYSNAME NOT NULL, FactoryId INT NOT NULL, PRIMARY KEY(LoginName,FactoryId));
+GO
+CREATE PROCEDURE sec.usp_SyncUserFactory AS
+BEGIN
+ SET NOCOUNT ON;
+ DELETE FROM sec.UserFactory;
+ INSERT sec.UserFactory(LoginName,FactoryId) SELECT LoginName,FactoryId FROM HRMS_Master.sec.UserFactory;
+END
+GO
+CREATE TABLE audit.AuditLog(
+ AuditId BIGINT IDENTITY PRIMARY KEY, TableName SYSNAME NOT NULL, PKValue NVARCHAR(100) NOT NULL, Action CHAR(1) NOT NULL,
+ OldValue NVARCHAR(MAX) NULL, NewValue NVARCHAR(MAX) NULL, ChangedBy SYSNAME NOT NULL, HostName NVARCHAR(128) NULL DEFAULT HOST_NAME(),
+ ChangedAt DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME());
+CREATE INDEX IX_Audit_Tbl ON audit.AuditLog(TableName,PKValue,ChangedAt);
+CREATE TABLE audit.ErrorLog(
+ ErrorId BIGINT IDENTITY PRIMARY KEY, ProcName SYSNAME NULL, ErrNo INT, ErrMsg NVARCHAR(2000), ErrLine INT,
+ LoggedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), LoggedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+GO
+DECLARE @d NVARCHAR(MAX)=(SELECT definition FROM HRMS_Master.sys.sql_modules WHERE object_id=OBJECT_ID(N'HRMS_Master.audit.usp_CreateAuditTrigger'));
+EXEC(@d);
+GO
+/* ================= ATTENDANCE (schema att) ================= */
+CREATE TABLE att.Device(
+ DeviceId VARCHAR(20) PRIMARY KEY, FactoryId INT NOT NULL, Location NVARCHAR(100), Vendor NVARCHAR(50), IsActive BIT NOT NULL DEFAULT 1);
+
+CREATE TABLE att.PunchImportBatch(
+ BatchId INT IDENTITY PRIMARY KEY, FileName NVARCHAR(260), TotalRows INT, Accepted INT, Rejected INT,
+ ImportedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), ImportedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+
+CREATE TABLE att.PunchStaging(                -- bulk-load target (BULK INSERT / bcp / app)
+ StagingId BIGINT IDENTITY PRIMARY KEY, BatchId INT NULL, BiometricId INT NOT NULL, PunchTime DATETIME2(0) NOT NULL,
+ DeviceId VARCHAR(20) NULL, Direction CHAR(1) NOT NULL DEFAULT 'U');
+
+CREATE TABLE att.RawPunch(
+ PunchId BIGINT IDENTITY NOT NULL, EmpId INT NOT NULL, BiometricId INT NULL, PunchTime DATETIME2(0) NOT NULL,
+ PunchDate AS CAST(PunchTime AS DATE) PERSISTED NOT NULL,
+ DeviceId VARCHAR(20) NULL, Direction CHAR(1) NOT NULL DEFAULT 'U', Source VARCHAR(10) NOT NULL DEFAULT 'Device', BatchId INT NULL,
+ CONSTRAINT PK_RawPunch PRIMARY KEY CLUSTERED (PunchDate,PunchId) ON ps_Month(PunchDate));
+CREATE INDEX IX_RawPunch_Emp ON att.RawPunch(EmpId,PunchTime) ON ps_Month(PunchDate);
+
+CREATE TABLE att.Attendance(
+ WorkDate DATE NOT NULL, EmpId INT NOT NULL, FactoryId INT NOT NULL, ShiftId INT NOT NULL,
+ InTime DATETIME2(0) NULL, OutTime DATETIME2(0) NULL,
+ WorkedMinutes INT NOT NULL DEFAULT 0, LateMinutes INT NOT NULL DEFAULT 0, OTMinutes INT NOT NULL DEFAULT 0,
+ DayStatus VARCHAR(2) NOT NULL,            -- P full day, HD half day, A absent, WO weekly off, PH holiday, L leave
+ LeaveTypeId INT NULL, PayFraction DECIMAL(3,2) NOT NULL DEFAULT 0,
+ Flags VARCHAR(20) NULL,                   -- MP = missing punch
+ Source VARCHAR(10) NOT NULL DEFAULT 'Device', IsLocked BIT NOT NULL DEFAULT 0,
+ ModifiedBy SYSNAME NULL, ModifiedAt DATETIME2(0) NULL,
+ CONSTRAINT PK_Attendance PRIMARY KEY CLUSTERED (WorkDate,EmpId) ON ps_Month(WorkDate),
+ CONSTRAINT CK_Att_Status CHECK (DayStatus IN ('P','HD','A','WO','PH','L')));
+CREATE INDEX IX_Att_Emp ON att.Attendance(EmpId,WorkDate) INCLUDE(DayStatus,PayFraction) ON ps_Month(WorkDate);
+CREATE INDEX IX_Att_Fac ON att.Attendance(FactoryId,WorkDate) INCLUDE(DayStatus) ON ps_Month(WorkDate);
+
+CREATE TABLE att.AttendanceRegularization(
+ RegId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, FactoryId INT NOT NULL, WorkDate DATE NOT NULL,
+ OldStatus VARCHAR(2), NewStatus VARCHAR(2) NOT NULL CHECK (NewStatus IN ('P','HD','A','WO','PH','L')),
+ NewIn DATETIME2(0) NULL, NewOut DATETIME2(0) NULL, Reason NVARCHAR(300) NOT NULL,
+ Status VARCHAR(10) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending','Approved','Rejected')),
+ RequestedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), RequestedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+ ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL, CONSTRAINT CK_Reg_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>RequestedBy));
+
+CREATE TABLE att.Roster(
+ WorkDate DATE NOT NULL, EmpId INT NOT NULL, ShiftId INT NOT NULL, IsWeeklyOff BIT NULL,
+ CONSTRAINT PK_Roster PRIMARY KEY CLUSTERED (WorkDate,EmpId) ON ps_Month(WorkDate));
+
+CREATE TABLE att.ShiftChange(
+ ChangeId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, FromDate DATE NOT NULL, ToDate DATE NOT NULL, ShiftId INT NOT NULL, Reason NVARCHAR(200));
+
+CREATE TABLE att.Overtime(                    -- one row per employee per day
+ WorkDate DATE NOT NULL, EmpId INT NOT NULL, FactoryId INT NOT NULL, OTMinutes INT NOT NULL CHECK (OTMinutes>=0),
+ OnOffDay BIT NOT NULL DEFAULT 0, Source VARCHAR(6) NOT NULL DEFAULT 'Auto' CHECK (Source IN ('Auto','Manual')),
+ Status VARCHAR(10) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending','Approved','Rejected')),
+ EnteredBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL, PaidInRunId INT NULL,
+ CONSTRAINT PK_Overtime PRIMARY KEY CLUSTERED (WorkDate,EmpId) ON ps_Month(WorkDate));
+CREATE INDEX IX_OT_Status ON att.Overtime(FactoryId,Status,WorkDate) ON ps_Month(WorkDate);
+
+CREATE TABLE att.CompOff(
+ CompOffId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, WorkedOn DATE NOT NULL, ExpiresOn DATE NOT NULL, UsedOn DATE NULL,
+ Status VARCHAR(8) NOT NULL DEFAULT 'Open' CHECK (Status IN ('Open','Used','Expired')));
+
+CREATE TABLE att.LeaveRequest(
+ LeaveId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, FactoryId INT NOT NULL, LeaveTypeId INT NOT NULL,
+ FromDate DATE NOT NULL, ToDate DATE NOT NULL, Days DECIMAL(4,1) NOT NULL, Reason NVARCHAR(300),
+ Status VARCHAR(10) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending','Approved','Rejected','Cancelled')),
+ RequestedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL,
+ CHECK (ToDate>=FromDate), CONSTRAINT CK_Leave_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>RequestedBy));
+CREATE INDEX IX_Leave_Emp ON att.LeaveRequest(EmpId,FromDate,ToDate) WHERE Status='Approved';
+
+CREATE TABLE att.LeaveBalance(
+ EmpId INT NOT NULL, LeaveTypeId INT NOT NULL, FYCode VARCHAR(10) NOT NULL,
+ Opening DECIMAL(6,2) NOT NULL DEFAULT 0, Earned DECIMAL(6,2) NOT NULL DEFAULT 0, Taken DECIMAL(6,2) NOT NULL DEFAULT 0,
+ Encashed DECIMAL(6,2) NOT NULL DEFAULT 0, Lapsed DECIMAL(6,2) NOT NULL DEFAULT 0,
+ Balance AS (Opening+Earned-Taken-Encashed-Lapsed) PERSISTED, PRIMARY KEY(EmpId,LeaveTypeId,FYCode));
+
+CREATE TABLE att.LeaveLedger(
+ LedgerId BIGINT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, LeaveTypeId INT NOT NULL, TxnDate DATE NOT NULL,
+ TxnType VARCHAR(7) NOT NULL CHECK (TxnType IN ('OPEN','ACCRUE','TAKE','ENCASH','LAPSE','ADJUST')),
+ Days DECIMAL(6,2) NOT NULL, RefNo VARCHAR(30), CreatedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+CREATE INDEX IX_LeaveLedger ON att.LeaveLedger(EmpId,LeaveTypeId,TxnDate);
+
+CREATE TABLE att.MonthlyAttendance(
+ PayYear SMALLINT NOT NULL, PayMonth TINYINT NOT NULL, EmpId INT NOT NULL, FactoryId INT NOT NULL,
+ DaysInMonth TINYINT NOT NULL, PresentDays DECIMAL(4,1) NOT NULL DEFAULT 0, HalfDays DECIMAL(4,1) NOT NULL DEFAULT 0,
+ AbsentDays DECIMAL(4,1) NOT NULL DEFAULT 0, WeeklyOffs DECIMAL(4,1) NOT NULL DEFAULT 0, Holidays DECIMAL(4,1) NOT NULL DEFAULT 0,
+ PaidLeaveDays DECIMAL(4,1) NOT NULL DEFAULT 0, UnpaidLeaveDays DECIMAL(4,1) NOT NULL DEFAULT 0,
+ WorkedDays DECIMAL(4,1) NOT NULL DEFAULT 0, PaidDays DECIMAL(4,1) NOT NULL DEFAULT 0, LOPDays AS (CAST(DaysInMonth AS DECIMAL(4,1))-PaidDays),
+ OTMinutes INT NOT NULL DEFAULT 0, IsLocked BIT NOT NULL DEFAULT 0, LockedBy SYSNAME NULL, LockedOn DATETIME2(0) NULL,
+ PRIMARY KEY(PayYear,PayMonth,EmpId));
+CREATE INDEX IX_MA_Fac ON att.MonthlyAttendance(FactoryId,PayYear,PayMonth) INCLUDE(IsLocked);
+
+CREATE TABLE att.AttendanceLock(
+ LockId INT IDENTITY PRIMARY KEY, FactoryId INT NOT NULL, PayMonth TINYINT NOT NULL, PayYear SMALLINT NOT NULL,
+ LockedBy SYSNAME NOT NULL, LockedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(), ReopenedBy SYSNAME NULL, ReopenedOn DATETIME2(0) NULL, ReopenReason NVARCHAR(300));
+GO
+ALTER TABLE att.RawPunch REBUILD PARTITION=ALL WITH (DATA_COMPRESSION=PAGE);
+ALTER TABLE att.Attendance REBUILD PARTITION=ALL WITH (DATA_COMPRESSION=PAGE);
+GO

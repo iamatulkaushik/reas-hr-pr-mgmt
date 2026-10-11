@@ -1,18 +1,19 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="Revolution.ReportViewer/Revolution.ReportViewer.vbproj" Id="f17e969b-59fe-40cb-b331-0c17532252ac" />
+    <Project Path="src/Revolution.App/Revolution.App.vbproj" />
     <Project Path="src/Revolution.Core/Revolution.Core.vbproj" />
     <Project Path="src/Revolution.Data/Revolution.Data.vbproj" />
-    <Project Path="src/Revolution.Modules.Employees/Revolution.Modules.Employees.vbproj" />
     <Project Path="src/Revolution.Modules.Attendance/Revolution.Modules.Attendance.vbproj" />
+    <Project Path="src/Revolution.Modules.Employees/Revolution.Modules.Employees.vbproj" />
     <Project Path="src/Revolution.Services/Revolution.Services.vbproj" />
-    <Project Path="src/Revolution.UI.Common/Revolution.UI.Common.vbproj" />
-    <Project Path="src/Revolution.App/Revolution.App.vbproj" />
     <Project Path="src/Revolution.Setup/Revolution.Setup.vbproj" />
+    <Project Path="src/Revolution.UI.Common/Revolution.UI.Common.vbproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Revolution.Core.Tests/Revolution.Core.Tests.vbproj" />
-    <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Attendance.Tests/Revolution.Modules.Attendance.Tests.vbproj" />
+    <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
     <Project Path="tests/Revolution.Services.Tests/Revolution.Services.Tests.vbproj" />
   </Folder>
 </Solution>

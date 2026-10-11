@@ -31,5 +31,16 @@ done < <(find src tests -name '*.vbproj' | sort)
 # 5. Brave must not touch shared projects without Sigma: enforced by CODEOWNERS, listed here for visibility.
 [ -f .github/CODEOWNERS ] || err "CODEOWNERS missing"
 
+# 6. Every table with a CompanyID column joins a tenant security policy (ADR 0007). mst.Company and sec.[User] are exempt.
+tables=$(awk '
+  /CREATE TABLE/ { name=$0; sub(/.*CREATE TABLE[ \t]+/, "", name); sub(/[ \t\r(].*/, "", name); intable=1; has=0; next }
+  intable && /CompanyID/ { has=1 }
+  intable && /^[ \t]*\);/ { if (has) print name; intable=0 }
+' database/migrations/*.sql 2>/dev/null | sort -u)
+for t in $tables; do
+  case "$t" in mst.Company|'sec.[User]') continue ;; esac
+  grep -h "FILTER PREDICATE" database/migrations/*.sql 2>/dev/null | grep -qi "ON $t\b" || err "Table with CompanyID has no tenant security policy: $t"
+done
+
 [ "$fail" -eq 0 ] && echo "All guards passed."
 exit "$fail"

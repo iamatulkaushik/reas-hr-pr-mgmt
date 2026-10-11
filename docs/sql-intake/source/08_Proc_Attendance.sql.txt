@@ -1,0 +1,218 @@
+/* 08_Proc_Attendance.sql - HRMS_Live: punch import, daily processing, regularization, monthly summary, lock, leave */
+USE HRMS_Live;
+GO
+CREATE PROCEDURE att.usp_ImportPunches @BatchId INT=NULL AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @total INT=(SELECT COUNT(*) FROM att.PunchStaging WHERE @BatchId IS NULL OR BatchId=@BatchId), @ok INT;
+ BEGIN TRAN;
+ INSERT att.RawPunch(EmpId,BiometricId,PunchTime,DeviceId,Direction,Source,BatchId)
+ SELECT e.EmpId,s.BiometricId,s.PunchTime,MIN(s.DeviceId),'U','Device',MAX(s.BatchId)
+ FROM att.PunchStaging s JOIN hr.Employee e ON e.BiometricId=s.BiometricId
+ WHERE (@BatchId IS NULL OR s.BatchId=@BatchId)
+   AND NOT EXISTS (SELECT 1 FROM att.RawPunch p WHERE p.PunchDate=CAST(s.PunchTime AS DATE) AND p.EmpId=e.EmpId AND p.PunchTime=s.PunchTime)
+ GROUP BY e.EmpId,s.BiometricId,s.PunchTime;
+ SET @ok=@@ROWCOUNT;
+ DELETE FROM att.PunchStaging WHERE @BatchId IS NULL OR BatchId=@BatchId;
+ IF @BatchId IS NOT NULL UPDATE att.PunchImportBatch SET TotalRows=@total,Accepted=@ok,Rejected=@total-@ok WHERE BatchId=@BatchId;
+ COMMIT;
+ SELECT TotalRows=@total, Accepted=@ok, RejectedOrDuplicate=@total-@ok;
+END
+GO
+/* Derives daily status from punches. Full day / half day come from the shift (net worked minutes after break). */
+CREATE PROCEDURE att.usp_ProcessAttendance @FactoryId INT,@FromDate DATE,@ToDate DATE AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ IF @ToDate<@FromDate OR DATEDIFF(DAY,@FromDate,@ToDate)>61 THROW 50110,'Date range invalid (max 62 days).',1;
+ IF EXISTS(SELECT 1 FROM att.MonthlyAttendance WHERE FactoryId=@FactoryId AND IsLocked=1
+           AND DATEFROMPARTS(PayYear,PayMonth,1)<=@ToDate AND EOMONTH(DATEFROMPARTS(PayYear,PayMonth,1))>=@FromDate)
+   THROW 50111,'A locked month overlaps this range.',1;
+ DECLARE @defShift INT=ISNULL((SELECT ShiftId FROM ref.Shift WHERE Code='GEN'),(SELECT MIN(ShiftId) FROM ref.Shift));
+ BEGIN TRY
+  CREATE TABLE #d(WorkDate DATE PRIMARY KEY);
+  INSERT #d SELECT TOP (DATEDIFF(DAY,@FromDate,@ToDate)+1) DATEADD(DAY,ROW_NUMBER() OVER(ORDER BY (SELECT NULL))-1,@FromDate) FROM sys.all_objects;
+
+  SELECT e.EmpId,e.FactoryId,e.DOJ,e.DOL,ISNULL(e.ShiftId,@defShift) AS ShiftId INTO #e FROM hr.Employee e
+  WHERE e.FactoryId=@FactoryId AND e.DOJ<=@ToDate AND (e.DOL IS NULL OR e.DOL>=@FromDate);
+
+  SELECT e.EmpId,e.FactoryId,d.WorkDate,COALESCE(r.ShiftId,e.ShiftId) AS ShiftId,r.IsWeeklyOff INTO #g
+  FROM #e e CROSS JOIN #d d LEFT JOIN att.Roster r ON r.EmpId=e.EmpId AND r.WorkDate=d.WorkDate
+  WHERE d.WorkDate>=e.DOJ AND (e.DOL IS NULL OR d.WorkDate<=e.DOL);
+  CREATE CLUSTERED INDEX ix ON #g(EmpId,WorkDate);
+
+  SELECT g.EmpId,g.WorkDate,MIN(p.PunchTime) AS InTime,MAX(p.PunchTime) AS OutTime,COUNT(*) AS Cnt INTO #p
+  FROM #g g JOIN ref.Shift s ON s.ShiftId=g.ShiftId
+  JOIN att.RawPunch p ON p.EmpId=g.EmpId AND p.PunchDate BETWEEN g.WorkDate AND DATEADD(DAY,1,g.WorkDate)
+   AND p.PunchTime>=DATEADD(HOUR,CASE WHEN s.IsNight=1 THEN 12 ELSE 0 END,CAST(g.WorkDate AS DATETIME2(0)))
+   AND p.PunchTime< DATEADD(HOUR,CASE WHEN s.IsNight=1 THEN 36 ELSE 24 END,CAST(g.WorkDate AS DATETIME2(0)))
+  GROUP BY g.EmpId,g.WorkDate;
+  CREATE CLUSTERED INDEX ix ON #p(EmpId,WorkDate);
+
+  SELECT g.EmpId,g.WorkDate,lr.LeaveTypeId,lt.IsPaid INTO #l
+  FROM #g g JOIN att.LeaveRequest lr ON lr.EmpId=g.EmpId AND lr.Status='Approved' AND g.WorkDate BETWEEN lr.FromDate AND lr.ToDate
+  JOIN ref.LeaveType lt ON lt.LeaveTypeId=lr.LeaveTypeId;
+  CREATE CLUSTERED INDEX ix ON #l(EmpId,WorkDate);
+
+  SELECT r.EmpId,r.FactoryId,r.WorkDate,r.ShiftId,r.InTime,r.OutTime,r.Cnt,w.Worked,om.OTMin,s2.St,r.LeaveTypeId,r.IsPaid,r.IsWO,
+         CASE WHEN r.InTime IS NOT NULL AND r.IsWO=0 AND r.IsPH=0
+              THEN CASE WHEN DATEDIFF(MINUTE,DATEADD(SECOND,DATEDIFF(SECOND,0,r.StartTime),CAST(r.WorkDate AS DATETIME2(0))),r.InTime)-r.GraceInMinutes>0
+                        THEN DATEDIFF(MINUTE,DATEADD(SECOND,DATEDIFF(SECOND,0,r.StartTime),CAST(r.WorkDate AS DATETIME2(0))),r.InTime)-r.GraceInMinutes ELSE 0 END
+              ELSE 0 END AS LateMin
+  INTO #res
+  FROM (SELECT g.EmpId,g.FactoryId,g.WorkDate,g.ShiftId,p.InTime,p.OutTime,ISNULL(p.Cnt,0) AS Cnt,
+          CASE WHEN p.Cnt>=2 AND DATEDIFF(MINUTE,p.InTime,p.OutTime)>0 THEN DATEDIFF(MINUTE,p.InTime,p.OutTime) ELSE 0 END AS Span,
+          s.FullDayMinutes,s.HalfDayMinutes,s.BreakMinutes,s.OTAfterMinutes,s.GraceInMinutes,s.StartTime,
+          CASE WHEN g.IsWeeklyOff=1 THEN 1 WHEN g.IsWeeklyOff=0 THEN 0
+               WHEN EXISTS(SELECT 1 FROM ref.WeeklyOffRule w WHERE w.FactoryId IN (0,g.FactoryId) AND w.IsoDow=(DATEDIFF(DAY,'19000101',g.WorkDate)%7)+1 AND w.EffectiveFrom<=g.WorkDate) THEN 1 ELSE 0 END AS IsWO,
+          CASE WHEN EXISTS(SELECT 1 FROM ref.Holiday h WHERE h.HolidayDate=g.WorkDate AND h.FactoryId IN (0,g.FactoryId)) THEN 1 ELSE 0 END AS IsPH,
+          l.LeaveTypeId,l.IsPaid
+        FROM #g g JOIN ref.Shift s ON s.ShiftId=g.ShiftId
+        LEFT JOIN #p p ON p.EmpId=g.EmpId AND p.WorkDate=g.WorkDate
+        LEFT JOIN #l l ON l.EmpId=g.EmpId AND l.WorkDate=g.WorkDate) r
+  CROSS APPLY (SELECT CASE WHEN r.Span>r.BreakMinutes THEN r.Span-r.BreakMinutes ELSE r.Span END AS Worked) w
+  OUTER APPLY (SELECT TOP (1) o.MinOTMinutes,o.RoundToMinutes FROM ref.OTRule o WHERE o.FactoryId IN (0,r.FactoryId) AND o.EffectiveFrom<=r.WorkDate
+               ORDER BY o.FactoryId DESC,o.EffectiveFrom DESC) o
+  CROSS APPLY (SELECT CASE WHEN r.IsWO=1 OR r.IsPH=1 THEN w.Worked WHEN w.Worked-r.FullDayMinutes-r.OTAfterMinutes>0 THEN w.Worked-r.FullDayMinutes-r.OTAfterMinutes ELSE 0 END AS RawOT) ot
+  CROSS APPLY (SELECT CASE WHEN ot.RawOT>=ISNULL(o.MinOTMinutes,30) THEN (ot.RawOT/ISNULL(o.RoundToMinutes,15))*ISNULL(o.RoundToMinutes,15) ELSE 0 END AS OTMin) om
+  CROSS APPLY (SELECT CASE WHEN r.IsPH=1 THEN 'PH' WHEN r.IsWO=1 THEN 'WO'
+                           WHEN r.LeaveTypeId IS NOT NULL AND w.Worked<r.HalfDayMinutes THEN 'L'
+                           WHEN w.Worked>=r.FullDayMinutes THEN 'P' WHEN w.Worked>=r.HalfDayMinutes THEN 'HD' ELSE 'A' END AS St) s2;
+
+  BEGIN TRAN;
+  UPDATE t SET ShiftId=x.ShiftId,InTime=x.InTime,OutTime=x.OutTime,WorkedMinutes=x.Worked,LateMinutes=x.LateMin,OTMinutes=x.OTMin,DayStatus=x.St,LeaveTypeId=CASE WHEN x.St='L' THEN x.LeaveTypeId END,
+     PayFraction=CASE x.St WHEN 'P' THEN 1 WHEN 'HD' THEN 0.5 WHEN 'WO' THEN 1 WHEN 'PH' THEN 1 WHEN 'L' THEN CASE WHEN x.IsPaid=1 THEN 1 ELSE 0 END ELSE 0 END,
+     Flags=CASE WHEN x.Cnt=1 THEN 'MP' END, ModifiedBy=ORIGINAL_LOGIN(), ModifiedAt=SYSUTCDATETIME()
+  FROM att.Attendance t JOIN #res x ON t.WorkDate=x.WorkDate AND t.EmpId=x.EmpId WHERE t.Source='Device' AND t.IsLocked=0;
+
+  INSERT att.Attendance(WorkDate,EmpId,FactoryId,ShiftId,InTime,OutTime,WorkedMinutes,LateMinutes,OTMinutes,DayStatus,LeaveTypeId,PayFraction,Flags,Source)
+  SELECT x.WorkDate,x.EmpId,x.FactoryId,x.ShiftId,x.InTime,x.OutTime,x.Worked,x.LateMin,x.OTMin,x.St,CASE WHEN x.St='L' THEN x.LeaveTypeId END,
+     CASE x.St WHEN 'P' THEN 1 WHEN 'HD' THEN 0.5 WHEN 'WO' THEN 1 WHEN 'PH' THEN 1 WHEN 'L' THEN CASE WHEN x.IsPaid=1 THEN 1 ELSE 0 END ELSE 0 END,
+     CASE WHEN x.Cnt=1 THEN 'MP' END,'Device'
+  FROM #res x WHERE NOT EXISTS (SELECT 1 FROM att.Attendance t WHERE t.WorkDate=x.WorkDate AND t.EmpId=x.EmpId);
+
+  UPDATE o SET OTMinutes=x.OTMin,OnOffDay=CASE WHEN x.St IN ('WO','PH') THEN 1 ELSE 0 END
+  FROM att.Overtime o JOIN #res x ON o.WorkDate=x.WorkDate AND o.EmpId=x.EmpId WHERE o.Status='Pending' AND o.Source='Auto' AND x.OTMin>0;
+  DELETE o FROM att.Overtime o JOIN #res x ON o.WorkDate=x.WorkDate AND o.EmpId=x.EmpId WHERE o.Status='Pending' AND o.Source='Auto' AND x.OTMin=0;
+  INSERT att.Overtime(WorkDate,EmpId,FactoryId,OTMinutes,OnOffDay)
+  SELECT x.WorkDate,x.EmpId,x.FactoryId,x.OTMin,CASE WHEN x.St IN ('WO','PH') THEN 1 ELSE 0 END FROM #res x
+  WHERE x.OTMin>0 AND NOT EXISTS (SELECT 1 FROM att.Overtime o WHERE o.WorkDate=x.WorkDate AND o.EmpId=x.EmpId);
+  COMMIT;
+  SELECT Rows_Processed=(SELECT COUNT(*) FROM #res), MissingPunch=(SELECT COUNT(*) FROM #res WHERE Cnt=1), HalfDays=(SELECT COUNT(*) FROM #res WHERE St='HD'), Absent=(SELECT COUNT(*) FROM #res WHERE St='A');
+ END TRY
+ BEGIN CATCH
+  IF @@TRANCOUNT>0 ROLLBACK;
+  INSERT audit.ErrorLog(ProcName,ErrNo,ErrMsg,ErrLine) VALUES(OBJECT_NAME(@@PROCID),ERROR_NUMBER(),LEFT(ERROR_MESSAGE(),2000),ERROR_LINE());
+  THROW;
+ END CATCH
+END
+GO
+CREATE PROCEDURE att.usp_ApproveRegularization @RegId INT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @e INT,@d DATE,@st VARCHAR(2),@in DATETIME2(0),@out DATETIME2(0),@req SYSNAME,@f INT;
+ SELECT @e=EmpId,@d=WorkDate,@st=NewStatus,@in=NewIn,@out=NewOut,@req=RequestedBy,@f=FactoryId FROM att.AttendanceRegularization WHERE RegId=@RegId AND Status='Pending';
+ IF @e IS NULL THROW 50120,'Request not found or not pending.',1;
+ IF @req=ORIGINAL_LOGIN() THROW 50121,'Approver must differ from requester.',1;
+ IF EXISTS(SELECT 1 FROM att.MonthlyAttendance WHERE EmpId=@e AND PayYear=YEAR(@d) AND PayMonth=MONTH(@d) AND IsLocked=1) THROW 50122,'Month is locked.',1;
+ BEGIN TRAN;
+ UPDATE att.AttendanceRegularization SET Status='Approved',ApprovedBy=ORIGINAL_LOGIN(),ApprovedOn=SYSUTCDATETIME(),OldStatus=(SELECT DayStatus FROM att.Attendance WHERE WorkDate=@d AND EmpId=@e) WHERE RegId=@RegId;
+ UPDATE att.Attendance SET DayStatus=@st,InTime=ISNULL(@in,InTime),OutTime=ISNULL(@out,OutTime),Source='Manual',Flags=NULL,
+   PayFraction=CASE @st WHEN 'P' THEN 1 WHEN 'HD' THEN 0.5 WHEN 'WO' THEN 1 WHEN 'PH' THEN 1 WHEN 'L' THEN 1 ELSE 0 END,
+   ModifiedBy=ORIGINAL_LOGIN(),ModifiedAt=SYSUTCDATETIME() WHERE WorkDate=@d AND EmpId=@e;
+ COMMIT;
+END
+GO
+CREATE PROCEDURE att.usp_MonthlySummary @FactoryId INT,@Month TINYINT,@Year SMALLINT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @from DATE=DATEFROMPARTS(@Year,@Month,1),@to DATE=EOMONTH(DATEFROMPARTS(@Year,@Month,1)),@days INT=DAY(EOMONTH(DATEFROMPARTS(@Year,@Month,1)));
+ IF EXISTS(SELECT 1 FROM att.MonthlyAttendance WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month AND IsLocked=1) THROW 50130,'Month already locked.',1;
+ BEGIN TRAN;
+ DELETE FROM att.MonthlyAttendance WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month AND IsLocked=0;
+ INSERT att.MonthlyAttendance(PayYear,PayMonth,EmpId,FactoryId,DaysInMonth,PresentDays,HalfDays,AbsentDays,WeeklyOffs,Holidays,PaidLeaveDays,UnpaidLeaveDays,WorkedDays,PaidDays,OTMinutes)
+ SELECT @Year,@Month,a.EmpId,@FactoryId,@days,
+  SUM(CASE WHEN a.DayStatus='P' THEN 1 ELSE 0 END),SUM(CASE WHEN a.DayStatus='HD' THEN 1 ELSE 0 END),SUM(CASE WHEN a.DayStatus='A' THEN 1 ELSE 0 END),
+  SUM(CASE WHEN a.DayStatus='WO' THEN 1 ELSE 0 END),SUM(CASE WHEN a.DayStatus='PH' THEN 1 ELSE 0 END),
+  SUM(CASE WHEN a.DayStatus='L' AND a.PayFraction>0 THEN 1 ELSE 0 END),SUM(CASE WHEN a.DayStatus='L' AND a.PayFraction=0 THEN 1 ELSE 0 END),
+  SUM(CASE WHEN a.DayStatus='P' THEN 1.0 WHEN a.DayStatus='HD' THEN 0.5 ELSE 0 END),
+  CASE WHEN SUM(a.PayFraction)>@days THEN @days ELSE SUM(a.PayFraction) END, SUM(a.OTMinutes)
+ FROM att.Attendance a WHERE a.FactoryId=@FactoryId AND a.WorkDate BETWEEN @from AND @to GROUP BY a.EmpId;
+ COMMIT;
+ SELECT Employees=COUNT(*),AvgPaidDays=AVG(PaidDays) FROM att.MonthlyAttendance WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month;
+END
+GO
+CREATE PROCEDURE att.usp_LockMonth @FactoryId INT,@Month TINYINT,@Year SMALLINT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @from DATE=DATEFROMPARTS(@Year,@Month,1),@to DATE=EOMONTH(DATEFROMPARTS(@Year,@Month,1));
+ IF NOT EXISTS(SELECT 1 FROM att.MonthlyAttendance WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month) THROW 50140,'Run monthly summary first.',1;
+ IF EXISTS(SELECT 1 FROM att.AttendanceRegularization WHERE FactoryId=@FactoryId AND WorkDate BETWEEN @from AND @to AND Status='Pending') THROW 50141,'Pending regularizations exist.',1;
+ IF EXISTS(SELECT 1 FROM att.Overtime WHERE FactoryId=@FactoryId AND WorkDate BETWEEN @from AND @to AND Status='Pending') THROW 50142,'Pending overtime approvals exist.',1;
+ BEGIN TRAN;
+ UPDATE att.MonthlyAttendance SET IsLocked=1,LockedBy=ORIGINAL_LOGIN(),LockedOn=SYSUTCDATETIME() WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month;
+ UPDATE att.Attendance SET IsLocked=1 WHERE FactoryId=@FactoryId AND WorkDate BETWEEN @from AND @to;
+ INSERT att.AttendanceLock(FactoryId,PayMonth,PayYear,LockedBy) VALUES(@FactoryId,@Month,@Year,ORIGINAL_LOGIN());
+ COMMIT;
+END
+GO
+CREATE PROCEDURE att.usp_ReopenMonth @FactoryId INT,@Month TINYINT,@Year SMALLINT,@Reason NVARCHAR(300) AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @from DATE=DATEFROMPARTS(@Year,@Month,1),@to DATE=EOMONTH(DATEFROMPARTS(@Year,@Month,1));
+ IF EXISTS(SELECT 1 FROM payroll.PayrollRun WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month AND Status IN ('Approved','Locked','Paid')) THROW 50150,'Payroll already approved or locked.',1;
+ BEGIN TRAN;
+ UPDATE att.MonthlyAttendance SET IsLocked=0,LockedBy=NULL,LockedOn=NULL WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month;
+ UPDATE att.Attendance SET IsLocked=0 WHERE FactoryId=@FactoryId AND WorkDate BETWEEN @from AND @to;
+ UPDATE att.AttendanceLock SET ReopenedBy=ORIGINAL_LOGIN(),ReopenedOn=SYSUTCDATETIME(),ReopenReason=@Reason WHERE FactoryId=@FactoryId AND PayMonth=@Month AND PayYear=@Year AND ReopenedOn IS NULL;
+ COMMIT;
+END
+GO
+CREATE PROCEDURE att.usp_ApproveLeave @LeaveId INT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @e INT,@lt INT,@days DECIMAL(4,1),@req SYSNAME,@from DATE,@fy VARCHAR(10),@paid BIT;
+ SELECT @e=EmpId,@lt=LeaveTypeId,@days=Days,@req=RequestedBy,@from=FromDate FROM att.LeaveRequest WHERE LeaveId=@LeaveId AND Status='Pending';
+ IF @e IS NULL THROW 50160,'Leave request not found or not pending.',1;
+ IF @req=ORIGINAL_LOGIN() THROW 50161,'Approver must differ from requester.',1;
+ SET @fy=payroll.fn_FYCode(@from); SELECT @paid=IsPaid FROM ref.LeaveType WHERE LeaveTypeId=@lt;
+ IF @paid=1 AND ISNULL((SELECT Balance FROM att.LeaveBalance WHERE EmpId=@e AND LeaveTypeId=@lt AND FYCode=@fy),0)<@days THROW 50162,'Insufficient leave balance.',1;
+ BEGIN TRAN;
+ UPDATE att.LeaveRequest SET Status='Approved',ApprovedBy=ORIGINAL_LOGIN(),ApprovedOn=SYSUTCDATETIME() WHERE LeaveId=@LeaveId;
+ IF @paid=1
+ BEGIN
+  UPDATE att.LeaveBalance SET Taken=Taken+@days WHERE EmpId=@e AND LeaveTypeId=@lt AND FYCode=@fy;
+  INSERT att.LeaveLedger(EmpId,LeaveTypeId,TxnDate,TxnType,Days,RefNo) VALUES(@e,@lt,@from,'TAKE',-@days,'LV'+CAST(@LeaveId AS VARCHAR(10)));
+ END
+ COMMIT;
+END
+GO
+/* Earned leave on days worked (e.g. 1 per 20 days worked) - run once per month after summary */
+CREATE PROCEDURE att.usp_AccrueLeave @Month TINYINT,@Year SMALLINT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @fy VARCHAR(10)=payroll.fn_FYCode(DATEFROMPARTS(@Year,@Month,1)), @ref VARCHAR(30)='ACC'+CAST(@Year*100+@Month AS VARCHAR(6));
+ IF EXISTS(SELECT 1 FROM att.LeaveLedger WHERE RefNo=@ref) THROW 50170,'Leave already accrued for this month.',1;
+ SELECT m.EmpId,lt.LeaveTypeId,CAST(m.WorkedDays/lt.DaysWorkedPerLeave AS DECIMAL(6,2)) AS Earned,lt.MaxAccumulate INTO #a
+ FROM att.MonthlyAttendance m CROSS JOIN ref.LeaveType lt WHERE m.PayYear=@Year AND m.PayMonth=@Month AND m.IsLocked=1 AND lt.AccrualBasis='DaysWorked' AND lt.DaysWorkedPerLeave>0 AND lt.IsActive=1;
+ BEGIN TRAN;
+ INSERT att.LeaveBalance(EmpId,LeaveTypeId,FYCode) SELECT a.EmpId,a.LeaveTypeId,@fy FROM #a a WHERE NOT EXISTS (SELECT 1 FROM att.LeaveBalance b WHERE b.EmpId=a.EmpId AND b.LeaveTypeId=a.LeaveTypeId AND b.FYCode=@fy);
+ UPDATE b SET Earned=b.Earned+CASE WHEN a.MaxAccumulate IS NOT NULL AND b.Balance+a.Earned>a.MaxAccumulate THEN CASE WHEN a.MaxAccumulate-b.Balance>0 THEN a.MaxAccumulate-b.Balance ELSE 0 END ELSE a.Earned END
+ FROM att.LeaveBalance b JOIN #a a ON a.EmpId=b.EmpId AND a.LeaveTypeId=b.LeaveTypeId AND b.FYCode=@fy;
+ INSERT att.LeaveLedger(EmpId,LeaveTypeId,TxnDate,TxnType,Days,RefNo) SELECT EmpId,LeaveTypeId,EOMONTH(DATEFROMPARTS(@Year,@Month,1)),'ACCRUE',Earned,@ref FROM #a WHERE Earned>0;
+ COMMIT;
+END
+GO
+CREATE PROCEDURE att.usp_GrantAnnualLeave @FYCode VARCHAR(10) AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ BEGIN TRAN;
+ INSERT att.LeaveBalance(EmpId,LeaveTypeId,FYCode,Earned)
+ SELECT e.EmpId,lt.LeaveTypeId,@FYCode,lt.AnnualQuota FROM hr.Employee e CROSS JOIN ref.LeaveType lt
+ WHERE e.IsActive=1 AND lt.AccrualBasis='Yearly' AND lt.AnnualQuota>0 AND lt.IsActive=1
+   AND NOT EXISTS (SELECT 1 FROM att.LeaveBalance b WHERE b.EmpId=e.EmpId AND b.LeaveTypeId=lt.LeaveTypeId AND b.FYCode=@FYCode);
+ INSERT att.LeaveLedger(EmpId,LeaveTypeId,TxnDate,TxnType,Days,RefNo)
+ SELECT b.EmpId,b.LeaveTypeId,GETDATE(),'ACCRUE',b.Earned,'GRANT'+@FYCode FROM att.LeaveBalance b WHERE b.FYCode=@FYCode AND b.Earned>0
+   AND NOT EXISTS (SELECT 1 FROM att.LeaveLedger l WHERE l.EmpId=b.EmpId AND l.LeaveTypeId=b.LeaveTypeId AND l.RefNo='GRANT'+@FYCode);
+ COMMIT;
+END
+GO

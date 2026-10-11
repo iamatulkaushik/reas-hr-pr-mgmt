@@ -1,0 +1,52 @@
+/* 13_Backup_Maintenance.sql - Express has no SQL Agent and no backup compression/encryption.
+   Backups run from Windows Task Scheduler (Backup-HRMS.ps1) which then compresses + encrypts with 7-Zip. */
+USE HRMS_Master;
+GO
+CREATE PROCEDURE audit.usp_Backup @DbName SYSNAME,@Type VARCHAR(4),@Folder NVARCHAR(260) AS
+BEGIN
+ SET NOCOUNT ON;
+ IF @Type NOT IN ('FULL','DIFF','LOG') THROW 50300,'Type must be FULL, DIFF or LOG.',1;
+ IF DB_ID(@DbName) IS NULL THROW 50301,'Database not found.',1;
+ IF @Type='LOG' AND DATABASEPROPERTYEX(@DbName,'Recovery')='SIMPLE' BEGIN PRINT 'Skipped log backup (SIMPLE recovery): '+@DbName; RETURN; END
+ DECLARE @file NVARCHAR(400)=@Folder+N'\'+@DbName+N'_'+@Type+N'_'+FORMAT(SYSDATETIME(),'yyyyMMdd_HHmmss')+CASE @Type WHEN 'LOG' THEN N'.trn' ELSE N'.bak' END;
+ DECLARE @id INT;
+ INSERT audit.BackupLog(DbName,BackupType,FilePath,StartedAt,Status) VALUES(@DbName,@Type,@file,SYSDATETIME(),'Running'); SET @id=SCOPE_IDENTITY();
+ BEGIN TRY
+  IF @Type='FULL' BACKUP DATABASE @DbName TO DISK=@file WITH CHECKSUM,INIT,STATS=10;
+  ELSE IF @Type='DIFF' BACKUP DATABASE @DbName TO DISK=@file WITH DIFFERENTIAL,CHECKSUM,INIT;
+  ELSE BACKUP LOG @DbName TO DISK=@file WITH CHECKSUM,INIT;
+  RESTORE VERIFYONLY FROM DISK=@file WITH CHECKSUM;
+  UPDATE audit.BackupLog SET Status='OK',Verified=1,FinishedAt=SYSDATETIME(),
+    SizeMB=(SELECT TOP (1) backup_size/1048576.0 FROM msdb.dbo.backupset WHERE database_name=@DbName ORDER BY backup_finish_date DESC) WHERE BackupId=@id;
+ END TRY
+ BEGIN CATCH
+  UPDATE audit.BackupLog SET Status='FAILED',FinishedAt=SYSDATETIME(),Message=LEFT(ERROR_MESSAGE(),500) WHERE BackupId=@id;
+  THROW;
+ END CATCH
+END
+GO
+CREATE PROCEDURE audit.usp_IndexMaintenance AS
+BEGIN   -- REORGANIZE 10-30%, REBUILD >30% (offline on Express: run at night)
+ SET NOCOUNT ON;
+ DECLARE @sql NVARCHAR(MAX),@n INT=0;
+ DECLARE c CURSOR LOCAL FAST_FORWARD FOR
+  SELECT N'ALTER INDEX '+QUOTENAME(i.name)+N' ON '+QUOTENAME(s.name)+N'.'+QUOTENAME(o.name)+CASE WHEN p.avg_fragmentation_in_percent>30 THEN N' REBUILD' ELSE N' REORGANIZE' END
+  FROM sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL,'LIMITED') p JOIN sys.indexes i ON i.object_id=p.object_id AND i.index_id=p.index_id
+  JOIN sys.objects o ON o.object_id=p.object_id JOIN sys.schemas s ON s.schema_id=o.schema_id
+  WHERE p.index_id>0 AND p.page_count>1000 AND p.avg_fragmentation_in_percent>10 AND o.is_ms_shipped=0;
+ OPEN c; FETCH c INTO @sql;
+ WHILE @@FETCH_STATUS=0 BEGIN EXEC(@sql); SET @n+=1; FETCH c INTO @sql; END
+ CLOSE c; DEALLOCATE c;
+ EXEC sys.sp_updatestats;
+ INSERT HRMS_Master.audit.MaintenanceLog(DbName,Task,Detail) VALUES(DB_NAME(),'IndexMaintenance',CAST(@n AS NVARCHAR(20))+N' indexes processed');
+END
+GO
+DECLARE @d NVARCHAR(MAX)=(SELECT definition FROM HRMS_Master.sys.sql_modules WHERE object_id=OBJECT_ID(N'HRMS_Master.audit.usp_IndexMaintenance'));
+EXEC HRMS_Live.sys.sp_executesql @d;
+GO
+/* Restore template (run in SSMS as sysadmin). Point-in-time:
+   RESTORE DATABASE HRMS_Live FROM DISK='...FULL.bak' WITH NORECOVERY,REPLACE;
+   RESTORE DATABASE HRMS_Live FROM DISK='...DIFF.bak' WITH NORECOVERY;
+   RESTORE LOG HRMS_Live FROM DISK='...LOG1.trn' WITH NORECOVERY;  -- repeat in order
+   RESTORE LOG HRMS_Live FROM DISK='...LOGn.trn' WITH STOPAT='2026-10-09 14:30:00',RECOVERY;
+   First extract the .7z files (password from your vault). Test monthly with Test-Restore.ps1. */

@@ -1,0 +1,112 @@
+/* 16_TestData.sql - load-test generator (default 20,000 employees, 3 factories, one month) + remover. Run as sysadmin on a TEST copy.
+   EXEC test.usp_LoadTestData @Employees=20000,@Year=2026,@Month=4;   -- prints timings per step
+   EXEC test.usp_RemoveTestData;                                      -- cleanup */
+USE HRMS_Live;
+GO
+CREATE PROCEDURE test.usp_LoadTestData @Employees INT=20000,@Year SMALLINT=2026,@Month TINYINT=4 AS
+BEGIN
+ SET NOCOUNT ON;
+ IF EXISTS (SELECT 1 FROM hr.Employee WHERE EmpCode LIKE 'TST%') THROW 50600,'Test data already loaded. Run test.usp_RemoveTestData first.',1;
+ DECLARE @t DATETIME2=SYSDATETIME(),@co INT,@mh INT=(SELECT StateId FROM ref.State WHERE Code='MH'),@from DATE=DATEFROMPARTS(@Year,@Month,1),@to DATE=EOMONTH(DATEFROMPARTS(@Year,@Month,1)),@msg NVARCHAR(200);
+ INSERT ref.Company(Code,Name,StateId,EPFCode,ESICode) VALUES('TST',N'Test Company Pvt Ltd',@mh,'TEST/0000001','00000000000000001');
+ SET @co=SCOPE_IDENTITY();
+ INSERT ref.Factory(CompanyId,Code,Name,StateId) VALUES(@co,'TF1',N'Test Factory 1',@mh),(@co,'TF2',N'Test Factory 2',@mh),(@co,'TF3',N'Test Factory 3',@mh);
+ INSERT ref.Department(FactoryId,Code,Name) SELECT FactoryId,'PRD',N'Production' FROM ref.Factory WHERE Code LIKE 'TF%';
+
+ ;WITH n AS (SELECT TOP (@Employees) ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS i FROM sys.all_objects a CROSS JOIN sys.all_objects b)
+ INSERT hr.Employee(EmpCode,CompanyId,FactoryId,DeptId,DesigId,GradeId,ShiftId,FirstName,LastName,Gender,DOB,DOJ,EmploymentType,WorkerType,BiometricId,Mobile)
+ SELECT 'TST'+RIGHT('000000'+CAST(n.i AS VARCHAR(7)),6),@co,f.FactoryId,d.DeptId,dg.DesigId,dg.GradeId,sh.ShiftId,N'Test',N'Emp'+CAST(n.i AS NVARCHAR(10)),
+        CASE WHEN n.i%5=0 THEN 'F' ELSE 'M' END,DATEADD(DAY,-(n.i%8000),'1995-01-01'),DATEADD(DAY,-(n.i%1500+30),'2026-03-01'),'Permanent','Worker',900000+n.i,'98'+RIGHT('00000000'+CAST(n.i AS VARCHAR(8)),8)
+ FROM n JOIN ref.Factory f ON f.Code='TF'+CAST(n.i%3+1 AS CHAR(1)) JOIN ref.Department d ON d.FactoryId=f.FactoryId AND d.Code='PRD'
+ JOIN ref.Designation dg ON dg.Code=CASE n.i%3 WHEN 0 THEN 'HLP' WHEN 1 THEN 'OPR' ELSE 'TCH' END
+ JOIN ref.Shift sh ON sh.Code=CASE n.i%4 WHEN 0 THEN 'A' WHEN 1 THEN 'B' ELSE 'GEN' END;
+ SET @msg=CONCAT('Employees: ',@@ROWCOUNT,'  ',DATEDIFF(SECOND,@t,SYSDATETIME()),'s'); RAISERROR(@msg,0,1) WITH NOWAIT;
+
+ INSERT hr.EmployeeStatutory(EmpId,IsEPFMember,UAN,IsESIMember,ESIIPNo,PTApplicable,LWFApplicable)
+ SELECT e.EmpId,1,CAST(100000000000+CAST(SUBSTRING(e.EmpCode,4,6) AS INT) AS VARCHAR(12)),CASE WHEN CAST(SUBSTRING(e.EmpCode,4,6) AS INT)%3=0 THEN 1 ELSE 0 END,
+        CASE WHEN CAST(SUBSTRING(e.EmpCode,4,6) AS INT)%3=0 THEN CAST(31000000000000000+CAST(SUBSTRING(e.EmpCode,4,6) AS BIGINT) AS VARCHAR(17)) END,1,1
+ FROM hr.Employee e WHERE e.EmpCode LIKE 'TST%';
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ INSERT hr.EmployeeBank(EmpId,BankId,AccountNo_Enc,AccountLast4,IFSC) SELECT e.EmpId,1,ENCRYPTBYKEY(KEY_GUID('HRMS_DataKey'),CAST(5000000000+CAST(SUBSTRING(e.EmpCode,4,6) AS BIGINT) AS VARCHAR(25)),1,CONVERT(VARBINARY(20),e.EmpId)),RIGHT(CAST(5000000000+CAST(SUBSTRING(e.EmpCode,4,6) AS BIGINT) AS VARCHAR(25)),4),'SBIN0000001' FROM hr.Employee e WHERE e.EmpCode LIKE 'TST%';
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+
+ INSERT payroll.EmployeeSalary(EmpId,CompId,MonthlyAmt,EffectiveFrom)
+ SELECT e.EmpId,c.CompId,
+   CASE c.Code WHEN 'BASIC' THEN b.Basic WHEN 'DA' THEN b.Basic*0.10 WHEN 'HRA' THEN b.Basic*0.40 WHEN 'CONV' THEN 1600 WHEN 'SPL' THEN CASE WHEN b.Grp=2 THEN 3000 ELSE 0 END END,'2020-01-01'
+ FROM hr.Employee e CROSS APPLY (SELECT CAST(SUBSTRING(e.EmpCode,4,6) AS INT)%3 AS Grp,CASE CAST(SUBSTRING(e.EmpCode,4,6) AS INT)%3 WHEN 0 THEN 9000 WHEN 1 THEN 12000 ELSE 18000 END AS Basic) b
+ JOIN payroll.SalaryComponent c ON c.Code IN ('BASIC','DA','HRA','CONV','SPL') WHERE e.EmpCode LIKE 'TST%';
+ DELETE FROM payroll.EmployeeSalary WHERE MonthlyAmt=0;
+ SET @msg=CONCAT('Statutory, bank, salary done  ',DATEDIFF(SECOND,@t,SYSDATETIME()),'s'); RAISERROR(@msg,0,1) WITH NOWAIT;
+
+ /* two punches per working day; some absences, half days and overtime */
+ SELECT TOP (DATEDIFF(DAY,@from,@to)+1) DATEADD(DAY,ROW_NUMBER() OVER(ORDER BY (SELECT NULL))-1,@from) AS d INTO #days FROM sys.all_objects;
+ INSERT att.RawPunch(EmpId,BiometricId,PunchTime,DeviceId,Direction,Source)
+ SELECT e.EmpId,e.BiometricId,CASE k.n WHEN 1 THEN x.InT ELSE DATEADD(MINUTE,x.SpanMin,x.InT) END,'DEV1','U','Device'
+ FROM hr.Employee e JOIN ref.Shift s ON s.ShiftId=e.ShiftId CROSS JOIN #days dd
+ CROSS APPLY (SELECT CAST(SUBSTRING(e.EmpCode,4,6) AS INT) AS i) q
+ CROSS APPLY (SELECT DATEADD(MINUTE,DATEDIFF(MINUTE,0,s.StartTime)+q.i%15,CAST(dd.d AS DATETIME2(0))) AS InT,
+              CASE WHEN (q.i+DAY(dd.d))%31=0 THEN 300 ELSE s.FullDayMinutes+s.BreakMinutes+CASE WHEN q.i%3=0 THEN 90 ELSE 0 END END AS SpanMin) x
+ CROSS JOIN (VALUES (1),(2)) k(n)
+ WHERE e.EmpCode LIKE 'TST%' AND (DATEDIFF(DAY,'19000101',dd.d)%7)+1<>7 AND (q.i+DAY(dd.d))%23<>0;
+ SET @msg=CONCAT('Punches: ',@@ROWCOUNT,'  ',DATEDIFF(SECOND,@t,SYSDATETIME()),'s'); RAISERROR(@msg,0,1) WITH NOWAIT;
+
+ DECLARE @f INT,@run INT,@t1 DATETIME2;
+ DECLARE fc CURSOR LOCAL FOR SELECT FactoryId FROM ref.Factory WHERE Code LIKE 'TF%' ORDER BY FactoryId;
+ OPEN fc; FETCH fc INTO @f;
+ WHILE @@FETCH_STATUS=0
+ BEGIN
+  SET @t1=SYSDATETIME();
+  EXEC att.usp_ProcessAttendance @f,@from,@to;
+  EXEC att.usp_MonthlySummary @f,@Month,@Year;
+  UPDATE att.Overtime SET Status='Approved',ApprovedBy='test.checker',ApprovedOn=SYSUTCDATETIME() WHERE FactoryId=@f AND WorkDate BETWEEN @from AND @to AND Status='Pending';
+  EXEC att.usp_LockMonth @f,@Month,@Year;
+  SET @msg=CONCAT('Factory ',@f,' attendance ',DATEDIFF(SECOND,@t1,SYSDATETIME()),'s'); RAISERROR(@msg,0,1) WITH NOWAIT;
+  SET @t1=SYSDATETIME();
+  EXEC payroll.usp_ProcessPayroll @f,@Month,@Year;
+  SELECT @run=RunId FROM payroll.PayrollRun WHERE FactoryId=@f AND PayYear=@Year AND PayMonth=@Month;
+  UPDATE payroll.PayrollRun SET Status='Approved',ApprovedBy='test.checker',ApprovedOn=SYSUTCDATETIME() WHERE RunId=@run;
+  EXEC payroll.usp_LockPayroll @run;
+  SET @msg=CONCAT('Factory ',@f,' payroll+lock+compliance ',DATEDIFF(SECOND,@t1,SYSDATETIME()),'s'); RAISERROR(@msg,0,1) WITH NOWAIT;
+  FETCH fc INTO @f;
+ END
+ CLOSE fc; DEALLOCATE fc;
+ SET @msg=CONCAT('TOTAL ',DATEDIFF(SECOND,@t,SYSDATETIME()),'s'); RAISERROR(@msg,0,1) WITH NOWAIT;
+ SELECT Runs=COUNT(*),Employees=SUM(EmpCount),Gross_INR=SUM(TotalGross),Net_INR=SUM(TotalNet) FROM payroll.PayrollRun WHERE FactoryId IN (SELECT FactoryId FROM ref.Factory WHERE Code LIKE 'TF%');
+END
+GO
+CREATE PROCEDURE test.usp_RemoveTestData AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ SELECT FactoryId INTO #f FROM ref.Factory WHERE Code LIKE 'TF%';
+ SELECT EmpId INTO #e FROM hr.Employee WHERE EmpCode LIKE 'TST%';
+ SELECT RunId INTO #r FROM payroll.PayrollRun WHERE FactoryId IN (SELECT FactoryId FROM #f);
+ BEGIN TRAN;
+ DELETE FROM compliance.ChallanLine WHERE ChallanId IN (SELECT ChallanId FROM compliance.Challan WHERE FactoryId IN (SELECT FactoryId FROM #f));
+ DELETE FROM compliance.Challan WHERE FactoryId IN (SELECT FactoryId FROM #f);
+ DELETE FROM compliance.FilingStatus WHERE FactoryId IN (SELECT FactoryId FROM #f);
+ DELETE FROM compliance.EPFContribution WHERE RunId IN (SELECT RunId FROM #r); DELETE FROM compliance.ESIContribution WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM compliance.PTDeduction WHERE RunId IN (SELECT RunId FROM #r); DELETE FROM compliance.LWFDeduction WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM compliance.TDSDeduction WHERE RunId IN (SELECT RunId FROM #r); DELETE FROM compliance.MinWageCheck WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM payroll.Journal WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM payroll.BankAdviceLine WHERE AdviceId IN (SELECT AdviceId FROM payroll.BankAdvice WHERE RunId IN (SELECT RunId FROM #r));
+ DELETE FROM payroll.BankAdvice WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM payroll.Payslip WHERE DetailId IN (SELECT DetailId FROM payroll.PayrollDetail WHERE RunId IN (SELECT RunId FROM #r));
+ DELETE FROM payroll.PayrollDetailLine WHERE DetailId IN (SELECT DetailId FROM payroll.PayrollDetail WHERE RunId IN (SELECT RunId FROM #r));
+ DELETE FROM payroll.AdvanceRecovery WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM payroll.PayrollDetail WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM payroll.PayrollApproval WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM payroll.PayrollRun WHERE RunId IN (SELECT RunId FROM #r);
+ DELETE FROM payroll.EmployeeSalary WHERE EmpId IN (SELECT EmpId FROM #e);
+ DELETE FROM att.MonthlyAttendance WHERE FactoryId IN (SELECT FactoryId FROM #f); DELETE FROM att.AttendanceLock WHERE FactoryId IN (SELECT FactoryId FROM #f);
+ DELETE FROM att.Overtime WHERE FactoryId IN (SELECT FactoryId FROM #f); DELETE FROM att.Attendance WHERE FactoryId IN (SELECT FactoryId FROM #f);
+ DELETE FROM att.RawPunch WHERE EmpId IN (SELECT EmpId FROM #e);
+ DELETE FROM att.LeaveBalance WHERE EmpId IN (SELECT EmpId FROM #e); DELETE FROM att.LeaveLedger WHERE EmpId IN (SELECT EmpId FROM #e);
+ DELETE FROM hr.EmployeeBank WHERE EmpId IN (SELECT EmpId FROM #e); DELETE FROM hr.EmployeeStatutory WHERE EmpId IN (SELECT EmpId FROM #e);
+ DELETE FROM hr.Employee WHERE EmpId IN (SELECT EmpId FROM #e);
+ DELETE FROM ref.Department WHERE FactoryId IN (SELECT FactoryId FROM #f);
+ DELETE FROM ref.Factory WHERE FactoryId IN (SELECT FactoryId FROM #f);
+ DELETE FROM ref.Company WHERE Code='TST';
+ COMMIT;
+ PRINT 'Test data removed.';
+END
+GO

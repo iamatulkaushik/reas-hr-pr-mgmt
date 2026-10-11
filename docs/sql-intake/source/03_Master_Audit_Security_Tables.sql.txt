@@ -1,0 +1,62 @@
+/* 03_Master_Audit_Security_Tables.sql - HRMS_Master: sec + audit tables, audit trigger generator */
+USE HRMS_Master;
+GO
+CREATE TABLE sec.AppUser(
+ UserId INT IDENTITY PRIMARY KEY, LoginName SYSNAME NOT NULL UNIQUE,
+ RoleName VARCHAR(20) NOT NULL CHECK (RoleName IN ('role_developer','role_associate','role_operator','role_ca')),
+ FullName NVARCHAR(150) NOT NULL, IsActive BIT NOT NULL DEFAULT 1, CreatedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+
+CREATE TABLE sec.UserFactory(                 -- FactoryId 0 = all factories
+ LoginName SYSNAME NOT NULL, FactoryId INT NOT NULL, PRIMARY KEY(LoginName,FactoryId));
+
+CREATE TABLE sec.AccessRequest(
+ RequestId INT IDENTITY PRIMARY KEY, LoginName SYSNAME NOT NULL, RequestedAccess NVARCHAR(300), RequestedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+ ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL, Status VARCHAR(10) NOT NULL DEFAULT 'Pending');
+
+CREATE TABLE audit.AuditLog(
+ AuditId BIGINT IDENTITY PRIMARY KEY, TableName SYSNAME NOT NULL, PKValue NVARCHAR(100) NOT NULL, Action CHAR(1) NOT NULL,
+ OldValue NVARCHAR(MAX) NULL, NewValue NVARCHAR(MAX) NULL, ChangedBy SYSNAME NOT NULL, HostName NVARCHAR(128) NULL DEFAULT HOST_NAME(),
+ ChangedAt DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME());
+CREATE INDEX IX_Audit_Tbl ON audit.AuditLog(TableName,PKValue,ChangedAt);
+CREATE INDEX IX_Audit_Time ON audit.AuditLog(ChangedAt) INCLUDE(ChangedBy);
+
+CREATE TABLE audit.ErrorLog(
+ ErrorId BIGINT IDENTITY PRIMARY KEY, ProcName SYSNAME NULL, ErrNo INT, ErrMsg NVARCHAR(2000), ErrLine INT,
+ LoggedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), LoggedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+
+CREATE TABLE audit.BackupLog(
+ BackupId INT IDENTITY PRIMARY KEY, DbName SYSNAME NOT NULL, BackupType VARCHAR(4) NOT NULL, FilePath NVARCHAR(400) NOT NULL,
+ StartedAt DATETIME2(0) NOT NULL, FinishedAt DATETIME2(0) NULL, SizeMB DECIMAL(12,2) NULL,
+ Status VARCHAR(10) NOT NULL, Verified BIT NOT NULL DEFAULT 0, Message NVARCHAR(500) NULL);
+
+CREATE TABLE audit.MaintenanceLog(
+ LogId INT IDENTITY PRIMARY KEY, DbName SYSNAME, Task VARCHAR(30), Detail NVARCHAR(300), LoggedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+GO
+/* Generates a row-level JSON audit trigger for any table with a single-column or leading-column PK */
+CREATE PROCEDURE audit.usp_CreateAuditTrigger @Schema SYSNAME, @Table SYSNAME
+AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @obj INT=OBJECT_ID(QUOTENAME(@Schema)+N'.'+QUOTENAME(@Table));
+ IF @obj IS NULL THROW 50001,'Table not found.',1;
+ DECLARE @pk SYSNAME=(SELECT TOP 1 c.name FROM sys.indexes i
+   JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id
+   JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
+   WHERE i.is_primary_key=1 AND i.object_id=@obj ORDER BY ic.key_ordinal);
+ IF @pk IS NULL THROW 50002,'Table has no primary key.',1;
+ DECLARE @t NVARCHAR(300)=QUOTENAME(@Schema)+N'.'+QUOTENAME(@Table);
+ DECLARE @trg NVARCHAR(300)=QUOTENAME(@Schema)+N'.'+QUOTENAME(N'trg_'+@Table+N'_audit');
+ DECLARE @k NVARCHAR(130)=QUOTENAME(@pk);
+ DECLARE @sql NVARCHAR(MAX)=N'CREATE OR ALTER TRIGGER '+@trg+N' ON '+@t+N' AFTER INSERT,UPDATE,DELETE AS
+BEGIN
+ SET NOCOUNT ON;
+ IF NOT EXISTS(SELECT 1 FROM inserted) AND NOT EXISTS(SELECT 1 FROM deleted) RETURN;
+ INSERT audit.AuditLog(TableName,PKValue,Action,OldValue,NewValue,ChangedBy)
+ SELECT N'''+@Schema+N'.'+@Table+N''', CAST(COALESCE(i.'+@k+N',d.'+@k+N') AS NVARCHAR(100)),
+  CASE WHEN d.'+@k+N' IS NULL THEN ''I'' WHEN i.'+@k+N' IS NULL THEN ''D'' ELSE ''U'' END,
+  (SELECT d.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER), (SELECT i.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER), ORIGINAL_LOGIN()
+ FROM inserted i FULL OUTER JOIN deleted d ON i.'+@k+N'=d.'+@k+N';
+END';
+ EXEC sys.sp_executesql @sql;
+END
+GO

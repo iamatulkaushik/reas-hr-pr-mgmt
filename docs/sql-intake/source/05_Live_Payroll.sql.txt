@@ -1,0 +1,141 @@
+/* 05_Live_Payroll.sql - HRMS_Live, schema payroll */
+USE HRMS_Live;
+GO
+CREATE TABLE payroll.SalaryComponent(
+ CompId INT IDENTITY PRIMARY KEY, Code VARCHAR(10) NOT NULL UNIQUE, Name NVARCHAR(60) NOT NULL,
+ Type CHAR(1) NOT NULL CHECK (Type IN ('E','D')),                    -- Earning / Deduction
+ IsFixed BIT NOT NULL DEFAULT 1, IsProrata BIT NOT NULL DEFAULT 1,
+ IsWageExcluded BIT NOT NULL DEFAULT 0,       -- Code on Wages exclusions (HRA, conveyance, bonus, OT, ...) counted toward the 50% test
+ ExcludeFromWageTest BIT NOT NULL DEFAULT 0,  -- variable items kept out of the 50% test (OT)
+ IsEPFWage BIT NOT NULL DEFAULT 0, IsESIWage BIT NOT NULL DEFAULT 0, IsGratuityWage BIT NOT NULL DEFAULT 0,
+ IsOTBase BIT NOT NULL DEFAULT 0, IsBonusWage BIT NOT NULL DEFAULT 0, IsTaxable BIT NOT NULL DEFAULT 1,
+ DisplayOrder INT NOT NULL DEFAULT 100, IsActive BIT NOT NULL DEFAULT 1);
+
+CREATE TABLE payroll.SalaryTemplate(
+ TemplateId INT IDENTITY PRIMARY KEY, Name NVARCHAR(100) NOT NULL UNIQUE, GradeId INT NULL, IsActive BIT NOT NULL DEFAULT 1);
+CREATE TABLE payroll.SalaryTemplateLine(
+ TemplateId INT NOT NULL REFERENCES payroll.SalaryTemplate, CompId INT NOT NULL REFERENCES payroll.SalaryComponent,
+ CalcType VARCHAR(8) NOT NULL CHECK (CalcType IN ('FIXED','PCT_OF')), BaseCompId INT NULL REFERENCES payroll.SalaryComponent,
+ Value DECIMAL(12,4) NOT NULL, PRIMARY KEY(TemplateId,CompId));
+
+CREATE TABLE payroll.SalaryRevision(
+ RevisionId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, EffectiveFrom DATE NOT NULL,
+ Reason VARCHAR(12) NOT NULL CHECK (Reason IN ('Joining','Increment','Promotion','Correction','Minimum Wage')),
+ GrossBefore DECIMAL(14,2), GrossAfter DECIMAL(14,2) NOT NULL, SourceId INT NULL,
+ Status VARCHAR(10) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending','Approved','Rejected')),
+ RequestedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL,
+ CONSTRAINT CK_Rev_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>RequestedBy));
+
+CREATE TABLE payroll.EmployeeSalary(
+ EmpSalId BIGINT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, CompId INT NOT NULL REFERENCES payroll.SalaryComponent,
+ MonthlyAmt DECIMAL(14,2) NOT NULL CHECK (MonthlyAmt>=0), EffectiveFrom DATE NOT NULL, EffectiveTo DATE NULL,
+ RevisionId INT NULL REFERENCES payroll.SalaryRevision, CHECK (EffectiveTo IS NULL OR EffectiveTo>=EffectiveFrom));
+CREATE INDEX IX_ESal ON payroll.EmployeeSalary(EmpId,EffectiveFrom) INCLUDE(CompId,MonthlyAmt,EffectiveTo);
+
+CREATE TABLE payroll.WageRuleCheck(
+ CheckId BIGINT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, CheckedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+ Remuneration DECIMAL(14,2), ExcludedAmt DECIMAL(14,2), CodeWage DECIMAL(14,2), WagePct DECIMAL(6,2), IsCompliant BIT);
+
+CREATE TABLE payroll.PayrollInput(            -- variable monthly earnings/deductions (incentive, arrears, TDS, other)
+ InputId BIGINT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, FactoryId INT NOT NULL, PayMonth TINYINT NOT NULL, PayYear SMALLINT NOT NULL,
+ CompId INT NOT NULL REFERENCES payroll.SalaryComponent, Amount DECIMAL(14,2) NOT NULL CHECK (Amount>=0), Remarks NVARCHAR(200),
+ Status VARCHAR(10) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending','Approved','Rejected')),
+ EnteredBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL,
+ CONSTRAINT CK_In_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>EnteredBy));
+CREATE INDEX IX_Input ON payroll.PayrollInput(FactoryId,PayYear,PayMonth,Status) INCLUDE(EmpId,CompId,Amount);
+
+CREATE TABLE payroll.PayrollRun(
+ RunId INT IDENTITY PRIMARY KEY, FactoryId INT NOT NULL, PayMonth TINYINT NOT NULL CHECK (PayMonth BETWEEN 1 AND 12), PayYear SMALLINT NOT NULL,
+ DaysInMonth TINYINT NOT NULL, Status VARCHAR(10) NOT NULL DEFAULT 'Draft' CHECK (Status IN ('Draft','Processed','Approved','Locked','Paid')),
+ EmpCount INT NULL, TotalGross DECIMAL(16,2) NULL, TotalDeductions DECIMAL(16,2) NULL, TotalNet DECIMAL(16,2) NULL,
+ ProcessedBy SYSNAME NULL, ProcessedOn DATETIME2(0) NULL, ApprovedBy SYSNAME NULL, ApprovedOn DATETIME2(0) NULL,
+ LockedBy SYSNAME NULL, LockedOn DATETIME2(0) NULL, PaidOn DATE NULL,
+ CONSTRAINT UQ_Run UNIQUE(FactoryId,PayYear,PayMonth),
+ CONSTRAINT CK_Run_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>ProcessedBy));
+
+CREATE TABLE payroll.PayrollDetail(
+ DetailId INT IDENTITY PRIMARY KEY, RunId INT NOT NULL REFERENCES payroll.PayrollRun, EmpId INT NOT NULL, FactoryId INT NOT NULL,
+ PayMonth TINYINT NOT NULL, PayYear SMALLINT NOT NULL, PaidDays DECIMAL(4,1) NOT NULL, LOPDays DECIMAL(4,1) NOT NULL, OTHours DECIMAL(6,2) NOT NULL DEFAULT 0,
+ GrossEarnings DECIMAL(14,2) NOT NULL DEFAULT 0, TotalDeductions DECIMAL(14,2) NOT NULL DEFAULT 0,
+ NetPay AS (GrossEarnings-TotalDeductions) PERSISTED,
+ Remuneration DECIMAL(14,2) NULL, CodeWage DECIMAL(14,2) NULL, EPFWage DECIMAL(14,2) NOT NULL DEFAULT 0, ESIWage DECIMAL(14,2) NOT NULL DEFAULT 0,
+ ESIEligible BIT NOT NULL DEFAULT 0, IsHeld BIT NOT NULL DEFAULT 0, HasWarning BIT NOT NULL DEFAULT 0, WarningText NVARCHAR(200) NULL,
+ CONSTRAINT UQ_PD UNIQUE(RunId,EmpId));
+CREATE INDEX IX_PD_Emp ON payroll.PayrollDetail(EmpId,PayYear,PayMonth) INCLUDE(GrossEarnings,NetPay);
+
+CREATE TABLE payroll.PayrollDetailLine(
+ LineId BIGINT IDENTITY PRIMARY KEY, DetailId INT NOT NULL REFERENCES payroll.PayrollDetail, CompId INT NOT NULL REFERENCES payroll.SalaryComponent,
+ Amount DECIMAL(14,2) NOT NULL, Src VARCHAR(8) NOT NULL DEFAULT 'FIXED');   -- FIXED, INPUT, OT, STAT, ADV
+CREATE INDEX IX_PDL ON payroll.PayrollDetailLine(DetailId) INCLUDE(CompId,Amount);
+
+CREATE TABLE payroll.PayrollApproval(
+ ApprovalId INT IDENTITY PRIMARY KEY, RunId INT NOT NULL REFERENCES payroll.PayrollRun,
+ Stage VARCHAR(10) NOT NULL CHECK (Stage IN ('Process','Approve','Lock','Reopen','Paid')), ActionBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(),
+ ActionAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(), Remarks NVARCHAR(300));
+
+CREATE TABLE payroll.Arrear(
+ ArrearId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, ForMonth TINYINT NOT NULL, ForYear SMALLINT NOT NULL,
+ CompId INT NOT NULL REFERENCES payroll.SalaryComponent, Amount DECIMAL(14,2) NOT NULL, Reason NVARCHAR(200), PaidInRunId INT NULL);
+
+CREATE TABLE payroll.Bonus(
+ BonusId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, AccFromDate DATE NOT NULL, AccToDate DATE NOT NULL,
+ DaysWorked INT NOT NULL, EligibleWage DECIMAL(14,2) NOT NULL, BonusPct DECIMAL(5,2) NOT NULL, BonusAmount DECIMAL(14,2) NOT NULL,
+ Status VARCHAR(10) NOT NULL DEFAULT 'Calculated', PaidInRunId INT NULL);
+
+CREATE TABLE payroll.Advance(
+ AdvanceId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, AdvDate DATE NOT NULL, Amount DECIMAL(14,2) NOT NULL CHECK (Amount>0),
+ EMI DECIMAL(14,2) NOT NULL CHECK (EMI>0), Recovered DECIMAL(14,2) NOT NULL DEFAULT 0, Balance AS (Amount-Recovered) PERSISTED,
+ Status VARCHAR(8) NOT NULL DEFAULT 'Open' CHECK (Status IN ('Open','Closed','Waived')), Remarks NVARCHAR(200));
+CREATE TABLE payroll.AdvanceRecovery(
+ RecoveryId INT IDENTITY PRIMARY KEY, AdvanceId INT NOT NULL REFERENCES payroll.Advance, RunId INT NOT NULL REFERENCES payroll.PayrollRun,
+ Amount DECIMAL(14,2) NOT NULL, IsPosted BIT NOT NULL DEFAULT 0);
+
+CREATE TABLE payroll.Loan(
+ LoanId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, LoanType VARCHAR(20), Principal DECIMAL(14,2) NOT NULL, InterestPct DECIMAL(5,2) NOT NULL DEFAULT 0,
+ TenureMonths INT NOT NULL, EMI DECIMAL(14,2) NOT NULL, StartMonth DATE NOT NULL, Recovered DECIMAL(14,2) NOT NULL DEFAULT 0, Status VARCHAR(8) NOT NULL DEFAULT 'Open');
+
+CREATE TABLE payroll.Reimbursement(
+ ReimbId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, ClaimType VARCHAR(30) NOT NULL, ClaimDate DATE NOT NULL, Amount DECIMAL(14,2) NOT NULL,
+ Status VARCHAR(10) NOT NULL DEFAULT 'Pending', PaidInRunId INT NULL);
+
+CREATE TABLE payroll.SalaryHold(
+ HoldId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, PayMonth TINYINT NOT NULL, PayYear SMALLINT NOT NULL, Reason NVARCHAR(200) NOT NULL,
+ HeldBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), HeldOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(), ReleasedOn DATETIME2(0) NULL);
+
+CREATE TABLE payroll.Payslip(
+ PayslipId INT IDENTITY PRIMARY KEY, DetailId INT NOT NULL UNIQUE REFERENCES payroll.PayrollDetail, GeneratedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+ FilePath NVARCHAR(400) NULL, EmailedOn DATETIME2(0) NULL);
+
+CREATE TABLE payroll.BankAdvice(
+ AdviceId INT IDENTITY PRIMARY KEY, RunId INT NOT NULL REFERENCES payroll.PayrollRun, GeneratedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+ TotalAmount DECIMAL(16,2) NOT NULL, FilePath NVARCHAR(400) NULL, Status VARCHAR(10) NOT NULL DEFAULT 'Generated');
+CREATE TABLE payroll.BankAdviceLine(
+ AdviceLineId BIGINT IDENTITY PRIMARY KEY, AdviceId INT NOT NULL REFERENCES payroll.BankAdvice, EmpId INT NOT NULL, EmpCode VARCHAR(20) NULL, EmpName NVARCHAR(250) NULL,
+ AccountNo_Enc VARBINARY(160) NULL, AccountLast4 CHAR(4) NULL, IFSC CHAR(11), Amount DECIMAL(14,2) NOT NULL, UTR VARCHAR(30) NULL, PaidOn DATE NULL);
+
+CREATE TABLE payroll.Journal(
+ JournalId BIGINT IDENTITY PRIMARY KEY, RunId INT NOT NULL REFERENCES payroll.PayrollRun, LedgerCode VARCHAR(20) NOT NULL, LedgerName NVARCHAR(100),
+ Debit DECIMAL(16,2) NOT NULL DEFAULT 0, Credit DECIMAL(16,2) NOT NULL DEFAULT 0, Narration NVARCHAR(200));
+
+CREATE TABLE payroll.LeaveEncashment(
+ EncashId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, LeaveTypeId INT NOT NULL, Days DECIMAL(6,2) NOT NULL, DailyRate DECIMAL(12,2) NOT NULL,
+ Amount DECIMAL(14,2) NOT NULL, PaidInRunId INT NULL, FnFId INT NULL);
+
+CREATE TABLE payroll.Gratuity(
+ GratuityId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, DOJ DATE NOT NULL, ExitDate DATE NOT NULL, ExitReason VARCHAR(15) NOT NULL,
+ ServiceMonths INT NOT NULL, ServiceYearsRounded INT NOT NULL, WageBase DECIMAL(14,2) NOT NULL, IsEligible BIT NOT NULL,
+ Amount DECIMAL(14,2) NOT NULL, CapApplied BIT NOT NULL DEFAULT 0, Status VARCHAR(10) NOT NULL DEFAULT 'Calculated', PaidOn DATE NULL,
+ CalculatedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), CalculatedOn DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+
+CREATE TABLE payroll.FnF(
+ FnFId INT IDENTITY PRIMARY KEY, EmpId INT NOT NULL, LastWorkingDay DATE NOT NULL, SalaryDue DECIMAL(14,2) NOT NULL DEFAULT 0,
+ LeaveEncashment DECIMAL(14,2) NOT NULL DEFAULT 0, Gratuity DECIMAL(14,2) NOT NULL DEFAULT 0, Bonus DECIMAL(14,2) NOT NULL DEFAULT 0,
+ NoticeRecovery DECIMAL(14,2) NOT NULL DEFAULT 0, AdvanceRecovery DECIMAL(14,2) NOT NULL DEFAULT 0, OtherAdj DECIMAL(14,2) NOT NULL DEFAULT 0,
+ NetPayable AS (SalaryDue+LeaveEncashment+Gratuity+Bonus-NoticeRecovery-AdvanceRecovery+OtherAdj) PERSISTED,
+ Status VARCHAR(10) NOT NULL DEFAULT 'Calculated', PreparedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), ApprovedBy SYSNAME NULL, PaidOn DATE NULL,
+ CONSTRAINT CK_FnF_MC CHECK (ApprovedBy IS NULL OR ApprovedBy<>PreparedBy));
+CREATE TABLE payroll.FnFLine(
+ FnFLineId INT IDENTITY PRIMARY KEY, FnFId INT NOT NULL REFERENCES payroll.FnF, Description NVARCHAR(150) NOT NULL, LineType CHAR(1) NOT NULL CHECK (LineType IN ('E','D')), Amount DECIMAL(14,2) NOT NULL);
+GO
+ALTER TABLE payroll.PayrollDetailLine REBUILD WITH (DATA_COMPRESSION=PAGE);
+GO

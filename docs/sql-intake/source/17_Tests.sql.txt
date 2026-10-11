@@ -1,0 +1,80 @@
+/* 17_Tests.sql - self-checks. EXEC test.usp_RunTests;  every row must say PASS. Run after deployment and after any rate/rule change. */
+USE HRMS_Live;
+GO
+CREATE PROCEDURE test.usp_RunTests AS
+BEGIN
+ SET NOCOUNT ON;
+ CREATE TABLE #r(Id INT IDENTITY,TestName NVARCHAR(120),Expected NVARCHAR(60),Actual NVARCHAR(60),Result AS CASE WHEN Expected=Actual THEN 'PASS' ELSE 'FAIL' END);
+ DECLARE @on DATE='2026-04-30';
+ INSERT #r(TestName,Expected,Actual) SELECT 'EPF wage 12,000: employee share','1440',CAST(CAST(EmployeeShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_EPF(12000,@on,0);
+ INSERT #r SELECT 'EPF wage 20,000 capped at 15,000: employee share','1800',CAST(CAST(EmployeeShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_EPF(20000,@on,0);
+ INSERT #r SELECT 'EPF wage 20,000 higher-wage option: employee share','2400',CAST(CAST(EmployeeShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_EPF(20000,@on,1);
+ INSERT #r SELECT 'EPF wage 15,000: EPS share','1250',CAST(CAST(EPSShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_EPF(15000,@on,0);
+ INSERT #r SELECT 'EPF wage 15,000: employer EPF share (12% less EPS)','550',CAST(CAST(EmployerEPFShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_EPF(15000,@on,0);
+ INSERT #r SELECT 'ESI wage 20,000: employee share','150',CAST(CAST(EmployeeShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_ESI(20000,@on);
+ INSERT #r SELECT 'ESI wage 20,000: employer share','650',CAST(CAST(EmployerShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_ESI(20000,@on);
+ INSERT #r SELECT 'ESI rounds up: wage 10,001 employee share','76',CAST(CAST(EmployeeShare AS INT) AS NVARCHAR(60)) FROM compliance.fn_ESI(10001,@on);
+ INSERT #r SELECT 'Code wage: excluded 70% -> wages 50%','50000',CAST(CAST(CodeWage AS INT) AS NVARCHAR(60)) FROM payroll.fn_CodeWage(100000,70000,50);
+ INSERT #r SELECT 'Code wage: excluded 30% unchanged','70000',CAST(CAST(CodeWage AS INT) AS NVARCHAR(60)) FROM payroll.fn_CodeWage(100000,30000,50);
+ INSERT #r SELECT 'Gratuity 10 years, wage 52,000','300000',CAST(CAST(UncappedAmount AS INT) AS NVARCHAR(60)) FROM payroll.fn_Gratuity('2010-01-01','2020-01-01',52000,'Permanent','Resignation');
+ INSERT #r SELECT 'Gratuity 4 years not eligible','0',CAST(CAST(IsEligible AS INT) AS NVARCHAR(60)) FROM payroll.fn_Gratuity('2022-01-01','2026-01-01',50000,'Permanent','Resignation');
+ INSERT #r SELECT 'Gratuity fixed-term 13 months eligible','1',CAST(CAST(IsEligible AS INT) AS NVARCHAR(60)) FROM payroll.fn_Gratuity('2025-01-01','2026-02-01',50000,'FixedTerm','ContractEnd');
+ INSERT #r SELECT 'Gratuity death waives minimum service','1',CAST(CAST(IsEligible AS INT) AS NVARCHAR(60)) FROM payroll.fn_Gratuity('2025-06-01','2026-01-01',50000,'Permanent','Death');
+ INSERT #r SELECT 'Gratuity 10y7m rounds to 11 years','11',CAST(YearsRounded AS NVARCHAR(60)) FROM payroll.fn_Gratuity('2015-01-01','2025-08-15',50000,'Permanent','Resignation');
+ INSERT #r SELECT 'Gratuity 10y6m stays 10 years','10',CAST(YearsRounded AS NVARCHAR(60)) FROM payroll.fn_Gratuity('2015-01-01','2025-07-15',50000,'Permanent','Resignation');
+ INSERT #r SELECT 'Overtime 2h at 26,000 / 26 days, double rate','500',CAST(CAST(payroll.fn_OTAmount(26000,26,8,120,2) AS INT) AS NVARCHAR(60));
+ INSERT #r SELECT 'ISO weekday: Sunday 2026-01-04 = 7','7',CAST(att.fn_IsoDow('2026-01-04') AS NVARCHAR(60));
+ INSERT #r SELECT 'FY code 2026-03-31','FY2025_26',payroll.fn_FYCode('2026-03-31');
+ INSERT #r SELECT 'FY code 2026-04-01','FY2026_27',payroll.fn_FYCode('2026-04-01');
+ INSERT #r SELECT 'ESI period start for May 2026','2026-04-01',CONVERT(NVARCHAR(10),compliance.fn_ESIPeriodStart(5,2026),23);
+ INSERT #r SELECT 'ESI period start for February 2027','2026-10-01',CONVERT(NVARCHAR(10),compliance.fn_ESIPeriodStart(2,2027),23);
+ INSERT #r SELECT 'Master rates loaded (7 rows)','7',CAST(COUNT(*) AS NVARCHAR(60)) FROM ref.StatutoryRate;
+ INSERT #r SELECT 'Salary components loaded (17)','17',CAST(COUNT(*) AS NVARCHAR(60)) FROM payroll.SalaryComponent;
+ /* encryption: same key in both databases, round trip, cross-database decrypt, tamper binding */
+ DECLARE @g1 UNIQUEIDENTIFIER=(SELECT key_guid FROM HRMS_Master.sys.symmetric_keys WHERE name='HRMS_DataKey'),@g2 UNIQUEIDENTIFIER=(SELECT key_guid FROM sys.symmetric_keys WHERE name='HRMS_DataKey');
+ INSERT #r(TestName,Expected,Actual) VALUES('Same key GUID in Master and Live','1',CASE WHEN @g1 IS NOT NULL AND @g1=@g2 THEN '1' ELSE '0' END);
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ DECLARE @c VARBINARY(160)=ENCRYPTBYKEY(KEY_GUID('HRMS_DataKey'),'ABCDE1234F',1,CONVERT(VARBINARY(20),42)),@p VARCHAR(20),@w VARCHAR(20);
+ INSERT #r(TestName,Expected,Actual) VALUES('Encrypt/decrypt round trip (Live)','ABCDE1234F',ISNULL(CAST(DECRYPTBYKEY(@c,1,CONVERT(VARBINARY(20),42)) AS VARCHAR(20)),'NULL'));
+ INSERT #r(TestName,Expected,Actual) VALUES('Ciphertext does not contain plain text','1',CASE WHEN CHARINDEX(CAST('ABCDE1234F' AS VARBINARY(20)),@c)=0 THEN '1' ELSE '0' END);
+ INSERT #r(TestName,Expected,Actual) VALUES('Ciphertext bound to employee (wrong EmpId gives NULL)','NULL',ISNULL(CAST(DECRYPTBYKEY(@c,1,CONVERT(VARBINARY(20),43)) AS VARCHAR(20)),'NULL'));
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+ EXEC HRMS_Master.sys.sp_executesql N'OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert; SELECT @o=CAST(DECRYPTBYKEY(@c,1,CONVERT(VARBINARY(20),42)) AS VARCHAR(20)); CLOSE SYMMETRIC KEY HRMS_DataKey;',
+   N'@c VARBINARY(160),@o VARCHAR(20) OUTPUT',@c,@p OUTPUT;
+ INSERT #r(TestName,Expected,Actual) VALUES('Live ciphertext decrypts in Master','ABCDE1234F',ISNULL(@p,'NULL'));
+ /* security: operator must not read salary structure or lock payroll */
+ DECLARE @res NVARCHAR(60),@en INT;
+ IF USER_ID('hrms_operator1') IS NOT NULL
+ BEGIN
+  SET @res='ALLOWED';
+  BEGIN TRY
+   EXECUTE AS USER='hrms_operator1'; DECLARE @x INT; SELECT TOP (1) @x=EmpSalId FROM payroll.EmployeeSalary; REVERT;
+  END TRY
+  BEGIN CATCH
+   SET @en=ERROR_NUMBER(); SET @res=CASE WHEN @en=229 THEN 'DENIED' ELSE 'ERR '+CAST(@en AS NVARCHAR(10)) END;
+   BEGIN TRY REVERT; END TRY BEGIN CATCH SET @en=0; END CATCH
+  END CATCH
+  INSERT #r(TestName,Expected,Actual) VALUES('Operator cannot read salary structure','DENIED',@res);
+  SET @res='ALLOWED';
+  BEGIN TRY
+   EXECUTE AS USER='hrms_operator1'; EXEC payroll.usp_LockPayroll 0; REVERT;
+  END TRY
+  BEGIN CATCH
+   SET @en=ERROR_NUMBER(); SET @res=CASE WHEN @en IN (229,262) THEN 'DENIED' ELSE 'ERR '+CAST(@en AS NVARCHAR(10)) END;
+   BEGIN TRY REVERT; END TRY BEGIN CATCH SET @en=0; END CATCH
+  END CATCH
+  INSERT #r(TestName,Expected,Actual) VALUES('Operator cannot lock payroll','DENIED',@res);
+  SET @res='ALLOWED';
+  BEGIN TRY
+   EXECUTE AS USER='hrms_operator1'; DECLARE @y VARBINARY(160); SELECT TOP (1) @y=PAN_Enc FROM hr.EmployeeStatutory; REVERT;
+  END TRY
+  BEGIN CATCH
+   SET @en=ERROR_NUMBER(); SET @res=CASE WHEN @en IN (229,230) THEN 'DENIED' ELSE 'ERR '+CAST(@en AS NVARCHAR(10)) END;
+   BEGIN TRY REVERT; END TRY BEGIN CATCH SET @en=0; END CATCH
+  END CATCH
+  INSERT #r(TestName,Expected,Actual) VALUES('Operator cannot read PAN ciphertext','DENIED',@res);
+ END
+ SELECT TestName,Expected,Actual,Result FROM #r ORDER BY Id;
+ SELECT Passed=SUM(CASE WHEN Result='PASS' THEN 1 ELSE 0 END),Failed=SUM(CASE WHEN Result='FAIL' THEN 1 ELSE 0 END) FROM #r;
+END
+GO

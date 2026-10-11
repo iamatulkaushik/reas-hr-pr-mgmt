@@ -7,4 +7,5 @@ Public Enum PermissionAction
     Approve = 5
     Export = 6
     Reopen = 7
+    Reveal = 8
 End Enum

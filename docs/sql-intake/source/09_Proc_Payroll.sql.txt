@@ -1,0 +1,269 @@
+/* 09_Proc_Payroll.sql - HRMS_Live: payroll engine (set-based, per factory per month) */
+USE HRMS_Live;
+GO
+CREATE PROCEDURE payroll.usp_ValidateWageRule @EmpId INT=NULL AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @floor DECIMAL(5,2)=ISNULL((SELECT TOP (1) WageFloorPct FROM ref.WageRule WHERE EffectiveFrom<=CAST(GETDATE() AS DATE) ORDER BY EffectiveFrom DESC),50);
+ INSERT payroll.WageRuleCheck(EmpId,Remuneration,ExcludedAmt,CodeWage,WagePct,IsCompliant)
+ SELECT e.EmpId,fw.Remuneration,fw.ExcludedAmt,cw.CodeWage,cw.RawWagePct,CASE WHEN cw.RawWagePct>=@floor THEN 1 ELSE 0 END
+ FROM hr.Employee e CROSS APPLY payroll.fn_FixedWages(e.EmpId,CAST(GETDATE() AS DATE)) fw CROSS APPLY payroll.fn_CodeWage(fw.Remuneration,fw.ExcludedAmt,@floor) cw
+ WHERE e.IsActive=1 AND (@EmpId IS NULL OR e.EmpId=@EmpId) AND fw.Remuneration>0;
+ SELECT NonCompliant=SUM(CASE WHEN IsCompliant=0 THEN 1 ELSE 0 END),Checked=COUNT(*) FROM payroll.WageRuleCheck WHERE CheckedOn>=DATEADD(MINUTE,-5,SYSUTCDATETIME());
+END
+GO
+CREATE PROCEDURE payroll.usp_ProcessPayroll @FactoryId INT,@Month TINYINT,@Year SMALLINT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @from DATE=DATEFROMPARTS(@Year,@Month,1),@to DATE=EOMONTH(DATEFROMPARTS(@Year,@Month,1)),@days INT=DAY(EOMONTH(DATEFROMPARTS(@Year,@Month,1)));
+ DECLARE @stateId INT=(SELECT StateId FROM ref.Factory WHERE FactoryId=@FactoryId),@run INT,@useCode BIT,@floor DECIMAL(5,2);
+ DECLARE @pstart DATE=compliance.fn_ESIPeriodStart(@Month,@Year);
+ IF @stateId IS NULL THROW 50200,'Factory not found.',1;
+ IF NOT EXISTS(SELECT 1 FROM att.MonthlyAttendance WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month)
+    OR EXISTS(SELECT 1 FROM att.MonthlyAttendance WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month AND IsLocked=0)
+   THROW 50201,'Attendance not locked for this month.',1;
+ IF EXISTS(SELECT 1 FROM payroll.PayrollRun WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month AND Status IN ('Approved','Locked','Paid'))
+   THROW 50202,'Run already approved or locked.',1;
+ SELECT TOP (1) @useCode=UseCodeWage,@floor=WageFloorPct FROM ref.WageRule WHERE EffectiveFrom<=@to ORDER BY EffectiveFrom DESC;
+ SET @useCode=ISNULL(@useCode,1); SET @floor=ISNULL(@floor,50);
+ DECLARE @cEPF INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='EPF'),@cESI INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='ESI'),
+         @cPT INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='PT'),@cLWF INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='LWF'),
+         @cADV INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='ADV'),@cOT INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='OT');
+ BEGIN TRY
+  SELECT m.EmpId,m.PaidDays,m.LOPDays,e.Gender,ISNULL(st.IsEPFMember,0) AS IsEPF,ISNULL(st.HigherWageOption,0) AS HigherOpt,ISNULL(st.IsESIMember,0) AS IsESI,
+         ISNULL(st.PTApplicable,0) AS PTApp,ISNULL(st.LWFApplicable,0) AS LWFApp,
+         CAST(CASE WHEN EXISTS(SELECT 1 FROM payroll.SalaryHold h WHERE h.EmpId=m.EmpId AND h.PayMonth=@Month AND h.PayYear=@Year AND h.ReleasedOn IS NULL) THEN 1 ELSE 0 END AS BIT) AS IsHeld
+  INTO #b FROM att.MonthlyAttendance m JOIN hr.Employee e ON e.EmpId=m.EmpId LEFT JOIN hr.EmployeeStatutory st ON st.EmpId=m.EmpId
+  WHERE m.FactoryId=@FactoryId AND m.PayYear=@Year AND m.PayMonth=@Month AND m.PaidDays>0;
+  CREATE UNIQUE CLUSTERED INDEX ix ON #b(EmpId);
+
+  SELECT EmpId,CompId,MonthlyAmt INTO #s FROM (
+    SELECT es.EmpId,es.CompId,es.MonthlyAmt,ROW_NUMBER() OVER(PARTITION BY es.EmpId,es.CompId ORDER BY es.EffectiveFrom DESC) AS rn
+    FROM payroll.EmployeeSalary es JOIN #b b ON b.EmpId=es.EmpId
+    WHERE es.EffectiveFrom<=@to AND (es.EffectiveTo IS NULL OR es.EffectiveTo>=@from)) x WHERE rn=1;
+  CREATE CLUSTERED INDEX ix ON #s(EmpId);
+
+  CREATE TABLE #lines(EmpId INT NOT NULL,CompId INT NOT NULL,Amount DECIMAL(14,2) NOT NULL,Src VARCHAR(8) NOT NULL);
+  INSERT #lines SELECT s.EmpId,s.CompId,CASE WHEN c.IsProrata=1 THEN ROUND(s.MonthlyAmt*b.PaidDays/@days,0) ELSE s.MonthlyAmt END,'FIXED'
+    FROM #s s JOIN #b b ON b.EmpId=s.EmpId JOIN payroll.SalaryComponent c ON c.CompId=s.CompId WHERE c.Type='E';
+  INSERT #lines SELECT i.EmpId,i.CompId,SUM(i.Amount),'INPUT' FROM payroll.PayrollInput i JOIN #b b ON b.EmpId=i.EmpId
+    WHERE i.FactoryId=@FactoryId AND i.PayMonth=@Month AND i.PayYear=@Year AND i.Status='Approved' GROUP BY i.EmpId,i.CompId;
+  INSERT #lines SELECT a.EmpId,a.CompId,SUM(a.Amount),'ARREAR' FROM payroll.Arrear a JOIN #b b ON b.EmpId=a.EmpId WHERE a.PaidInRunId IS NULL GROUP BY a.EmpId,a.CompId;
+
+  SELECT t.EmpId,t.Mins INTO #ot FROM (SELECT ot.EmpId,SUM(ot.OTMinutes) AS Mins FROM att.Overtime ot JOIN #b b ON b.EmpId=ot.EmpId
+    WHERE ot.WorkDate BETWEEN @from AND @to AND ot.Status='Approved' GROUP BY ot.EmpId) t WHERE t.Mins>0;
+  INSERT #lines
+  SELECT t.EmpId,@cOT,ROUND(base.OTBase/ISNULL(o.DivisorDays,@days)/ISNULL(o.HoursPerDay,8)*(t.Mins/60.0)*ISNULL(o.Multiplier,2),0),'OT'
+  FROM #ot t CROSS APPLY (SELECT SUM(s.MonthlyAmt) AS OTBase FROM #s s JOIN payroll.SalaryComponent c ON c.CompId=s.CompId WHERE s.EmpId=t.EmpId AND c.IsOTBase=1) base
+  OUTER APPLY (SELECT TOP (1) x.DivisorDays,x.HoursPerDay,x.Multiplier FROM ref.OTRule x WHERE x.FactoryId IN (0,@FactoryId) AND x.EffectiveFrom<=@to ORDER BY x.FactoryId DESC,x.EffectiveFrom DESC) o
+  WHERE base.OTBase>0;
+  CREATE CLUSTERED INDEX ix ON #lines(EmpId);
+
+  SELECT l.EmpId,SUM(CASE WHEN c.Type='E' THEN l.Amount ELSE 0 END) AS Gross,
+    SUM(CASE WHEN c.Type='E' AND c.ExcludeFromWageTest=0 THEN l.Amount ELSE 0 END) AS Remun,
+    SUM(CASE WHEN c.Type='E' AND c.IsWageExcluded=1 AND c.ExcludeFromWageTest=0 THEN l.Amount ELSE 0 END) AS Excl,
+    SUM(CASE WHEN c.IsEPFWage=1 THEN l.Amount ELSE 0 END) AS LegacyEPF, SUM(CASE WHEN c.IsESIWage=1 THEN l.Amount ELSE 0 END) AS ESIWage
+  INTO #tot FROM #lines l JOIN payroll.SalaryComponent c ON c.CompId=l.CompId GROUP BY l.EmpId;
+  CREATE UNIQUE CLUSTERED INDEX ix ON #tot(EmpId);
+  SELECT s.EmpId,SUM(s.MonthlyAmt) AS FixedESI INTO #fe FROM #s s JOIN payroll.SalaryComponent c ON c.CompId=s.CompId WHERE c.IsESIWage=1 AND c.Type='E' GROUP BY s.EmpId;
+  CREATE UNIQUE CLUSTERED INDEX ix ON #fe(EmpId);
+
+  SELECT b.EmpId,t.Gross,t.Remun,cw.CodeWage,t.ESIWage,
+    CASE WHEN @useCode=1 THEN cw.CodeWage ELSE t.LegacyEPF END AS EPFWage,
+    CASE WHEN b.IsEPF=1 THEN epf.EmployeeShare ELSE 0 END AS EPFAmt,
+    CAST(CASE WHEN b.IsESI=1 AND (ISNULL(fe.FixedESI,0)<=esi.WageCeiling OR EXISTS(SELECT 1 FROM compliance.ESIContribution ec WHERE ec.EmpId=b.EmpId AND ec.PeriodStart=@pstart AND ec.PayYear*100+ec.PayMonth<@Year*100+@Month)) THEN 1 ELSE 0 END AS BIT) AS ESIOK,
+    esi.EmployeeShare AS ESIAmtRaw, CASE WHEN b.PTApp=1 THEN pt.Amount ELSE 0 END AS PTAmt, CASE WHEN b.LWFApp=1 THEN lw.EmployeeAmt ELSE 0 END AS LWFAmt
+  INTO #calc FROM #b b JOIN #tot t ON t.EmpId=b.EmpId LEFT JOIN #fe fe ON fe.EmpId=b.EmpId
+  CROSS APPLY payroll.fn_CodeWage(t.Remun,t.Excl,@floor) cw
+  CROSS APPLY compliance.fn_EPF(CASE WHEN @useCode=1 THEN cw.CodeWage ELSE t.LegacyEPF END,@to,b.HigherOpt) epf
+  CROSS APPLY compliance.fn_ESI(t.ESIWage,@to) esi
+  CROSS APPLY compliance.fn_PT(@stateId,b.Gender,t.Gross,@Month,@to) pt
+  CROSS APPLY compliance.fn_LWF(@stateId,t.Gross,@Month,@to) lw;
+  CREATE UNIQUE CLUSTERED INDEX ix ON #calc(EmpId);
+
+  INSERT #lines SELECT EmpId,@cEPF,EPFAmt,'STAT' FROM #calc WHERE EPFAmt>0;
+  INSERT #lines SELECT EmpId,@cESI,ESIAmtRaw,'STAT' FROM #calc WHERE ESIOK=1 AND ESIAmtRaw>0;
+  INSERT #lines SELECT EmpId,@cPT,PTAmt,'STAT' FROM #calc WHERE PTAmt>0;
+  INSERT #lines SELECT EmpId,@cLWF,LWFAmt,'STAT' FROM #calc WHERE LWFAmt>0;
+
+  /* Advance recovery: never push net pay below zero */
+  SELECT c.EmpId,c.Gross-ISNULL(d.Ded,0) AS Avail INTO #avail FROM #calc c
+  LEFT JOIN (SELECT l.EmpId,SUM(l.Amount) AS Ded FROM #lines l JOIN payroll.SalaryComponent k ON k.CompId=l.CompId WHERE k.Type='D' GROUP BY l.EmpId) d ON d.EmpId=c.EmpId;
+  SELECT x.EmpId,x.AdvanceId,x.Due,SUM(x.Due) OVER(PARTITION BY x.EmpId ORDER BY x.AdvanceId ROWS UNBOUNDED PRECEDING) AS Cum INTO #adv
+  FROM (SELECT a.EmpId,a.AdvanceId,CASE WHEN a.EMI<a.Balance THEN a.EMI ELSE a.Balance END AS Due FROM payroll.Advance a JOIN #b b ON b.EmpId=a.EmpId WHERE a.Status='Open' AND a.Balance>0) x;
+  SELECT a.EmpId,a.AdvanceId,CASE WHEN v.Avail-(a.Cum-a.Due)<=0 THEN 0 WHEN v.Avail-(a.Cum-a.Due)<a.Due THEN v.Avail-(a.Cum-a.Due) ELSE a.Due END AS Rec
+  INTO #rec FROM #adv a JOIN #avail v ON v.EmpId=a.EmpId;
+  INSERT #lines SELECT EmpId,@cADV,SUM(Rec),'ADV' FROM #rec WHERE Rec>0 GROUP BY EmpId;
+
+  BEGIN TRAN;
+  SELECT @run=RunId FROM payroll.PayrollRun WHERE FactoryId=@FactoryId AND PayYear=@Year AND PayMonth=@Month;
+  IF @run IS NULL
+  BEGIN
+   INSERT payroll.PayrollRun(FactoryId,PayMonth,PayYear,DaysInMonth) VALUES(@FactoryId,@Month,@Year,@days); SET @run=SCOPE_IDENTITY();
+  END
+  ELSE
+  BEGIN
+   DELETE l FROM payroll.PayrollDetailLine l JOIN payroll.PayrollDetail d ON d.DetailId=l.DetailId WHERE d.RunId=@run;
+   DELETE FROM payroll.PayrollDetail WHERE RunId=@run;
+   DELETE FROM payroll.AdvanceRecovery WHERE RunId=@run;
+  END
+  INSERT payroll.PayrollDetail(RunId,EmpId,FactoryId,PayMonth,PayYear,PaidDays,LOPDays,OTHours,GrossEarnings,TotalDeductions,Remuneration,CodeWage,EPFWage,ESIWage,ESIEligible,IsHeld,HasWarning,WarningText)
+  SELECT @run,b.EmpId,@FactoryId,@Month,@Year,b.PaidDays,b.LOPDays,ISNULL(o.Mins,0)/60.0,c.Gross,ISNULL(dd.Ded,0),c.Remun,c.CodeWage,c.EPFWage,c.ESIWage,c.ESIOK,b.IsHeld,
+         CASE WHEN c.Gross-ISNULL(dd.Ded,0)<0 OR c.Remun>0 AND (c.Remun-c.CodeWage)*1.0>c.Remun*(100-@floor)/100.0+0.01 THEN 1 ELSE 0 END,
+         CASE WHEN c.Gross-ISNULL(dd.Ded,0)<0 THEN N'Negative net pay' END
+  FROM #b b JOIN #calc c ON c.EmpId=b.EmpId LEFT JOIN #ot o ON o.EmpId=b.EmpId
+  LEFT JOIN (SELECT l.EmpId,SUM(l.Amount) AS Ded FROM #lines l JOIN payroll.SalaryComponent k ON k.CompId=l.CompId WHERE k.Type='D' GROUP BY l.EmpId) dd ON dd.EmpId=b.EmpId;
+  INSERT payroll.PayrollDetailLine(DetailId,CompId,Amount,Src) SELECT d.DetailId,l.CompId,l.Amount,l.Src FROM #lines l JOIN payroll.PayrollDetail d ON d.RunId=@run AND d.EmpId=l.EmpId WHERE l.Amount<>0;
+  INSERT payroll.AdvanceRecovery(AdvanceId,RunId,Amount) SELECT AdvanceId,@run,Rec FROM #rec WHERE Rec>0;
+  UPDATE r SET Status='Processed',EmpCount=x.n,TotalGross=x.g,TotalDeductions=x.d,TotalNet=x.g-x.d,ProcessedBy=ORIGINAL_LOGIN(),ProcessedOn=SYSUTCDATETIME(),ApprovedBy=NULL,ApprovedOn=NULL
+  FROM payroll.PayrollRun r CROSS APPLY (SELECT COUNT(*) n,SUM(GrossEarnings) g,SUM(TotalDeductions) d FROM payroll.PayrollDetail WHERE RunId=@run) x WHERE r.RunId=@run;
+  INSERT payroll.PayrollApproval(RunId,Stage,Remarks) VALUES(@run,'Process',N'Processed');
+  COMMIT;
+  SELECT RunId=@run,Employees=EmpCount,Gross_INR=TotalGross,Deductions_INR=TotalDeductions,Net_INR=TotalNet FROM payroll.PayrollRun WHERE RunId=@run;
+  SELECT NoSalaryStructure=COUNT(*) FROM #b b WHERE NOT EXISTS (SELECT 1 FROM #tot t WHERE t.EmpId=b.EmpId);
+ END TRY
+ BEGIN CATCH
+  IF @@TRANCOUNT>0 ROLLBACK;
+  INSERT audit.ErrorLog(ProcName,ErrNo,ErrMsg,ErrLine) VALUES(OBJECT_NAME(@@PROCID),ERROR_NUMBER(),LEFT(ERROR_MESSAGE(),2000),ERROR_LINE());
+  THROW;
+ END CATCH
+END
+GO
+CREATE PROCEDURE payroll.usp_ApprovePayroll @RunId INT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @by SYSNAME,@st VARCHAR(10); SELECT @by=ProcessedBy,@st=Status FROM payroll.PayrollRun WHERE RunId=@RunId;
+ IF @st IS NULL THROW 50210,'Run not found.',1;
+ IF @st<>'Processed' THROW 50211,'Only a processed run can be approved.',1;
+ IF @by=ORIGINAL_LOGIN() THROW 50212,'Approver must differ from processor (maker-checker).',1;
+ IF EXISTS(SELECT 1 FROM payroll.PayrollDetail WHERE RunId=@RunId AND NetPay<0) THROW 50213,'Negative net pay exists. Fix before approval.',1;
+ BEGIN TRAN;
+ UPDATE payroll.PayrollRun SET Status='Approved',ApprovedBy=ORIGINAL_LOGIN(),ApprovedOn=SYSUTCDATETIME() WHERE RunId=@RunId;
+ INSERT payroll.PayrollApproval(RunId,Stage) VALUES(@RunId,'Approve');
+ COMMIT;
+END
+GO
+CREATE PROCEDURE payroll.usp_ReopenPayroll @RunId INT,@Reason NVARCHAR(300) AS
+BEGIN
+ SET NOCOUNT ON;
+ IF NOT EXISTS(SELECT 1 FROM payroll.PayrollRun WHERE RunId=@RunId AND Status IN ('Processed','Approved')) THROW 50220,'Only processed or approved runs can be reopened. Correct locked runs through arrears next month.',1;
+ UPDATE payroll.PayrollRun SET Status='Draft',ApprovedBy=NULL,ApprovedOn=NULL WHERE RunId=@RunId;
+ INSERT payroll.PayrollApproval(RunId,Stage,Remarks) VALUES(@RunId,'Reopen',@Reason);
+END
+GO
+/* Lock: posts recoveries, marks arrears/OT paid, builds bank advice, payslips, journal, statutory rows and challans */
+CREATE PROCEDURE payroll.usp_LockPayroll @RunId INT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @f INT,@m TINYINT,@y SMALLINT,@st VARCHAR(10),@adv INT;
+ SELECT @f=FactoryId,@m=PayMonth,@y=PayYear,@st=Status FROM payroll.PayrollRun WHERE RunId=@RunId;
+ IF @st IS NULL THROW 50230,'Run not found.',1;
+ IF @st<>'Approved' THROW 50231,'Only an approved run can be locked.',1;
+ DECLARE @from DATE=DATEFROMPARTS(@y,@m,1),@to DATE=EOMONTH(DATEFROMPARTS(@y,@m,1));
+ BEGIN TRY
+  BEGIN TRAN;
+  UPDATE a SET Recovered=a.Recovered+r.Amt FROM payroll.Advance a JOIN (SELECT AdvanceId,SUM(Amount) AS Amt FROM payroll.AdvanceRecovery WHERE RunId=@RunId AND IsPosted=0 GROUP BY AdvanceId) r ON r.AdvanceId=a.AdvanceId;
+  UPDATE payroll.Advance SET Status='Closed' WHERE Status='Open' AND Recovered>=Amount;
+  UPDATE payroll.AdvanceRecovery SET IsPosted=1 WHERE RunId=@RunId;
+  UPDATE a SET PaidInRunId=@RunId FROM payroll.Arrear a JOIN payroll.PayrollDetail d ON d.EmpId=a.EmpId AND d.RunId=@RunId WHERE a.PaidInRunId IS NULL;
+  UPDATE o SET PaidInRunId=@RunId FROM att.Overtime o JOIN payroll.PayrollDetail d ON d.EmpId=o.EmpId AND d.RunId=@RunId WHERE o.WorkDate BETWEEN @from AND @to AND o.Status='Approved' AND o.PaidInRunId IS NULL;
+  INSERT payroll.Payslip(DetailId) SELECT d.DetailId FROM payroll.PayrollDetail d WHERE d.RunId=@RunId AND NOT EXISTS (SELECT 1 FROM payroll.Payslip p WHERE p.DetailId=d.DetailId);
+  DELETE FROM payroll.BankAdviceLine WHERE AdviceId IN (SELECT AdviceId FROM payroll.BankAdvice WHERE RunId=@RunId);
+  DELETE FROM payroll.BankAdvice WHERE RunId=@RunId;
+  INSERT payroll.BankAdvice(RunId,TotalAmount) SELECT @RunId,ISNULL(SUM(d.NetPay),0) FROM payroll.PayrollDetail d JOIN hr.EmployeeBank b ON b.EmpId=d.EmpId AND b.PaymentMode='Bank' WHERE d.RunId=@RunId AND d.IsHeld=0 AND d.NetPay>0;
+  SET @adv=SCOPE_IDENTITY();
+  INSERT payroll.BankAdviceLine(AdviceId,EmpId,EmpCode,EmpName,AccountNo_Enc,AccountLast4,IFSC,Amount) SELECT @adv,d.EmpId,e.EmpCode,e.FullName,b.AccountNo_Enc,b.AccountLast4,b.IFSC,d.NetPay FROM payroll.PayrollDetail d JOIN hr.Employee e ON e.EmpId=d.EmpId JOIN hr.EmployeeBank b ON b.EmpId=d.EmpId AND b.PaymentMode='Bank' WHERE d.RunId=@RunId AND d.IsHeld=0 AND d.NetPay>0;
+  DELETE FROM payroll.Journal WHERE RunId=@RunId;
+  INSERT payroll.Journal(RunId,LedgerCode,LedgerName,Debit,Credit,Narration)
+  SELECT @RunId,'SAL_EXP',N'Salary and wages expense',SUM(GrossEarnings),0,N'Gross earnings' FROM payroll.PayrollDetail WHERE RunId=@RunId
+  UNION ALL SELECT @RunId,'SAL_PAY',N'Salary payable',0,SUM(NetPay),N'Net pay' FROM payroll.PayrollDetail WHERE RunId=@RunId
+  UNION ALL SELECT @RunId,'DED_'+c.Code,c.Name+N' payable',0,SUM(l.Amount),N'Deduction' FROM payroll.PayrollDetailLine l JOIN payroll.PayrollDetail d ON d.DetailId=l.DetailId
+     JOIN payroll.SalaryComponent c ON c.CompId=l.CompId WHERE d.RunId=@RunId AND c.Type='D' GROUP BY c.Code,c.Name;
+  UPDATE payroll.PayrollRun SET Status='Locked',LockedBy=ORIGINAL_LOGIN(),LockedOn=SYSUTCDATETIME() WHERE RunId=@RunId;
+  INSERT payroll.PayrollApproval(RunId,Stage) VALUES(@RunId,'Lock');
+  COMMIT;
+  EXEC compliance.usp_GenerateAll @RunId;
+ END TRY
+ BEGIN CATCH
+  IF @@TRANCOUNT>0 ROLLBACK;
+  INSERT audit.ErrorLog(ProcName,ErrNo,ErrMsg,ErrLine) VALUES(OBJECT_NAME(@@PROCID),ERROR_NUMBER(),LEFT(ERROR_MESSAGE(),2000),ERROR_LINE());
+  THROW;
+ END CATCH
+END
+GO
+CREATE PROCEDURE payroll.usp_MarkPaid @RunId INT,@PaidOn DATE AS
+BEGIN
+ SET NOCOUNT ON;
+ IF NOT EXISTS(SELECT 1 FROM payroll.PayrollRun WHERE RunId=@RunId AND Status='Locked') THROW 50240,'Run must be locked first.',1;
+ UPDATE payroll.PayrollRun SET Status='Paid',PaidOn=@PaidOn WHERE RunId=@RunId;
+ UPDATE payroll.BankAdviceLine SET PaidOn=@PaidOn WHERE AdviceId IN (SELECT AdviceId FROM payroll.BankAdvice WHERE RunId=@RunId);
+ INSERT payroll.PayrollApproval(RunId,Stage) VALUES(@RunId,'Paid');
+END
+GO
+CREATE PROCEDURE payroll.usp_ComputeGratuity @EmpId INT,@ExitDate DATE,@Reason VARCHAR(15) AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @doj DATE,@type VARCHAR(12),@useCode BIT,@floor DECIMAL(5,2);
+ SELECT @doj=DOJ,@type=EmploymentType FROM hr.Employee WHERE EmpId=@EmpId;
+ IF @doj IS NULL THROW 50250,'Employee not found.',1;
+ SELECT TOP (1) @useCode=UseCodeWage,@floor=WageFloorPct FROM ref.WageRule WHERE EffectiveFrom<=@ExitDate ORDER BY EffectiveFrom DESC;
+ SET @useCode=ISNULL(@useCode,1); SET @floor=ISNULL(@floor,50);
+ INSERT payroll.Gratuity(EmpId,DOJ,ExitDate,ExitReason,ServiceMonths,ServiceYearsRounded,WageBase,IsEligible,Amount,CapApplied)
+ SELECT @EmpId,@doj,@ExitDate,@Reason,g.ServiceMonths,g.YearsRounded,w.Wage,g.IsEligible,
+        CASE WHEN g.IsEligible=0 THEN 0 WHEN g.UncappedAmount>g.CapAmount THEN g.CapAmount ELSE g.UncappedAmount END,
+        CASE WHEN g.IsEligible=1 AND g.UncappedAmount>g.CapAmount THEN 1 ELSE 0 END
+ FROM payroll.fn_FixedWages(@EmpId,@ExitDate) fw CROSS APPLY payroll.fn_CodeWage(fw.Remuneration,fw.ExcludedAmt,@floor) cw
+ CROSS APPLY (SELECT CASE WHEN @useCode=1 THEN cw.CodeWage ELSE fw.GratWage END AS Wage) w
+ CROSS APPLY payroll.fn_Gratuity(@doj,@ExitDate,w.Wage,@type,@Reason) g;
+ SELECT TOP (1) * FROM payroll.Gratuity WHERE EmpId=@EmpId ORDER BY GratuityId DESC;
+END
+GO
+CREATE PROCEDURE payroll.usp_ProcessFnF @EmpId INT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @lwd DATE,@reason VARCHAR(15),@np INT,@nserved INT,@doj DATE;
+ SELECT TOP (1) @lwd=s.LastWorkingDay,@reason=s.Reason,@np=s.NoticePeriodDays,@nserved=s.NoticeServedDays FROM hr.Separation s WHERE s.EmpId=@EmpId ORDER BY s.SeparationId DESC;
+ IF @lwd IS NULL THROW 50260,'No separation record.',1;
+ SELECT @doj=DOJ FROM hr.Employee WHERE EmpId=@EmpId;
+ DECLARE @lastPaid DATE=(SELECT MAX(EOMONTH(DATEFROMPARTS(d.PayYear,d.PayMonth,1))) FROM payroll.PayrollDetail d JOIN payroll.PayrollRun r ON r.RunId=d.RunId WHERE d.EmpId=@EmpId AND r.Status IN ('Locked','Paid'));
+ DECLARE @startDue DATE=CASE WHEN @lastPaid IS NULL THEN @doj ELSE DATEADD(DAY,1,@lastPaid) END;
+ DECLARE @gross DECIMAL(14,2),@code DECIMAL(14,2),@floor DECIMAL(5,2)=ISNULL((SELECT TOP (1) WageFloorPct FROM ref.WageRule WHERE EffectiveFrom<=@lwd ORDER BY EffectiveFrom DESC),50);
+ SELECT @gross=fw.Gross,@code=cw.CodeWage FROM payroll.fn_FixedWages(@EmpId,@lwd) fw CROSS APPLY payroll.fn_CodeWage(fw.Remuneration,fw.ExcludedAmt,@floor) cw;
+ DECLARE @salDue DECIMAL(14,2)=CASE WHEN @startDue>@lwd THEN 0 ELSE ROUND(@gross/DAY(EOMONTH(@lwd))*(DATEDIFF(DAY,@startDue,@lwd)+1),0) END;
+ DECLARE @encash DECIMAL(14,2)=ISNULL((SELECT SUM(b.Balance)*@code/26.0 FROM att.LeaveBalance b JOIN ref.LeaveType t ON t.LeaveTypeId=b.LeaveTypeId WHERE b.EmpId=@EmpId AND b.FYCode=payroll.fn_FYCode(@lwd) AND t.Encashable=1),0);
+ DECLARE @grat DECIMAL(14,2)=0,@noticeRec DECIMAL(14,2)=CASE WHEN @reason='Resignation' AND @nserved<@np THEN ROUND((@np-@nserved)*@gross/30.0,0) ELSE 0 END;
+ DECLARE @advRec DECIMAL(14,2)=ISNULL((SELECT SUM(Balance) FROM payroll.Advance WHERE EmpId=@EmpId AND Status='Open'),0);
+ BEGIN TRAN;
+ EXEC payroll.usp_ComputeGratuity @EmpId,@lwd,@reason;
+ SELECT TOP (1) @grat=Amount FROM payroll.Gratuity WHERE EmpId=@EmpId ORDER BY GratuityId DESC;
+ INSERT payroll.FnF(EmpId,LastWorkingDay,SalaryDue,LeaveEncashment,Gratuity,NoticeRecovery,AdvanceRecovery) VALUES(@EmpId,@lwd,@salDue,ROUND(@encash,0),@grat,@noticeRec,@advRec);
+ DECLARE @id INT=SCOPE_IDENTITY();
+ INSERT payroll.FnFLine(FnFId,Description,LineType,Amount) VALUES(@id,N'Salary till last working day','E',@salDue),(@id,N'Leave encashment','E',ROUND(@encash,0)),(@id,N'Gratuity','E',@grat),
+   (@id,N'Notice period recovery','D',@noticeRec),(@id,N'Advance recovery','D',@advRec);
+ UPDATE hr.Separation SET FnFStatus='Calculated' WHERE EmpId=@EmpId;
+ COMMIT;
+ SELECT * FROM payroll.FnF WHERE FnFId=@id;
+END
+GO
+/* Bonus: eligible if wage <= eligibility ceiling and days worked >= minimum; calculation wage capped at max(calc ceiling, minimum wage) */
+CREATE PROCEDURE payroll.usp_ComputeBonus @FactoryId INT,@AccFrom DATE,@AccTo DATE,@Pct DECIMAL(5,2)=NULL AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @elig DECIMAL(12,2),@calc DECIMAL(12,2),@mind INT,@minpct DECIMAL(5,2),@state INT=(SELECT StateId FROM ref.Factory WHERE FactoryId=@FactoryId);
+ SELECT TOP (1) @elig=EligibilityWageCeiling,@calc=CalculationWageCeiling,@mind=MinDaysWorked,@minpct=MinPct FROM ref.BonusRule WHERE EffectiveFrom<=@AccTo ORDER BY EffectiveFrom DESC;
+ IF @elig IS NULL THROW 50270,'Bonus rule not configured.',1;
+ SET @Pct=ISNULL(@Pct,@minpct);
+ DELETE FROM payroll.Bonus WHERE AccFromDate=@AccFrom AND AccToDate=@AccTo AND Status='Calculated' AND EmpId IN (SELECT EmpId FROM hr.Employee WHERE FactoryId=@FactoryId);
+ INSERT payroll.Bonus(EmpId,AccFromDate,AccToDate,DaysWorked,EligibleWage,BonusPct,BonusAmount)
+ SELECT w.EmpId,@AccFrom,@AccTo,CAST(w.Days AS INT),cw.CalcWage,@Pct,ROUND(cw.CalcWage*w.Days/NULLIF(w.AvgDays,0)*@Pct/100.0,0)
+ FROM (SELECT d.EmpId,SUM(d.PaidDays) AS Days,AVG(r.DaysInMonth*1.0) AS AvgDays FROM payroll.PayrollDetail d JOIN payroll.PayrollRun r ON r.RunId=d.RunId
+       WHERE d.FactoryId=@FactoryId AND DATEFROMPARTS(d.PayYear,d.PayMonth,1) BETWEEN @AccFrom AND @AccTo AND r.Status IN ('Locked','Paid') GROUP BY d.EmpId) w
+ CROSS APPLY (SELECT ISNULL(SUM(CASE WHEN c.IsBonusWage=1 THEN s.MonthlyAmt END),0) AS BonusWage FROM payroll.EmployeeSalary s JOIN payroll.SalaryComponent c ON c.CompId=s.CompId
+       WHERE s.EmpId=w.EmpId AND s.EffectiveFrom<=@AccTo AND (s.EffectiveTo IS NULL OR s.EffectiveTo>=@AccTo)) bw
+ OUTER APPLY (SELECT TOP (1) m.MonthlyRate FROM ref.MinimumWage m JOIN hr.Employee e ON e.EmpId=w.EmpId JOIN ref.Designation dg ON dg.DesigId=e.DesigId
+       WHERE m.StateId=@state AND m.Category=dg.Category AND m.EffectiveFrom<=@AccTo ORDER BY m.EffectiveFrom DESC) mw
+ CROSS APPLY (SELECT CASE WHEN bw.BonusWage<CASE WHEN ISNULL(mw.MonthlyRate,0)>@calc THEN mw.MonthlyRate ELSE @calc END THEN bw.BonusWage ELSE CASE WHEN ISNULL(mw.MonthlyRate,0)>@calc THEN mw.MonthlyRate ELSE @calc END END AS CalcWage) cw
+ WHERE w.Days>=@mind AND bw.BonusWage<=@elig;
+ SELECT Employees=COUNT(*),TotalBonus_INR=SUM(BonusAmount) FROM payroll.Bonus WHERE AccFromDate=@AccFrom AND AccToDate=@AccTo;
+END
+GO

@@ -1,0 +1,183 @@
+/* 11_Security.sql - 4 roles (Developer, Associate, Operator, CA), schema permissions, row-level security by factory,
+   dynamic masking, maker-checker guards, audit triggers, server audit. Windows authentication is preferred; SQL logins need mixed mode. */
+USE HRMS_Master;
+GO
+CREATE ROLE role_developer; CREATE ROLE role_associate; CREATE ROLE role_operator; CREATE ROLE role_ca;
+GO
+/* ---- row-level security: operators see only their factories (sec.UserFactory) ---- */
+CREATE FUNCTION sec.fn_FactoryFilter(@FactoryId INT) RETURNS TABLE WITH SCHEMABINDING AS
+RETURN SELECT 1 AS ok WHERE IS_MEMBER('role_associate')=1 OR IS_MEMBER('role_ca')=1 OR IS_MEMBER('db_owner')=1 OR IS_SRVROLEMEMBER('sysadmin')=1
+ OR EXISTS (SELECT 1 FROM sec.UserFactory u WHERE u.LoginName=USER_NAME() AND (u.FactoryId=0 OR u.FactoryId=@FactoryId));
+GO
+CREATE SECURITY POLICY sec.pol_Employee
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON hr.Employee,
+ ADD BLOCK PREDICATE sec.fn_FactoryFilter(FactoryId) ON hr.Employee AFTER INSERT,
+ ADD BLOCK PREDICATE sec.fn_FactoryFilter(FactoryId) ON hr.Employee AFTER UPDATE WITH (STATE=ON);
+GO
+/* ---- maker-checker guard: only role_associate may set approval fields ---- */
+CREATE PROCEDURE sec.usp_CreateApprovalGuard @Schema SYSNAME,@Table SYSNAME,@HasStatus BIT=1 AS
+BEGIN
+ DECLARE @t NVARCHAR(300)=QUOTENAME(@Schema)+N'.'+QUOTENAME(@Table),@trg NVARCHAR(300)=QUOTENAME(@Schema)+N'.'+QUOTENAME(N'trg_'+@Table+N'_approval');
+ DECLARE @sql NVARCHAR(MAX)=N'CREATE OR ALTER TRIGGER '+@trg+N' ON '+@t+N' AFTER INSERT,UPDATE AS
+BEGIN
+ SET NOCOUNT ON;
+ IF IS_MEMBER(''role_associate'')=1 OR IS_MEMBER(''db_owner'')=1 OR IS_SRVROLEMEMBER(''sysadmin'')=1 RETURN;
+ IF EXISTS(SELECT 1 FROM inserted WHERE ApprovedBy IS NOT NULL'+CASE WHEN @HasStatus=1 THEN N' OR Status IN (''Approved'',''Applied'')' ELSE N'' END+N')
+  THROW 50500,''Only the Associate can approve. Maker-checker rule.'',1;
+END';
+ EXEC sys.sp_executesql @sql;
+END
+GO
+EXEC sec.usp_CreateApprovalGuard 'hr','Promotion';
+EXEC sec.usp_CreateApprovalGuard 'hr','Increment';
+GO
+/* ---- user directory + provisioning (run as sysadmin) ---- */
+CREATE PROCEDURE sec.usp_AddUser @LoginName SYSNAME,@Role SYSNAME,@FullName NVARCHAR(150),@Password NVARCHAR(128)=NULL,@FactoryIds VARCHAR(200)='0' AS
+BEGIN
+ SET NOCOUNT ON;
+ IF @Role NOT IN ('role_developer','role_associate','role_operator','role_ca') THROW 50510,'Unknown role.',1;
+ IF IS_SRVROLEMEMBER('sysadmin')<>1 THROW 50511,'Run as sysadmin.',1;
+ DECLARE @sql NVARCHAR(MAX);
+ IF SUSER_ID(@LoginName) IS NULL
+ BEGIN
+  SET @sql=CASE WHEN @Password IS NULL THEN N'CREATE LOGIN '+QUOTENAME(@LoginName)+N' FROM WINDOWS WITH DEFAULT_DATABASE=HRMS_Live'
+       ELSE N'CREATE LOGIN '+QUOTENAME(@LoginName)+N' WITH PASSWORD=N'''+REPLACE(@Password,'''','''''')+N''', CHECK_POLICY=ON, CHECK_EXPIRATION=ON, DEFAULT_DATABASE=HRMS_Live' END;
+  EXEC(@sql);
+ END
+ SET @sql=N'IF USER_ID(N'''+REPLACE(@LoginName,'''','''''')+N''') IS NULL CREATE USER '+QUOTENAME(@LoginName)+N' FOR LOGIN '+QUOTENAME(@LoginName)+N'; ALTER ROLE '+QUOTENAME(@Role)+N' ADD MEMBER '+QUOTENAME(@LoginName)+N';';
+ EXEC(N'USE HRMS_Master; '+@sql); EXEC(N'USE HRMS_Live; '+@sql);
+ IF NOT EXISTS (SELECT 1 FROM sec.AppUser WHERE LoginName=@LoginName) INSERT sec.AppUser(LoginName,RoleName,FullName) VALUES(@LoginName,@Role,@FullName);
+ ELSE UPDATE sec.AppUser SET RoleName=@Role,FullName=@FullName,IsActive=1 WHERE LoginName=@LoginName;
+ DELETE FROM sec.UserFactory WHERE LoginName=@LoginName;
+ INSERT sec.UserFactory(LoginName,FactoryId) SELECT @LoginName,CAST(value AS INT) FROM STRING_SPLIT(@FactoryIds,',') WHERE LTRIM(RTRIM(value))<>'';
+ EXEC HRMS_Live.sec.usp_SyncUserFactory;
+END
+GO
+CREATE PROCEDURE sec.usp_DisableUser @LoginName SYSNAME AS
+BEGIN
+ SET NOCOUNT ON;
+ IF IS_SRVROLEMEMBER('sysadmin')<>1 THROW 50512,'Run as sysadmin.',1;
+ EXEC(N'ALTER LOGIN '+N'['+@LoginName+N'] DISABLE');
+ UPDATE sec.AppUser SET IsActive=0 WHERE LoginName=@LoginName;
+ DELETE FROM sec.UserFactory WHERE LoginName=@LoginName; EXEC HRMS_Live.sec.usp_SyncUserFactory;
+END
+GO
+/* ---- permissions: HRMS_Master ---- */
+GRANT SELECT ON SCHEMA::ref TO role_developer,role_associate,role_operator,role_ca;
+GRANT INSERT,UPDATE,DELETE ON SCHEMA::ref TO role_associate;
+GRANT INSERT,UPDATE ON ref.StatutoryRate TO role_ca; GRANT INSERT,UPDATE ON ref.PTSlab TO role_ca; GRANT INSERT,UPDATE ON ref.LWFRate TO role_ca;
+GRANT INSERT,UPDATE ON ref.MinimumWage TO role_ca; GRANT INSERT,UPDATE ON ref.BonusRule TO role_ca; GRANT INSERT,UPDATE ON ref.GratuityRule TO role_ca; GRANT INSERT,UPDATE ON ref.WageRule TO role_ca;
+GRANT SELECT,INSERT,UPDATE,DELETE ON SCHEMA::hr TO role_associate;
+GRANT SELECT,INSERT,UPDATE ON SCHEMA::hr TO role_operator;
+GRANT SELECT ON SCHEMA::hr TO role_ca;
+DENY SELECT ON hr.Disciplinary TO role_ca; DENY SELECT ON hr.EmployeeMedical TO role_ca; DENY SELECT ON hr.EmployeeFamily TO role_ca;
+DENY SELECT ON SCHEMA::hr TO role_developer;
+GRANT SELECT,INSERT,UPDATE,DELETE ON sec.UserFactory TO role_associate; GRANT SELECT ON sec.AppUser TO role_associate;
+GRANT SELECT ON audit.ErrorLog TO role_developer; GRANT SELECT ON audit.BackupLog TO role_developer,role_associate;
+GRANT SELECT ON audit.AuditLog TO role_associate;
+GRANT VIEW DEFINITION TO role_developer; GRANT SHOWPLAN TO role_developer;
+GO
+/* ---- dynamic data masking (Developer sees masked values) ---- */
+ALTER TABLE hr.EmployeeStatutory ALTER COLUMN UAN ADD MASKED WITH (FUNCTION='partial(0,"XXXXXXXX",4)');
+ALTER TABLE hr.EmployeeStatutory ALTER COLUMN ESIIPNo ADD MASKED WITH (FUNCTION='partial(0,"XXXXXXXXXXXXX",4)');
+ALTER TABLE hr.Employee ALTER COLUMN Mobile ADD MASKED WITH (FUNCTION='partial(2,"XXXXXX",2)');
+ALTER TABLE hr.Employee ALTER COLUMN Email ADD MASKED WITH (FUNCTION='email()');
+GRANT UNMASK TO role_associate; GRANT UNMASK TO role_operator; GRANT UNMASK TO role_ca;
+GO
+/* ---- audit triggers on sensitive master tables ---- */
+EXEC audit.usp_CreateAuditTrigger 'hr','Employee';       EXEC audit.usp_CreateAuditTrigger 'hr','EmployeeStatutory';
+EXEC audit.usp_CreateAuditTrigger 'hr','EmployeeBank';   EXEC audit.usp_CreateAuditTrigger 'hr','Promotion';
+EXEC audit.usp_CreateAuditTrigger 'hr','Increment';      EXEC audit.usp_CreateAuditTrigger 'hr','Separation';
+EXEC audit.usp_CreateAuditTrigger 'ref','StatutoryRate'; EXEC audit.usp_CreateAuditTrigger 'ref','PTSlab';
+EXEC audit.usp_CreateAuditTrigger 'ref','LWFRate';       EXEC audit.usp_CreateAuditTrigger 'ref','WageRule';
+EXEC audit.usp_CreateAuditTrigger 'ref','GratuityRule';  EXEC audit.usp_CreateAuditTrigger 'ref','OTRule';
+EXEC audit.usp_CreateAuditTrigger 'ref','Factory';       EXEC audit.usp_CreateAuditTrigger 'sec','AppUser';
+GO
+/* =============================== HRMS_Live =============================== */
+USE HRMS_Live;
+GO
+CREATE ROLE role_developer; CREATE ROLE role_associate; CREATE ROLE role_operator; CREATE ROLE role_ca;
+GO
+CREATE FUNCTION sec.fn_FactoryFilter(@FactoryId INT) RETURNS TABLE WITH SCHEMABINDING AS
+RETURN SELECT 1 AS ok WHERE IS_MEMBER('role_associate')=1 OR IS_MEMBER('role_ca')=1 OR IS_MEMBER('db_owner')=1 OR IS_SRVROLEMEMBER('sysadmin')=1
+ OR EXISTS (SELECT 1 FROM sec.UserFactory u WHERE u.LoginName=USER_NAME() AND (u.FactoryId=0 OR u.FactoryId=@FactoryId));
+GO
+CREATE SECURITY POLICY sec.pol_Factory
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.Attendance,            ADD BLOCK PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.Attendance AFTER INSERT,
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.Overtime,              ADD BLOCK PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.Overtime AFTER INSERT,
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.MonthlyAttendance,
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.LeaveRequest,          ADD BLOCK PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.LeaveRequest AFTER INSERT,
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.AttendanceRegularization, ADD BLOCK PREDICATE sec.fn_FactoryFilter(FactoryId) ON att.AttendanceRegularization AFTER INSERT,
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON payroll.PayrollInput,      ADD BLOCK PREDICATE sec.fn_FactoryFilter(FactoryId) ON payroll.PayrollInput AFTER INSERT,
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON payroll.PayrollRun,
+ ADD FILTER PREDICATE sec.fn_FactoryFilter(FactoryId) ON payroll.PayrollDetail
+ WITH (STATE=ON);
+GO
+DECLARE @d NVARCHAR(MAX)=(SELECT definition FROM HRMS_Master.sys.sql_modules WHERE object_id=OBJECT_ID(N'HRMS_Master.sec.usp_CreateApprovalGuard'));
+EXEC(@d);
+GO
+EXEC sec.usp_CreateApprovalGuard 'att','LeaveRequest';
+EXEC sec.usp_CreateApprovalGuard 'att','AttendanceRegularization';
+EXEC sec.usp_CreateApprovalGuard 'att','Overtime';
+EXEC sec.usp_CreateApprovalGuard 'payroll','PayrollInput';
+EXEC sec.usp_CreateApprovalGuard 'payroll','SalaryRevision';
+EXEC sec.usp_CreateApprovalGuard 'payroll','FnF',0;
+GO
+/* ---- permissions: HRMS_Live ---- */
+-- Associate: owner of business data, approves and locks
+GRANT SELECT,INSERT,UPDATE,DELETE ON SCHEMA::att TO role_associate;
+GRANT SELECT,INSERT,UPDATE,DELETE ON SCHEMA::payroll TO role_associate;
+GRANT SELECT,INSERT,UPDATE,DELETE ON SCHEMA::compliance TO role_associate;
+GRANT EXECUTE ON SCHEMA::att TO role_associate; GRANT EXECUTE ON SCHEMA::payroll TO role_associate; GRANT EXECUTE ON SCHEMA::compliance TO role_associate;
+GRANT EXECUTE ON sec.usp_SyncUserFactory TO role_associate;
+GRANT SELECT ON SCHEMA::rpt TO role_associate; GRANT SELECT ON audit.AuditLog TO role_associate; GRANT SELECT ON audit.ErrorLog TO role_associate;
+-- Operator: data entry and processing only. No salary structure, no approvals, no locks, no deletes.
+GRANT SELECT,INSERT,UPDATE ON SCHEMA::att TO role_operator;
+DENY DELETE ON SCHEMA::att TO role_operator;
+DENY SELECT ON att.RawPunch TO role_operator;
+GRANT SELECT,INSERT,UPDATE ON payroll.PayrollInput TO role_operator;
+GRANT SELECT ON payroll.PayrollRun TO role_operator;
+GRANT SELECT ON payroll.SalaryComponent TO role_operator;
+GRANT EXECUTE ON att.usp_ImportPunches TO role_operator; GRANT EXECUTE ON att.usp_ProcessAttendance TO role_operator; GRANT EXECUTE ON att.usp_MonthlySummary TO role_operator;
+GRANT EXECUTE ON payroll.usp_ProcessPayroll TO role_operator;
+GRANT SELECT ON rpt.vw_EmployeeMaster TO role_operator; GRANT SELECT ON rpt.vw_Headcount TO role_operator; GRANT SELECT ON rpt.vw_Muster TO role_operator;
+GRANT SELECT ON rpt.vw_AttendanceDaily TO role_operator; GRANT SELECT ON rpt.vw_AttendanceExceptions TO role_operator; GRANT SELECT ON rpt.vw_OvertimeRegister TO role_operator;
+GRANT SELECT ON rpt.vw_LeaveBalance TO role_operator; GRANT SELECT ON rpt.vw_PayrollSummary TO role_operator; GRANT SELECT ON rpt.vw_ProbationDue TO role_operator;
+-- CA: read everything financial, write compliance, enter TDS inputs, maintain nothing in HR
+GRANT SELECT ON SCHEMA::att TO role_ca; GRANT SELECT ON SCHEMA::payroll TO role_ca; GRANT SELECT ON SCHEMA::compliance TO role_ca; GRANT SELECT ON SCHEMA::rpt TO role_ca;
+GRANT INSERT,UPDATE ON SCHEMA::compliance TO role_ca; GRANT INSERT,UPDATE ON payroll.PayrollInput TO role_ca; GRANT INSERT,UPDATE ON payroll.Journal TO role_ca;
+GRANT EXECUTE ON SCHEMA::compliance TO role_ca; GRANT EXECUTE ON payroll.usp_ValidateWageRule TO role_ca; GRANT EXECUTE ON payroll.usp_ComputeBonus TO role_ca;
+DENY SELECT ON att.RawPunch TO role_ca;
+-- Developer: structure only
+GRANT VIEW DEFINITION TO role_developer; GRANT SHOWPLAN TO role_developer; GRANT SELECT ON audit.ErrorLog TO role_developer;
+DENY SELECT ON SCHEMA::att TO role_developer; DENY SELECT ON SCHEMA::payroll TO role_developer; DENY SELECT ON SCHEMA::compliance TO role_developer; DENY SELECT ON SCHEMA::rpt TO role_developer;
+GO
+EXEC audit.usp_CreateAuditTrigger 'payroll','EmployeeSalary'; EXEC audit.usp_CreateAuditTrigger 'payroll','SalaryRevision';
+EXEC audit.usp_CreateAuditTrigger 'payroll','PayrollRun';     EXEC audit.usp_CreateAuditTrigger 'payroll','SalaryComponent';
+EXEC audit.usp_CreateAuditTrigger 'payroll','Advance';        EXEC audit.usp_CreateAuditTrigger 'payroll','Gratuity';
+EXEC audit.usp_CreateAuditTrigger 'payroll','FnF';            EXEC audit.usp_CreateAuditTrigger 'payroll','SalaryHold';
+EXEC audit.usp_CreateAuditTrigger 'compliance','Challan';     EXEC audit.usp_CreateAuditTrigger 'att','LeaveRequest';
+EXEC audit.usp_CreateAuditTrigger 'att','AttendanceRegularization';
+GO
+/* ---- initial users (passwords from sqlcmd variables; use Windows logins in production if possible) ---- */
+USE HRMS_Master;
+GO
+EXEC sec.usp_AddUser N'hrms_developer',N'role_developer',N'Developer',N'$(PwdDeveloper)',N'0';
+EXEC sec.usp_AddUser N'hrms_associate',N'role_associate',N'Associate',N'$(PwdAssociate)',N'0';
+EXEC sec.usp_AddUser N'hrms_ca',N'role_ca',N'Chartered Accountant',N'$(PwdCA)',N'0';
+EXEC sec.usp_AddUser N'hrms_operator1',N'role_operator',N'Operator 1',N'$(PwdOperator1)',N'0';
+-- More operators later:  EXEC sec.usp_AddUser N'hrms_operator2',N'role_operator',N'Operator 2',N'<password>',N'1,2';   (factory ids; 0 = all)
+GO
+/* ---- server audit (logins, role changes). Wrapped so a failure never aborts deployment. ---- */
+USE master;
+GO
+BEGIN TRY
+ EXEC(N'CREATE SERVER AUDIT HRMS_Audit TO FILE (FILEPATH=N''$(AuditPath)\'', MAXSIZE=100 MB, MAX_ROLLOVER_FILES=50, RESERVE_DISK_SPACE=OFF) WITH (ON_FAILURE=CONTINUE)');
+ EXEC(N'ALTER SERVER AUDIT HRMS_Audit WITH (STATE=ON)');
+ EXEC(N'CREATE SERVER AUDIT SPECIFICATION HRMS_Server_Spec FOR SERVER AUDIT HRMS_Audit ADD (FAILED_LOGIN_GROUP),ADD (SUCCESSFUL_LOGIN_GROUP),ADD (SERVER_ROLE_MEMBER_CHANGE_GROUP),ADD (SERVER_PRINCIPAL_CHANGE_GROUP),ADD (LOGIN_CHANGE_PASSWORD_GROUP) WITH (STATE=ON)');
+ EXEC(N'USE HRMS_Live; CREATE DATABASE AUDIT SPECIFICATION HRMS_Live_Spec FOR SERVER AUDIT HRMS_Audit ADD (SCHEMA_OBJECT_CHANGE_GROUP),ADD (DATABASE_ROLE_MEMBER_CHANGE_GROUP),ADD (DATABASE_PERMISSION_CHANGE_GROUP),ADD (SELECT ON payroll.EmployeeSalary BY public) WITH (STATE=ON)');
+END TRY
+BEGIN CATCH
+ PRINT 'WARNING: server audit not created: '+ERROR_MESSAGE();
+END CATCH
+GO

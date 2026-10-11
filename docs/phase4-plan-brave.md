@@ -16,6 +16,7 @@ CR 0007, 0008 and 0009 are accepted (ADR 0008). Unblocked items below.
   - 0200: att.Shift, att.AttendanceDaily (unique company + employee + date), att.MonthLock (state, reopen user, time, reason), att.MonthLockEvent (append-only close and reopen history).
   - 0201: tenant security policy on all three tables (ADR 0007).
   - 0202: procedures. Company comes from SESSION_CONTEXT, never a parameter. Error 50001 to 50005 for closed month, no company, already closed, not closed, reason too short. Reopen writes the unlock and the history row in one transaction.
+- 0204 to 0206: att.EmployeeShift (effective-dated, real key to employee and shift), att.Holiday, att.WeeklyOffRule (day mask, effective-dated), tenant policy, and procedures. Assigning a shift ends the open one the day before.
 - Revolution.Modules.Attendance:
   - IAttendanceRepository and SqlAttendanceRepository (IConnectionFactory, StoredProcedure). Database rule errors become AttendanceRuleException.
   - AttendanceService: MarkDay (Edit), LoadMonth (View), CloseMonth (Approve), ReopenMonth (Reopen, reason audited). Every business change is audited.
@@ -26,7 +27,9 @@ CR 0007, 0008 and 0009 are accepted (ADR 0008). Unblocked items below.
 ## Not done yet
 | Item | Why |
 |---|---|
-| Foreign key att.AttendanceDaily.EmployeeID to mst.Employee | Employee table comes in lane 0100 (phase 3 database work) |
+| Leave balances for PaidLeave | Not in the plan for Phase 4. Needs a decision: leave types, accrual, carry forward |
+| Overtime caps table | Statutory and effective-dated, so it goes in the stat lane (0400) with CA sign-off |
+| Repository and service for holidays, weekly off, shift assignment | Procedures exist (0206). Add with the roster screen |
 | Shift save and list in repository and service | Procedures exist (att.usp_Shift_Save, att.usp_Shift_List). Add with the shift screen |
 | Screens: frmDailyAttendance, frmMonthClose | Next step. BaseForm and Theme exist now |
 | Cross-company leak test | Needs real SQL Server |

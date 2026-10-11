@@ -1,0 +1,94 @@
+/* 07_Functions.sql - HRMS_Live: statutory and payroll calculation functions (all rates come from ref.* tables) */
+USE HRMS_Live;
+GO
+CREATE FUNCTION att.fn_IsoDow(@d DATE) RETURNS INT AS
+BEGIN   -- Monday=1 ... Sunday=7, independent of DATEFIRST
+ RETURN (DATEDIFF(DAY,'19000101',@d)%7)+1;
+END
+GO
+CREATE FUNCTION payroll.fn_FYCode(@d DATE) RETURNS VARCHAR(10) AS
+BEGIN
+ DECLARE @y INT=CASE WHEN MONTH(@d)>=4 THEN YEAR(@d) ELSE YEAR(@d)-1 END;
+ RETURN 'FY'+CAST(@y AS VARCHAR(4))+'_'+RIGHT(CAST(@y+1 AS VARCHAR(4)),2);
+END
+GO
+CREATE FUNCTION compliance.fn_ESIPeriodStart(@Month INT,@Year INT) RETURNS DATE AS
+BEGIN   -- ESI contribution periods: Apr-Sep and Oct-Mar
+ RETURN CASE WHEN @Month BETWEEN 4 AND 9 THEN DATEFROMPARTS(@Year,4,1)
+             WHEN @Month>=10 THEN DATEFROMPARTS(@Year,10,1) ELSE DATEFROMPARTS(@Year-1,10,1) END;
+END
+GO
+CREATE FUNCTION compliance.fn_Rate(@Code VARCHAR(20),@On DATE) RETURNS TABLE AS RETURN
+ SELECT TOP (1) RatePct, WageCeiling FROM ref.StatutoryRate
+ WHERE Code=@Code AND EffectiveFrom<=@On AND (EffectiveTo IS NULL OR EffectiveTo>=@On) ORDER BY EffectiveFrom DESC;
+GO
+/* EPF: EE 12% of EPF wage (ceiling unless higher-wage option); EPS 8.33% of wage capped; employer EPF = employer 12% - EPS; EDLI/admin on capped wage */
+CREATE FUNCTION compliance.fn_EPF(@Wage DECIMAL(14,2),@On DATE,@Higher BIT) RETURNS TABLE AS RETURN
+ SELECT CAST(w.ContribWage AS DECIMAL(14,2)) AS EPFWage, CAST(w.EPSBase AS DECIMAL(14,2)) AS EPSWage, CAST(w.EDLIBase AS DECIMAL(14,2)) AS EDLIWage,
+  CAST(ROUND(w.ContribWage*ee.RatePct/100.0,0) AS DECIMAL(12,2)) AS EmployeeShare,
+  CAST(ROUND(w.EPSBase*eps.RatePct/100.0,0) AS DECIMAL(12,2)) AS EPSShare,
+  CAST(ROUND(w.ContribWage*(er.RatePct+eps.RatePct)/100.0,0)-ROUND(w.EPSBase*eps.RatePct/100.0,0) AS DECIMAL(12,2)) AS EmployerEPFShare,
+  CAST(ROUND(w.EDLIBase*edli.RatePct/100.0,0) AS DECIMAL(12,2)) AS EDLI,
+  CAST(ROUND(w.ContribWage*adm.RatePct/100.0,0) AS DECIMAL(12,2)) AS AdminCharge
+ FROM compliance.fn_Rate('EPF_EE',@On) ee CROSS APPLY compliance.fn_Rate('EPF_ER',@On) er
+ CROSS APPLY compliance.fn_Rate('EPS_ER',@On) eps CROSS APPLY compliance.fn_Rate('EDLI',@On) edli CROSS APPLY compliance.fn_Rate('EPF_ADMIN',@On) adm
+ CROSS APPLY (SELECT
+   CASE WHEN @Higher=1 OR @Wage<=ee.WageCeiling THEN @Wage ELSE ee.WageCeiling END AS ContribWage,
+   CASE WHEN @Higher=1 OR @Wage<=eps.WageCeiling THEN @Wage ELSE eps.WageCeiling END AS EPSBase,
+   CASE WHEN @Wage<=edli.WageCeiling THEN @Wage ELSE edli.WageCeiling END AS EDLIBase) w;
+GO
+/* ESI: shares rounded UP to next rupee. Eligibility (ceiling / contribution-period rule) is decided by the caller. */
+CREATE FUNCTION compliance.fn_ESI(@Wage DECIMAL(14,2),@On DATE) RETURNS TABLE AS RETURN
+ SELECT ee.WageCeiling AS WageCeiling,
+  CAST(CEILING(@Wage*ee.RatePct/100.0) AS DECIMAL(12,2)) AS EmployeeShare,
+  CAST(CEILING(@Wage*er.RatePct/100.0) AS DECIMAL(12,2)) AS EmployerShare
+ FROM compliance.fn_Rate('ESI_EE',@On) ee CROSS APPLY compliance.fn_Rate('ESI_ER',@On) er;
+GO
+CREATE FUNCTION compliance.fn_PT(@StateId INT,@Gender CHAR(1),@Gross DECIMAL(14,2),@Month INT,@On DATE) RETURNS TABLE AS RETURN
+ SELECT CAST(ISNULL((SELECT TOP (1) CASE WHEN @Month=2 AND FebTaxAmt IS NOT NULL THEN FebTaxAmt ELSE TaxAmt END
+   FROM ref.PTSlab WHERE StateId=@StateId AND (Gender IS NULL OR Gender=@Gender) AND @Gross BETWEEN FromAmt AND ToAmt
+    AND EffectiveFrom<=@On AND (EffectiveTo IS NULL OR EffectiveTo>=@On)
+   ORDER BY CASE WHEN Gender IS NULL THEN 1 ELSE 0 END, EffectiveFrom DESC),0) AS DECIMAL(10,2)) AS Amount;
+GO
+CREATE FUNCTION compliance.fn_LWF(@StateId INT,@Gross DECIMAL(14,2),@Month INT,@On DATE) RETURNS TABLE AS RETURN
+ SELECT CAST(ISNULL(x.EmployeeAmt,0) AS DECIMAL(8,2)) AS EmployeeAmt, CAST(ISNULL(x.EmployerAmt,0) AS DECIMAL(8,2)) AS EmployerAmt
+ FROM (SELECT 1 AS d) dummy
+ LEFT JOIN (SELECT TOP (1) EmployeeAmt,EmployerAmt FROM ref.LWFRate
+   WHERE StateId=@StateId AND @Gross BETWEEN WageFrom AND WageTo AND EffectiveFrom<=@On AND (EffectiveTo IS NULL OR EffectiveTo>=@On)
+     AND ','+DeductMonths+',' LIKE '%,'+CAST(@Month AS VARCHAR(2))+',%' ORDER BY EffectiveFrom DESC) x ON 1=1;
+GO
+/* Fixed salary structure totals as on a date */
+CREATE FUNCTION payroll.fn_FixedWages(@EmpId INT,@On DATE) RETURNS TABLE AS RETURN
+ SELECT ISNULL(SUM(s.MonthlyAmt),0) AS Gross,
+  ISNULL(SUM(CASE WHEN c.ExcludeFromWageTest=0 THEN s.MonthlyAmt END),0) AS Remuneration,
+  ISNULL(SUM(CASE WHEN c.IsWageExcluded=1 AND c.ExcludeFromWageTest=0 THEN s.MonthlyAmt END),0) AS ExcludedAmt,
+  ISNULL(SUM(CASE WHEN c.IsGratuityWage=1 THEN s.MonthlyAmt END),0) AS GratWage,
+  ISNULL(SUM(CASE WHEN c.IsEPFWage=1 THEN s.MonthlyAmt END),0) AS LegacyEPFWage,
+  ISNULL(SUM(CASE WHEN c.IsESIWage=1 THEN s.MonthlyAmt END),0) AS ESIWage,
+  ISNULL(SUM(CASE WHEN c.IsOTBase=1 THEN s.MonthlyAmt END),0) AS OTBase
+ FROM payroll.EmployeeSalary s JOIN payroll.SalaryComponent c ON c.CompId=s.CompId
+ WHERE s.EmpId=@EmpId AND c.Type='E' AND s.EffectiveFrom<=@On AND (s.EffectiveTo IS NULL OR s.EffectiveTo>=@On);
+GO
+/* Code on Wages: if excluded items exceed (100-floor)% of remuneration, the excess is added back to wages */
+CREATE FUNCTION payroll.fn_CodeWage(@Remun DECIMAL(14,2),@Excl DECIMAL(14,2),@FloorPct DECIMAL(5,2)) RETURNS TABLE AS RETURN
+ SELECT CAST(@Remun-CASE WHEN @Excl>@Remun*(100-@FloorPct)/100.0 THEN @Remun*(100-@FloorPct)/100.0 ELSE @Excl END AS DECIMAL(14,2)) AS CodeWage,
+        CAST(CASE WHEN @Remun>0 THEN (@Remun-@Excl)*100.0/@Remun ELSE 100 END AS DECIMAL(6,2)) AS RawWagePct;
+GO
+/* Gratuity: wage x DaysPerYear / MonthDivisor x years (part-year above RoundUpMonths counts as a year), capped */
+CREATE FUNCTION payroll.fn_Gratuity(@DOJ DATE,@Exit DATE,@Wage DECIMAL(14,2),@EmpType VARCHAR(12),@Reason VARCHAR(15)) RETURNS TABLE AS RETURN
+ SELECT m.Months AS ServiceMonths,
+  y.Years AS YearsRounded,
+  CAST(CASE WHEN @Reason IN ('Death','Disablement') THEN 1
+            WHEN @EmpType='FixedTerm' AND m.Months>=r.MinYearsFixedTerm*12 THEN 1
+            WHEN @EmpType<>'FixedTerm' AND m.Months>=r.MinYearsRegular*12 THEN 1 ELSE 0 END AS BIT) AS IsEligible,
+  CAST(ROUND(@Wage*r.DaysPerYear/r.MonthDivisor*y.Years,0) AS DECIMAL(14,2)) AS UncappedAmount, r.CapAmount AS CapAmount
+ FROM (SELECT TOP (1) * FROM ref.GratuityRule WHERE EffectiveFrom<=@Exit ORDER BY EffectiveFrom DESC) r
+ CROSS APPLY (SELECT DATEDIFF(MONTH,@DOJ,@Exit)-CASE WHEN DAY(@Exit)<DAY(@DOJ) THEN 1 ELSE 0 END AS Months) m
+ CROSS APPLY (SELECT m.Months/12+CASE WHEN m.Months%12>r.RoundUpMonths THEN 1 ELSE 0 END AS Years) y;
+GO
+/* Overtime: ordinary hourly rate x hours x multiplier */
+CREATE FUNCTION payroll.fn_OTAmount(@OTBaseMonthly DECIMAL(14,2),@DivisorDays INT,@HoursPerDay INT,@OTMinutes INT,@Mult DECIMAL(4,2)) RETURNS DECIMAL(14,2) AS
+BEGIN
+ RETURN ROUND(@OTBaseMonthly/@DivisorDays/@HoursPerDay*(@OTMinutes/60.0)*@Mult,0);
+END
+GO

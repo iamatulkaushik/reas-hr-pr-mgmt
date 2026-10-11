@@ -1,0 +1,134 @@
+/* 10_Proc_Compliance.sql - HRMS_Live: statutory generation, challans, ECR / ESI exports, minimum wage check */
+USE HRMS_Live;
+GO
+CREATE PROCEDURE compliance.usp_GenerateEPF @RunId INT AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @to DATE=(SELECT EOMONTH(DATEFROMPARTS(PayYear,PayMonth,1)) FROM payroll.PayrollRun WHERE RunId=@RunId);
+ DELETE FROM compliance.EPFContribution WHERE RunId=@RunId;
+ INSERT compliance.EPFContribution(RunId,EmpId,FactoryId,PayMonth,PayYear,GrossWage,EPFWage,EPSWage,EDLIWage,EmployeeShare,EPSShare,EmployerEPFShare,EDLI,AdminCharge,NCPDays)
+ SELECT d.RunId,d.EmpId,d.FactoryId,d.PayMonth,d.PayYear,d.GrossEarnings,epf.EPFWage,CASE WHEN st.IsPensionMember=1 THEN epf.EPSWage ELSE 0 END,epf.EDLIWage,epf.EmployeeShare,
+        CASE WHEN st.IsPensionMember=1 THEN epf.EPSShare ELSE 0 END,
+        epf.EPSShare+epf.EmployerEPFShare-CASE WHEN st.IsPensionMember=1 THEN epf.EPSShare ELSE 0 END,epf.EDLI,epf.AdminCharge,d.LOPDays
+ FROM payroll.PayrollDetail d JOIN hr.EmployeeStatutory st ON st.EmpId=d.EmpId AND st.IsEPFMember=1
+ CROSS APPLY compliance.fn_EPF(d.EPFWage,@to,st.HigherWageOption) epf WHERE d.RunId=@RunId;
+END
+GO
+CREATE PROCEDURE compliance.usp_GenerateESI @RunId INT AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @to DATE,@m TINYINT,@y SMALLINT; SELECT @m=PayMonth,@y=PayYear,@to=EOMONTH(DATEFROMPARTS(PayYear,PayMonth,1)) FROM payroll.PayrollRun WHERE RunId=@RunId;
+ DECLARE @cESI INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='ESI');
+ DELETE FROM compliance.ESIContribution WHERE RunId=@RunId;
+ INSERT compliance.ESIContribution(RunId,EmpId,FactoryId,PayMonth,PayYear,ESIWage,EmployeeShare,EmployerShare,DaysWorked,PeriodStart)
+ SELECT d.RunId,d.EmpId,d.FactoryId,d.PayMonth,d.PayYear,d.ESIWage,l.Amount,esi.EmployerShare,d.PaidDays,compliance.fn_ESIPeriodStart(@m,@y)
+ FROM payroll.PayrollDetail d JOIN payroll.PayrollDetailLine l ON l.DetailId=d.DetailId AND l.CompId=@cESI AND l.Amount>0
+ CROSS APPLY compliance.fn_ESI(d.ESIWage,@to) esi WHERE d.RunId=@RunId;
+END
+GO
+CREATE PROCEDURE compliance.usp_GeneratePTLWFTDS @RunId INT AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @m TINYINT,@y SMALLINT,@f INT,@to DATE; SELECT @m=PayMonth,@y=PayYear,@f=FactoryId,@to=EOMONTH(DATEFROMPARTS(PayYear,PayMonth,1)) FROM payroll.PayrollRun WHERE RunId=@RunId;
+ DECLARE @st INT=(SELECT StateId FROM ref.Factory WHERE FactoryId=@f);
+ DECLARE @cPT INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='PT'),@cLWF INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='LWF'),@cTDS INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='TDS');
+ DELETE FROM compliance.PTDeduction WHERE RunId=@RunId; DELETE FROM compliance.LWFDeduction WHERE RunId=@RunId; DELETE FROM compliance.TDSDeduction WHERE RunId=@RunId;
+ INSERT compliance.PTDeduction(RunId,EmpId,FactoryId,StateId,PayMonth,PayYear,GrossWage,Amount)
+ SELECT d.RunId,d.EmpId,d.FactoryId,@st,@m,@y,d.GrossEarnings,l.Amount FROM payroll.PayrollDetail d JOIN payroll.PayrollDetailLine l ON l.DetailId=d.DetailId AND l.CompId=@cPT WHERE d.RunId=@RunId;
+ INSERT compliance.LWFDeduction(RunId,EmpId,FactoryId,StateId,PayMonth,PayYear,EmployeeAmt,EmployerAmt)
+ SELECT d.RunId,d.EmpId,d.FactoryId,@st,@m,@y,l.Amount,lw.EmployerAmt FROM payroll.PayrollDetail d JOIN payroll.PayrollDetailLine l ON l.DetailId=d.DetailId AND l.CompId=@cLWF
+ CROSS APPLY compliance.fn_LWF(@st,d.GrossEarnings,@m,@to) lw WHERE d.RunId=@RunId;
+ INSERT compliance.TDSDeduction(RunId,EmpId,FactoryId,PayMonth,PayYear,Amount)
+ SELECT d.RunId,d.EmpId,d.FactoryId,@m,@y,l.Amount FROM payroll.PayrollDetail d JOIN payroll.PayrollDetailLine l ON l.DetailId=d.DetailId AND l.CompId=@cTDS WHERE d.RunId=@RunId;
+END
+GO
+/* Statutory wage floor check: wage per paid day vs state minimum daily rate for the designation category */
+CREATE PROCEDURE compliance.usp_CheckMinWage @RunId INT AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @f INT,@to DATE; SELECT @f=FactoryId,@to=EOMONTH(DATEFROMPARTS(PayYear,PayMonth,1)) FROM payroll.PayrollRun WHERE RunId=@RunId;
+ DECLARE @st INT=(SELECT StateId FROM ref.Factory WHERE FactoryId=@f),@cOT INT=(SELECT CompId FROM payroll.SalaryComponent WHERE Code='OT');
+ DELETE FROM compliance.MinWageCheck WHERE RunId=@RunId;
+ INSERT compliance.MinWageCheck(RunId,EmpId,PaidDays,WagePerDay,MinDailyRate,Shortfall)
+ SELECT d.RunId,d.EmpId,d.PaidDays,x.WageDay,mw.DailyRate,ROUND((mw.DailyRate-x.WageDay)*d.PaidDays,2)
+ FROM payroll.PayrollDetail d JOIN hr.Employee e ON e.EmpId=d.EmpId JOIN ref.Designation dg ON dg.DesigId=e.DesigId
+ CROSS APPLY (SELECT TOP (1) m.DailyRate FROM ref.MinimumWage m WHERE m.StateId=@st AND m.Category=dg.Category AND m.EffectiveFrom<=@to AND (m.EffectiveTo IS NULL OR m.EffectiveTo>=@to) ORDER BY m.EffectiveFrom DESC) mw
+ CROSS APPLY (SELECT (d.GrossEarnings-ISNULL((SELECT SUM(l.Amount) FROM payroll.PayrollDetailLine l WHERE l.DetailId=d.DetailId AND l.CompId=@cOT),0))/NULLIF(d.PaidDays,0) AS WageDay) x
+ WHERE d.RunId=@RunId AND d.PaidDays>0 AND x.WageDay<mw.DailyRate;
+END
+GO
+CREATE PROCEDURE compliance.usp_CreateChallans @RunId INT AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @f INT,@m TINYINT,@y SMALLINT; SELECT @f=FactoryId,@m=PayMonth,@y=PayYear FROM payroll.PayrollRun WHERE RunId=@RunId;
+ DECLARE @ac01 DECIMAL(16,2),@ac02 DECIMAL(16,2),@ac10 DECIMAL(16,2),@ac21 DECIMAL(16,2),@esi DECIMAL(16,2),@pt DECIMAL(16,2),@lwf DECIMAL(16,2),@tds DECIMAL(16,2),@n INT;
+ SELECT @n=COUNT(*),@ac01=ISNULL(SUM(EmployeeShare+EmployerEPFShare),0),@ac02=ISNULL(SUM(AdminCharge),0),@ac10=ISNULL(SUM(EPSShare),0),@ac21=ISNULL(SUM(EDLI),0) FROM compliance.EPFContribution WHERE RunId=@RunId;
+ DECLARE @adminMin DECIMAL(12,2)=ISNULL((SELECT TRY_CAST(ConfigValue AS DECIMAL(12,2)) FROM ref.Config WHERE ConfigKey='EPF_ADMIN_MIN'),500);
+ IF @n>0 AND @ac02<@adminMin SET @ac02=@adminMin;
+ SELECT @esi=ISNULL(SUM(EmployeeShare+EmployerShare),0) FROM compliance.ESIContribution WHERE RunId=@RunId;
+ SELECT @pt=ISNULL(SUM(Amount),0) FROM compliance.PTDeduction WHERE RunId=@RunId;
+ SELECT @lwf=ISNULL(SUM(EmployeeAmt+EmployerAmt),0) FROM compliance.LWFDeduction WHERE RunId=@RunId;
+ SELECT @tds=ISNULL(SUM(Amount),0) FROM compliance.TDSDeduction WHERE RunId=@RunId;
+ CREATE TABLE #c(Typ VARCHAR(4),Amt DECIMAL(16,2),Code VARCHAR(10));
+ INSERT #c VALUES('EPF',@ac01+@ac02+@ac10+@ac21,'EPF_ECR'),('ESI',@esi,'ESI'),('PT',@pt,'PT'),('LWF',@lwf,'LWF'),('TDS',@tds,'TDS');
+ BEGIN TRAN;
+ DELETE cl FROM compliance.ChallanLine cl JOIN compliance.Challan c ON c.ChallanId=cl.ChallanId WHERE c.FactoryId=@f AND c.PayMonth=@m AND c.PayYear=@y AND c.Status='Due';
+ DELETE FROM compliance.Challan WHERE FactoryId=@f AND PayMonth=@m AND PayYear=@y AND Status='Due';
+ INSERT compliance.Challan(FactoryId,ChallanType,PayMonth,PayYear,Amount,DueDate)
+ SELECT @f,x.Typ,@m,@y,x.Amt,CASE WHEN cal.DueDay IS NULL THEN NULL ELSE DATEFROMPARTS(YEAR(t.d),MONTH(t.d),CASE WHEN cal.DueDay>DAY(EOMONTH(t.d)) THEN DAY(EOMONTH(t.d)) ELSE cal.DueDay END) END
+ FROM #c x LEFT JOIN compliance.FilingCalendar cal ON cal.Code=x.Code
+ CROSS APPLY (SELECT DATEADD(MONTH,ISNULL(cal.DueMonthOffset,1),DATEFROMPARTS(@y,@m,1)) AS d) t
+ WHERE x.Amt>0 AND NOT EXISTS (SELECT 1 FROM compliance.Challan c WHERE c.FactoryId=@f AND c.ChallanType=x.Typ AND c.PayMonth=@m AND c.PayYear=@y);
+ INSERT compliance.ChallanLine(ChallanId,AccountHead,Amount)
+ SELECT c.ChallanId,v.Head,v.Amt FROM compliance.Challan c JOIN (VALUES ('EPF','AC01 EPF',@ac01),('EPF','AC02 Admin',@ac02),('EPF','AC10 EPS',@ac10),('EPF','AC21 EDLI',@ac21),('ESI','ESI',@esi),('PT','PT',@pt),('LWF','LWF',@lwf),('TDS','TDS',@tds)) v(Typ,Head,Amt)
+   ON v.Typ=c.ChallanType WHERE c.FactoryId=@f AND c.PayMonth=@m AND c.PayYear=@y AND c.Status='Due' AND v.Amt>0;
+ INSERT compliance.FilingStatus(CalendarId,FactoryId,PeriodMonth,PeriodYear,DueDate)
+ SELECT cal.CalendarId,@f,@m,@y,ch.DueDate FROM compliance.Challan ch JOIN compliance.FilingCalendar cal ON cal.Code=CASE ch.ChallanType WHEN 'EPF' THEN 'EPF_ECR' ELSE ch.ChallanType END
+ WHERE ch.FactoryId=@f AND ch.PayMonth=@m AND ch.PayYear=@y AND ch.DueDate IS NOT NULL AND NOT EXISTS (SELECT 1 FROM compliance.FilingStatus fs WHERE fs.CalendarId=cal.CalendarId AND fs.FactoryId=@f AND fs.PeriodMonth=@m AND fs.PeriodYear=@y);
+ COMMIT;
+END
+GO
+CREATE PROCEDURE compliance.usp_GenerateAll @RunId INT AS
+BEGIN
+ SET NOCOUNT ON;
+ EXEC compliance.usp_GenerateEPF @RunId; EXEC compliance.usp_GenerateESI @RunId; EXEC compliance.usp_GeneratePTLWFTDS @RunId;
+ EXEC compliance.usp_CheckMinWage @RunId; EXEC compliance.usp_CreateChallans @RunId;
+END
+GO
+/* EPFO ECR text, one line per member: UAN#~#Name#~#Gross#~#EPF#~#EPS#~#EDLI#~#EE#~#EPS#~#ER diff#~#NCP#~#Refund */
+CREATE PROCEDURE compliance.usp_ExportECR @FactoryId INT,@Month TINYINT,@Year SMALLINT AS
+BEGIN
+ SET NOCOUNT ON;
+ SELECT CONCAT(st.UAN,'#~#',UPPER(e.FullName),'#~#',CAST(c.GrossWage AS INT),'#~#',CAST(c.EPFWage AS INT),'#~#',CAST(c.EPSWage AS INT),'#~#',CAST(c.EDLIWage AS INT),'#~#',
+        CAST(c.EmployeeShare AS INT),'#~#',CAST(c.EPSShare AS INT),'#~#',CAST(c.EmployerEPFShare AS INT),'#~#',CAST(c.NCPDays AS INT),'#~#',CAST(c.RefundOfAdvance AS INT)) AS ECRLine
+ FROM compliance.EPFContribution c JOIN hr.Employee e ON e.EmpId=c.EmpId JOIN hr.EmployeeStatutory st ON st.EmpId=c.EmpId
+ WHERE c.FactoryId=@FactoryId AND c.PayMonth=@Month AND c.PayYear=@Year AND st.UAN IS NOT NULL ORDER BY e.EmpCode;
+END
+GO
+/* ESIC monthly contribution upload columns */
+CREATE PROCEDURE compliance.usp_ExportESI @FactoryId INT,@Month TINYINT,@Year SMALLINT AS
+BEGIN
+ SET NOCOUNT ON;
+ SELECT st.ESIIPNo AS [IP Number],e.FullName AS [IP Name],CAST(c.DaysWorked AS INT) AS [No of Days],CAST(c.ESIWage AS INT) AS [Total Monthly Wages],c.ReasonCode AS [Reason Code],CAST(NULL AS DATE) AS [Last Working Day]
+ FROM compliance.ESIContribution c JOIN hr.Employee e ON e.EmpId=c.EmpId JOIN hr.EmployeeStatutory st ON st.EmpId=c.EmpId
+ WHERE c.FactoryId=@FactoryId AND c.PayMonth=@Month AND c.PayYear=@Year ORDER BY e.EmpCode;
+END
+GO
+/* Weekly hours (Factories Act style) and quarterly overtime limit checks */
+CREATE PROCEDURE compliance.usp_CheckWorkingHours @FactoryId INT,@From DATE,@To DATE AS
+BEGIN
+ SET NOCOUNT ON;
+ DELETE FROM compliance.FactoryWorkerRegister WHERE WeekStart BETWEEN @From AND @To AND EmpId IN (SELECT EmpId FROM hr.Employee WHERE FactoryId=@FactoryId);
+ INSERT compliance.FactoryWorkerRegister(EmpId,WeekStart,WeeklyHours,ExceedsLimit)
+ SELECT a.EmpId,DATEADD(DAY,-((DATEDIFF(DAY,'19000101',a.WorkDate)%7)),a.WorkDate),SUM(a.WorkedMinutes)/60.0,CASE WHEN SUM(a.WorkedMinutes)/60.0>60 THEN 1 ELSE 0 END
+ FROM att.Attendance a WHERE a.FactoryId=@FactoryId AND a.WorkDate BETWEEN @From AND @To
+ GROUP BY a.EmpId,DATEADD(DAY,-((DATEDIFF(DAY,'19000101',a.WorkDate)%7)),a.WorkDate);
+ DELETE FROM compliance.OvertimeRegister WHERE QuarterStart=DATEFROMPARTS(YEAR(@From),((MONTH(@From)-1)/3)*3+1,1) AND EmpId IN (SELECT EmpId FROM hr.Employee WHERE FactoryId=@FactoryId);
+ INSERT compliance.OvertimeRegister(EmpId,QuarterStart,OTHours,ExceedsLimit)
+ SELECT o.EmpId,DATEFROMPARTS(YEAR(@From),((MONTH(@From)-1)/3)*3+1,1),SUM(o.OTMinutes)/60.0,
+   CASE WHEN SUM(o.OTMinutes)/60.0>ISNULL((SELECT TOP (1) MaxHoursPerQuarter FROM ref.OTRule WHERE FactoryId IN (0,@FactoryId) ORDER BY FactoryId DESC,EffectiveFrom DESC),75) THEN 1 ELSE 0 END
+ FROM att.Overtime o WHERE o.FactoryId=@FactoryId AND o.Status='Approved' AND o.WorkDate>=DATEFROMPARTS(YEAR(@From),((MONTH(@From)-1)/3)*3+1,1) AND o.WorkDate<=@To GROUP BY o.EmpId;
+ SELECT WeeksOverLimit=(SELECT COUNT(*) FROM compliance.FactoryWorkerRegister WHERE ExceedsLimit=1 AND WeekStart BETWEEN @From AND @To),
+        EmployeesOverOTLimit=(SELECT COUNT(*) FROM compliance.OvertimeRegister WHERE ExceedsLimit=1);
+END
+GO

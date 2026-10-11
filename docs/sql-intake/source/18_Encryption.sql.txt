@@ -1,0 +1,174 @@
+/* 18_Encryption.sql - column encryption (AES-256) for PAN, Aadhaar, bank account numbers and document numbers.
+   Design:
+   * One symmetric key HRMS_DataKey, created in HRMS_Master AND HRMS_Live from the same KEY_SOURCE/IDENTITY_VALUE, so both databases
+     (and every restored archive) read the same ciphertext. Each database has its own certificate protecting the key.
+   * Ciphertext is bound to the employee (authenticator = EmpId): copying one employee's ciphertext to another fails to decrypt.
+   * Plain text is written/read ONLY through procedures (EXECUTE AS OWNER). Users have no key or certificate permission.
+   * Every reveal is logged in audit.RevealLog. Views and reports show masked last-4 only.
+   * Express has no TDE; add BitLocker on the data, backup and scan drives.
+   KEEP SAFE OFFLINE: the master-key password, the key-backup password, KeySource, KeyIdentity and every file in the Keys folder. Lose them and the data is unrecoverable. */
+USE master;
+GO
+BACKUP SERVICE MASTER KEY TO FILE=N'$(KeyPath)\SMK.key' ENCRYPTION BY PASSWORD=N'$(PwdKeyBackup)';
+GO
+USE HRMS_Master;
+GO
+CREATE MASTER KEY ENCRYPTION BY PASSWORD=N'$(PwdMasterKey)';
+CREATE CERTIFICATE HRMS_DataCert WITH SUBJECT=N'HRMS data encryption (Master)', EXPIRY_DATE='20991231';
+CREATE SYMMETRIC KEY HRMS_DataKey WITH KEY_SOURCE='$(KeySource)', ALGORITHM=AES_256, IDENTITY_VALUE='$(KeyIdentity)' ENCRYPTION BY CERTIFICATE HRMS_DataCert;
+BACKUP CERTIFICATE HRMS_DataCert TO FILE=N'$(KeyPath)\HRMS_Master_DataCert.cer' WITH PRIVATE KEY (FILE=N'$(KeyPath)\HRMS_Master_DataCert.pvk', ENCRYPTION BY PASSWORD=N'$(PwdKeyBackup)');
+BACKUP MASTER KEY TO FILE=N'$(KeyPath)\HRMS_Master_DMK.key' ENCRYPTION BY PASSWORD=N'$(PwdKeyBackup)';
+GO
+CREATE TABLE audit.RevealLog(
+ RevealId BIGINT IDENTITY PRIMARY KEY, ProcName SYSNAME NOT NULL, EmpId INT NULL, Fields VARCHAR(100) NOT NULL, RowsRevealed INT NOT NULL,
+ RevealedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), RevealedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+GO
+/* caller may touch this factory: sysadmin, Associate, CA, or an Operator mapped to the factory. Uses ORIGINAL_LOGIN() so it works inside EXECUTE AS OWNER. */
+CREATE FUNCTION sec.fn_CallerCanAccess(@FactoryId INT) RETURNS TABLE AS RETURN
+ SELECT 1 AS ok WHERE IS_SRVROLEMEMBER('sysadmin',ORIGINAL_LOGIN())=1 OR IS_ROLEMEMBER('role_associate',ORIGINAL_LOGIN())=1 OR IS_ROLEMEMBER('role_ca',ORIGINAL_LOGIN())=1
+  OR EXISTS (SELECT 1 FROM sec.UserFactory u WHERE u.LoginName=ORIGINAL_LOGIN() AND u.FactoryId IN (0,@FactoryId));
+GO
+CREATE PROCEDURE hr.usp_SaveIds @EmpId INT,@PAN VARCHAR(10)=NULL,@Aadhaar VARCHAR(12)=NULL WITH EXECUTE AS OWNER AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @f INT=(SELECT FactoryId FROM hr.Employee WHERE EmpId=@EmpId);
+ IF @f IS NULL THROW 50700,'Employee not found.',1;
+ IF NOT EXISTS (SELECT 1 FROM sec.fn_CallerCanAccess(@f)) THROW 50701,'Not allowed for this factory.',1;
+ SET @PAN=UPPER(LTRIM(RTRIM(@PAN)));
+ IF @PAN IS NOT NULL AND @PAN NOT LIKE '[A-Z][A-Z][A-Z][A-Z][A-Z][0-9][0-9][0-9][0-9][A-Z]' THROW 50702,'PAN format is invalid.',1;
+ IF @Aadhaar IS NOT NULL AND (LEN(@Aadhaar)<>12 OR @Aadhaar LIKE '%[^0-9]%') THROW 50703,'Aadhaar must be exactly 12 digits.',1;
+ IF NOT EXISTS (SELECT 1 FROM hr.EmployeeStatutory WHERE EmpId=@EmpId) INSERT hr.EmployeeStatutory(EmpId) VALUES(@EmpId);
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ UPDATE hr.EmployeeStatutory SET
+  PAN_Enc=CASE WHEN @PAN IS NULL THEN PAN_Enc ELSE ENCRYPTBYKEY(KEY_GUID('HRMS_DataKey'),@PAN,1,CONVERT(VARBINARY(20),@EmpId)) END,
+  PANLast4=CASE WHEN @PAN IS NULL THEN PANLast4 ELSE RIGHT(@PAN,4) END,
+  Aadhaar_Enc=CASE WHEN @Aadhaar IS NULL THEN Aadhaar_Enc ELSE ENCRYPTBYKEY(KEY_GUID('HRMS_DataKey'),@Aadhaar,1,CONVERT(VARBINARY(20),@EmpId)) END,
+  AadhaarLast4=CASE WHEN @Aadhaar IS NULL THEN AadhaarLast4 ELSE RIGHT(@Aadhaar,4) END
+ WHERE EmpId=@EmpId;
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+END
+GO
+CREATE PROCEDURE hr.usp_SaveBankAccount @EmpId INT,@BankId INT=NULL,@AccountNo VARCHAR(25)=NULL,@IFSC VARCHAR(11)=NULL,@PaymentMode VARCHAR(8)='Bank' WITH EXECUTE AS OWNER AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @f INT=(SELECT FactoryId FROM hr.Employee WHERE EmpId=@EmpId);
+ IF @f IS NULL THROW 50705,'Employee not found.',1;
+ IF NOT EXISTS (SELECT 1 FROM sec.fn_CallerCanAccess(@f)) THROW 50706,'Not allowed for this factory.',1;
+ IF @PaymentMode NOT IN ('Bank','Cash','Cheque') THROW 50707,'Payment mode must be Bank, Cash or Cheque.',1;
+ SET @IFSC=UPPER(LTRIM(RTRIM(@IFSC)));
+ IF @PaymentMode='Bank' AND (@AccountNo IS NULL OR LEN(@AccountNo) NOT BETWEEN 9 AND 18 OR @AccountNo LIKE '%[^0-9]%') THROW 50708,'Account number must be 9 to 18 digits.',1;
+ IF @PaymentMode='Bank' AND (@IFSC IS NULL OR @IFSC NOT LIKE '[A-Z][A-Z][A-Z][A-Z]0[A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9]') THROW 50709,'IFSC format is invalid.',1;
+ IF NOT EXISTS (SELECT 1 FROM hr.EmployeeBank WHERE EmpId=@EmpId) INSERT hr.EmployeeBank(EmpId) VALUES(@EmpId);
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ UPDATE hr.EmployeeBank SET BankId=@BankId,IFSC=@IFSC,PaymentMode=@PaymentMode,UpdatedAt=SYSUTCDATETIME(),
+  AccountNo_Enc=CASE WHEN @AccountNo IS NULL THEN NULL ELSE ENCRYPTBYKEY(KEY_GUID('HRMS_DataKey'),@AccountNo,1,CONVERT(VARBINARY(20),@EmpId)) END,
+  AccountLast4=RIGHT(@AccountNo,4) WHERE EmpId=@EmpId;
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+END
+GO
+CREATE PROCEDURE hr.usp_SaveDocument @EmpId INT,@DocTypeId INT,@DocNo VARCHAR(50),@ValidTo DATE=NULL,@FilePath NVARCHAR(400)=NULL WITH EXECUTE AS OWNER AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @f INT=(SELECT FactoryId FROM hr.Employee WHERE EmpId=@EmpId);
+ IF @f IS NULL THROW 50711,'Employee not found.',1;
+ IF NOT EXISTS (SELECT 1 FROM sec.fn_CallerCanAccess(@f)) THROW 50712,'Not allowed for this factory.',1;
+ IF NOT EXISTS (SELECT 1 FROM ref.DocumentType WHERE DocTypeId=@DocTypeId) THROW 50713,'Unknown document type.',1;
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ DECLARE @enc VARBINARY(160)=ENCRYPTBYKEY(KEY_GUID('HRMS_DataKey'),@DocNo,1,CONVERT(VARBINARY(20),@EmpId));
+ IF EXISTS (SELECT 1 FROM hr.EmployeeDocument WHERE EmpId=@EmpId AND DocTypeId=@DocTypeId)
+  UPDATE hr.EmployeeDocument SET DocNo_Enc=@enc,DocNoLast4=RIGHT(@DocNo,4),ValidTo=@ValidTo,FilePath=ISNULL(@FilePath,FilePath) WHERE EmpId=@EmpId AND DocTypeId=@DocTypeId;
+ ELSE
+  INSERT hr.EmployeeDocument(EmpId,DocTypeId,DocNo_Enc,DocNoLast4,ValidTo,FilePath) VALUES(@EmpId,@DocTypeId,@enc,RIGHT(@DocNo,4),@ValidTo,@FilePath);
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+END
+GO
+/* Reveal: Associate and CA (PAN, Aadhaar, document numbers) - logged */
+CREATE PROCEDURE hr.usp_RevealIds @EmpId INT WITH EXECUTE AS OWNER AS
+BEGIN
+ SET NOCOUNT ON;
+ IF ISNULL(IS_ROLEMEMBER('role_associate',ORIGINAL_LOGIN()),0)<>1 AND ISNULL(IS_ROLEMEMBER('role_ca',ORIGINAL_LOGIN()),0)<>1 AND ISNULL(IS_SRVROLEMEMBER('sysadmin',ORIGINAL_LOGIN()),0)<>1 THROW 50720,'Not permitted to view identifiers.',1;
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ SELECT e.EmpCode,e.FullName,CAST(DECRYPTBYKEY(s.PAN_Enc,1,CONVERT(VARBINARY(20),e.EmpId)) AS VARCHAR(10)) AS PAN,
+        CAST(DECRYPTBYKEY(s.Aadhaar_Enc,1,CONVERT(VARBINARY(20),e.EmpId)) AS VARCHAR(12)) AS Aadhaar
+ FROM hr.Employee e LEFT JOIN hr.EmployeeStatutory s ON s.EmpId=e.EmpId WHERE e.EmpId=@EmpId;
+ SELECT t.Name AS DocumentType,CAST(DECRYPTBYKEY(d.DocNo_Enc,1,CONVERT(VARBINARY(20),d.EmpId)) AS VARCHAR(50)) AS DocumentNo,d.ValidTo,d.FilePath
+ FROM hr.EmployeeDocument d JOIN ref.DocumentType t ON t.DocTypeId=d.DocTypeId WHERE d.EmpId=@EmpId;
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+ INSERT audit.RevealLog(ProcName,EmpId,Fields,RowsRevealed) VALUES(OBJECT_NAME(@@PROCID),@EmpId,'PAN,Aadhaar,DocNo',1);
+END
+GO
+/* PAN list for a factory (Form 16 / 24Q preparation) - CA and Associate, logged with row count */
+CREATE PROCEDURE hr.usp_RevealPANList @FactoryId INT WITH EXECUTE AS OWNER AS
+BEGIN
+ SET NOCOUNT ON;
+ IF ISNULL(IS_ROLEMEMBER('role_associate',ORIGINAL_LOGIN()),0)<>1 AND ISNULL(IS_ROLEMEMBER('role_ca',ORIGINAL_LOGIN()),0)<>1 AND ISNULL(IS_SRVROLEMEMBER('sysadmin',ORIGINAL_LOGIN()),0)<>1 THROW 50721,'Not permitted to view PAN.',1;
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ SELECT e.EmpCode,e.FullName,CAST(DECRYPTBYKEY(s.PAN_Enc,1,CONVERT(VARBINARY(20),e.EmpId)) AS VARCHAR(10)) AS PAN
+ FROM hr.Employee e JOIN hr.EmployeeStatutory s ON s.EmpId=e.EmpId WHERE e.FactoryId=@FactoryId AND e.IsActive=1 ORDER BY e.EmpCode;
+ DECLARE @n INT=@@ROWCOUNT;
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+ INSERT audit.RevealLog(ProcName,EmpId,Fields,RowsRevealed) VALUES(OBJECT_NAME(@@PROCID),NULL,'PAN list, factory '+CAST(@FactoryId AS VARCHAR(10)),@n);
+END
+GO
+/* Bank account: Associate only */
+CREATE PROCEDURE hr.usp_RevealBank @EmpId INT WITH EXECUTE AS OWNER AS
+BEGIN
+ SET NOCOUNT ON;
+ IF ISNULL(IS_ROLEMEMBER('role_associate',ORIGINAL_LOGIN()),0)<>1 AND ISNULL(IS_SRVROLEMEMBER('sysadmin',ORIGINAL_LOGIN()),0)<>1 THROW 50722,'Only the Associate can view bank account numbers.',1;
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ SELECT e.EmpCode,e.FullName,b.PaymentMode,CAST(DECRYPTBYKEY(b.AccountNo_Enc,1,CONVERT(VARBINARY(20),e.EmpId)) AS VARCHAR(25)) AS AccountNo,b.IFSC
+ FROM hr.Employee e JOIN hr.EmployeeBank b ON b.EmpId=e.EmpId WHERE e.EmpId=@EmpId;
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+ INSERT audit.RevealLog(ProcName,EmpId,Fields,RowsRevealed) VALUES(OBJECT_NAME(@@PROCID),@EmpId,'AccountNo',1);
+END
+GO
+/* permissions: nobody gets key/certificate rights; ciphertext columns are unreadable and unwritable except through the procedures */
+GRANT EXECUTE ON hr.usp_SaveIds TO role_associate,role_operator;
+GRANT EXECUTE ON hr.usp_SaveBankAccount TO role_associate,role_operator;
+GRANT EXECUTE ON hr.usp_SaveDocument TO role_associate,role_operator;
+GRANT EXECUTE ON hr.usp_RevealIds TO role_associate,role_ca;
+GRANT EXECUTE ON hr.usp_RevealPANList TO role_associate,role_ca;
+GRANT EXECUTE ON hr.usp_RevealBank TO role_associate;
+GRANT SELECT ON audit.RevealLog TO role_associate;
+DENY SELECT (PAN_Enc,Aadhaar_Enc) ON hr.EmployeeStatutory TO role_operator,role_ca,role_developer;
+DENY SELECT (AccountNo_Enc) ON hr.EmployeeBank TO role_operator,role_ca,role_developer;
+DENY SELECT (DocNo_Enc) ON hr.EmployeeDocument TO role_operator,role_ca,role_developer;
+DENY UPDATE (PAN_Enc,PANLast4,Aadhaar_Enc,AadhaarLast4) ON hr.EmployeeStatutory TO role_operator,role_ca,role_associate;
+DENY UPDATE (AccountNo_Enc,AccountLast4) ON hr.EmployeeBank TO role_operator,role_ca,role_associate;
+DENY UPDATE (DocNo_Enc,DocNoLast4) ON hr.EmployeeDocument TO role_operator,role_ca,role_associate;
+GO
+/* ============================ HRMS_Live: same key, own certificate ============================ */
+USE HRMS_Live;
+GO
+CREATE MASTER KEY ENCRYPTION BY PASSWORD=N'$(PwdMasterKey)';
+CREATE CERTIFICATE HRMS_DataCert WITH SUBJECT=N'HRMS data encryption (Live)', EXPIRY_DATE='20991231';
+CREATE SYMMETRIC KEY HRMS_DataKey WITH KEY_SOURCE='$(KeySource)', ALGORITHM=AES_256, IDENTITY_VALUE='$(KeyIdentity)' ENCRYPTION BY CERTIFICATE HRMS_DataCert;
+BACKUP CERTIFICATE HRMS_DataCert TO FILE=N'$(KeyPath)\HRMS_Live_DataCert.cer' WITH PRIVATE KEY (FILE=N'$(KeyPath)\HRMS_Live_DataCert.pvk', ENCRYPTION BY PASSWORD=N'$(PwdKeyBackup)');
+BACKUP MASTER KEY TO FILE=N'$(KeyPath)\HRMS_Live_DMK.key' ENCRYPTION BY PASSWORD=N'$(PwdKeyBackup)';
+GO
+CREATE TABLE audit.RevealLog(
+ RevealId BIGINT IDENTITY PRIMARY KEY, ProcName SYSNAME NOT NULL, EmpId INT NULL, Fields VARCHAR(100) NOT NULL, RowsRevealed INT NOT NULL,
+ RevealedBy SYSNAME NOT NULL DEFAULT ORIGINAL_LOGIN(), RevealedAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME());
+GO
+/* Bank upload file data: full account numbers, Associate only, logged. Works for any run, including archived years (same key). */
+CREATE PROCEDURE payroll.usp_ExportBankAdvice @RunId INT WITH EXECUTE AS OWNER AS
+BEGIN
+ SET NOCOUNT ON;
+ IF ISNULL(IS_ROLEMEMBER('role_associate',ORIGINAL_LOGIN()),0)<>1 AND ISNULL(IS_SRVROLEMEMBER('sysadmin',ORIGINAL_LOGIN()),0)<>1 THROW 50730,'Only the Associate can export bank advice.',1;
+ IF NOT EXISTS (SELECT 1 FROM payroll.PayrollRun WHERE RunId=@RunId AND Status IN ('Locked','Paid')) THROW 50731,'Run must be locked.',1;
+ OPEN SYMMETRIC KEY HRMS_DataKey DECRYPTION BY CERTIFICATE HRMS_DataCert;
+ SELECT l.EmpCode,l.EmpName,CAST(DECRYPTBYKEY(l.AccountNo_Enc,1,CONVERT(VARBINARY(20),l.EmpId)) AS VARCHAR(25)) AS AccountNo,l.IFSC,l.Amount
+ FROM payroll.BankAdviceLine l JOIN payroll.BankAdvice a ON a.AdviceId=l.AdviceId WHERE a.RunId=@RunId ORDER BY l.EmpCode;
+ DECLARE @n INT=@@ROWCOUNT;
+ CLOSE SYMMETRIC KEY HRMS_DataKey;
+ INSERT audit.RevealLog(ProcName,EmpId,Fields,RowsRevealed) VALUES(OBJECT_NAME(@@PROCID),NULL,'AccountNo, run '+CAST(@RunId AS VARCHAR(10)),@n);
+END
+GO
+GRANT EXECUTE ON payroll.usp_ExportBankAdvice TO role_associate;
+GRANT SELECT ON audit.RevealLog TO role_associate;
+DENY SELECT (AccountNo_Enc) ON payroll.BankAdviceLine TO role_operator,role_ca,role_developer;
+GO
+/* RESTORE ON A NEW SERVER (run once after restoring a backup):
+   USE HRMS_Master; OPEN MASTER KEY DECRYPTION BY PASSWORD='<PwdMasterKey>'; ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY;
+   (repeat for HRMS_Live and every archive database). If the certificate is missing, restore it from the .cer/.pvk backup with
+   CREATE CERTIFICATE ... FROM FILE ... WITH PRIVATE KEY (FILE=..., DECRYPTION BY PASSWORD='<PwdKeyBackup>'). */

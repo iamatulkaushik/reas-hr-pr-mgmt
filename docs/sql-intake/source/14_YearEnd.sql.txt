@@ -1,0 +1,79 @@
+/* 14_YearEnd.sql - financial-year rollover: archive HRMS_Live as read-only HRMS_FYxxxx_xx, start a clean Live DB year */
+USE HRMS_Live;
+GO
+CREATE PROCEDURE payroll.usp_ResetForNewFY @NewFYStart DATE,@NewFYCode VARCHAR(10),@OldFYCode VARCHAR(10) AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @t TABLE(n INT IDENTITY,obj NVARCHAR(200),cond NVARCHAR(200));
+ INSERT @t(obj,cond) VALUES
+ ('payroll.PayrollDetailLine',NULL),('payroll.PayrollDetail',NULL),('payroll.PayrollApproval',NULL),('payroll.Payslip',NULL),('payroll.BankAdviceLine',NULL),('payroll.BankAdvice',NULL),('payroll.Journal',NULL),
+ ('payroll.AdvanceRecovery',NULL),('payroll.PayrollInput',NULL),('payroll.Arrear','PaidInRunId IS NOT NULL'),('payroll.Bonus','PaidInRunId IS NOT NULL'),('payroll.Reimbursement','PaidInRunId IS NOT NULL'),
+ ('payroll.SalaryHold','ReleasedOn IS NOT NULL'),('payroll.WageRuleCheck',NULL),('payroll.PayrollRun',NULL),
+ ('compliance.EPFContribution',NULL),('compliance.EPFReturn',NULL),('compliance.ESIContribution',NULL),('compliance.ESIReturn',NULL),('compliance.PTDeduction',NULL),('compliance.PTReturn',NULL),
+ ('compliance.LWFDeduction',NULL),('compliance.LWFReturn',NULL),('compliance.TDSDeduction',NULL),('compliance.TDSProjection',NULL),('compliance.Form16',NULL),('compliance.ChallanLine',NULL),('compliance.Challan',NULL),
+ ('compliance.FilingStatus',NULL),('compliance.MinWageCheck',NULL),('compliance.FactoryWorkerRegister',NULL),('compliance.OvertimeRegister',NULL),
+ ('att.RawPunch',NULL),('att.Attendance',NULL),('att.Roster',NULL),('att.Overtime',NULL),('att.PunchStaging',NULL),('att.PunchImportBatch',NULL),('att.AttendanceRegularization',NULL),('att.ShiftChange',NULL),('att.CompOff',NULL),('att.LeaveRequest',NULL),('att.LeaveLedger',NULL),('att.MonthlyAttendance',NULL),('att.AttendanceLock',NULL);
+ DECLARE @i INT=1,@max INT=(SELECT MAX(n) FROM @t),@obj NVARCHAR(200),@cond NVARCHAR(200),@sql NVARCHAR(MAX);
+ BEGIN TRY
+  /* carry leave balances forward before the ledger is purged */
+  INSERT att.LeaveBalance(EmpId,LeaveTypeId,FYCode,Opening)
+  SELECT b.EmpId,b.LeaveTypeId,@NewFYCode,CASE WHEN lt.CarryForward=0 OR b.Balance<=0 THEN 0 WHEN lt.MaxCarry IS NOT NULL AND b.Balance>lt.MaxCarry THEN lt.MaxCarry ELSE b.Balance END
+  FROM att.LeaveBalance b JOIN ref.LeaveType lt ON lt.LeaveTypeId=b.LeaveTypeId WHERE b.FYCode=@OldFYCode AND NOT EXISTS (SELECT 1 FROM att.LeaveBalance n WHERE n.EmpId=b.EmpId AND n.LeaveTypeId=b.LeaveTypeId AND n.FYCode=@NewFYCode);
+  WHILE @i<=@max
+  BEGIN
+   SELECT @obj=obj,@cond=cond FROM @t WHERE n=@i;
+   IF @obj IN (N'att.RawPunch',N'att.Attendance',N'att.Roster',N'att.Overtime')
+   BEGIN
+    BEGIN TRY EXEC(N'TRUNCATE TABLE '+@obj); END TRY
+    BEGIN CATCH PRINT 'TRUNCATE not possible for '+@obj+', using batched delete.'; END CATCH
+   END
+   SET @sql=N'ALTER TABLE '+@obj+N' NOCHECK CONSTRAINT ALL; WHILE 1=1 BEGIN DELETE TOP (100000) FROM '+@obj+ISNULL(N' WHERE '+@cond,N'')+N'; IF @@ROWCOUNT=0 BREAK; END';
+   EXEC(@sql); SET @i+=1;
+  END
+  SET @i=1;
+  WHILE @i<=@max BEGIN SELECT @obj=obj FROM @t WHERE n=@i; EXEC(N'ALTER TABLE '+@obj+N' WITH CHECK CHECK CONSTRAINT ALL'); SET @i+=1; END
+  INSERT att.LeaveLedger(EmpId,LeaveTypeId,TxnDate,TxnType,Days,RefNo) SELECT EmpId,LeaveTypeId,@NewFYStart,'OPEN',Opening,'OPEN'+@NewFYCode FROM att.LeaveBalance WHERE FYCode=@NewFYCode AND Opening>0;
+  /* rebuild monthly partitions for the new year (tables are empty now) */
+  SET @sql=(SELECT STRING_AGG(CAST(N'ALTER PARTITION FUNCTION pf_Month() MERGE RANGE ('+QUOTENAME(CONVERT(CHAR(10),CAST(prv.value AS DATE),23),'''')+N');' AS NVARCHAR(MAX)),CHAR(10))
+            FROM sys.partition_range_values prv JOIN sys.partition_functions pf ON pf.function_id=prv.function_id WHERE pf.name='pf_Month');
+  IF @sql IS NOT NULL EXEC(@sql);
+  SET @i=1;
+  WHILE @i<=11
+  BEGIN
+   EXEC(N'ALTER PARTITION SCHEME ps_Month NEXT USED [FG_DATA]; ALTER PARTITION FUNCTION pf_Month() SPLIT RANGE ('+N''''+CONVERT(CHAR(10),DATEADD(MONTH,@i,@NewFYStart),23)+N''''+N')');
+   SET @i+=1;
+  END
+ END TRY
+ BEGIN CATCH
+  INSERT audit.ErrorLog(ProcName,ErrNo,ErrMsg,ErrLine) VALUES(OBJECT_NAME(@@PROCID),ERROR_NUMBER(),LEFT(ERROR_MESSAGE(),2000),ERROR_LINE());
+  THROW;
+ END CATCH
+END
+GO
+USE HRMS_Master;
+GO
+CREATE PROCEDURE ref.usp_YearEndRollover @NewFYStart DATE,@DataPath NVARCHAR(260),@LogPath NVARCHAR(260),@BackupPath NVARCHAR(260) AS
+BEGIN
+ SET NOCOUNT ON;
+ DECLARE @oldFY VARCHAR(10),@oldStart DATE;
+ SELECT @oldFY=FYCode,@oldStart=StartDate FROM ref.FinancialYear WHERE IsCurrent=1;
+ IF @oldFY IS NULL THROW 50400,'No current financial year.',1;
+ IF @NewFYStart<>DATEADD(YEAR,1,@oldStart) THROW 50401,'New FY must start exactly one year after the current FY.',1;
+ IF EXISTS(SELECT 1 FROM HRMS_Live.payroll.PayrollRun WHERE Status NOT IN ('Locked','Paid')) THROW 50402,'Unlocked payroll runs exist.',1;
+ IF EXISTS(SELECT 1 FROM HRMS_Live.compliance.Challan WHERE Status='Due') PRINT 'WARNING: unpaid challans exist. They stay in the archive; track them there.';
+ DECLARE @arch SYSNAME=N'HRMS_'+@oldFY,@bak NVARCHAR(400),@sql NVARCHAR(MAX),@newFY VARCHAR(10);
+ IF DB_ID(@arch) IS NOT NULL THROW 50403,'Archive database already exists.',1;
+ SET @bak=@BackupPath+N'\'+@arch+N'_rollover.bak';
+ BACKUP DATABASE HRMS_Live TO DISK=@bak WITH COPY_ONLY,CHECKSUM,INIT;
+ SET @sql=N'RESTORE DATABASE '+QUOTENAME(@arch)+N' FROM DISK=N'''+@bak+N''' WITH MOVE N''HRMS_Live_sys'' TO N'''+@DataPath+N'\'+@arch+N'_sys.mdf'', MOVE N''HRMS_Live_data'' TO N'''+@DataPath+N'\'+@arch+N'_data.ndf'', MOVE N''HRMS_Live_log'' TO N'''+@LogPath+N'\'+@arch+N'_log.ldf'', RECOVERY, CHECKSUM';
+ EXEC(@sql);
+ EXEC(N'DBCC CHECKDB('+N''''+@arch+N''''+N') WITH NO_INFOMSGS');
+ EXEC(N'ALTER DATABASE '+QUOTENAME(@arch)+N' SET READ_ONLY WITH ROLLBACK IMMEDIATE');
+ SET @newFY='FY'+CAST(YEAR(@NewFYStart) AS VARCHAR(4))+'_'+RIGHT(CAST(YEAR(@NewFYStart)+1 AS VARCHAR(4)),2);
+ EXEC HRMS_Live.payroll.usp_ResetForNewFY @NewFYStart,@newFY,@oldFY;
+ UPDATE ref.FinancialYear SET IsCurrent=0,IsClosed=1,DbName=@arch WHERE FYCode=@oldFY;
+ INSERT ref.FinancialYear(FYCode,StartDate,EndDate,DbName,IsCurrent) VALUES(@newFY,@NewFYStart,DATEADD(DAY,-1,DATEADD(YEAR,1,@NewFYStart)),'HRMS_Live',1);
+ EXEC HRMS_Live.att.usp_GrantAnnualLeave @newFY;
+ SELECT Archived=@arch,NewYear=@newFY;
+END
+GO
