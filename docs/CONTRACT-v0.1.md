@@ -32,6 +32,9 @@ End Class
 - Errors: `SetFieldError(control, message)` for one field, `ShowError(message)` for a summary, `ClearValidation()` first.
 - Set `AcceptButton` and `CancelButton`; data entry is keyboard-first.
 
+## Approvals (ADR 0009)
+`IApprovalService`: `IsRequired(module)`, `Submit`, `Approve`, `Reject`, `Cancel`, `IsCleared(module, entityName, entityId)`, `GetLatest`, `ListPending`. Only Platinum requires approval; elsewhere `IsCleared` is always True. The approver must differ from the submitter. Used by payroll run approval (Phase 5).
+
 ## Module data access (ADR 0008)
 Modules write their own `Sql<Name>Repository` using `IConnectionFactory` and the public `StoredProcedure` helpers. Migration lanes are in `docs/OWNERSHIP.md`.
 
