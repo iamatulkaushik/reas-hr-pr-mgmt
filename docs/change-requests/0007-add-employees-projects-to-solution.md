@@ -12,4 +12,4 @@
 
   First line goes under `/src/`. Second goes under `/tests/`. Future modules will each need the same two-line change. If Sigma prefers, accept a standing rule: Brave may add `Revolution.Modules.*` project lines to the slnx without a request.
 - Workaround until done: Brave's branch fails guard 4 only. Module builds clean alone (`dotnet build`, 0 warnings, 0 errors).
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted, 2026-10-11.** Projects are already listed in Revolution.slnx. Standing rule in docs/OWNERSHIP.md.

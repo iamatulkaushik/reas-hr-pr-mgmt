@@ -12,4 +12,4 @@
 
   First line goes under `/src/`. Second goes under `/tests/`. Asked again for a standing rule: Brave adds `Revolution.Modules.*` lines to the slnx without a request.
 - Workaround until done: Brave's branch fails guard 4 only. Module builds clean alone.
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted, 2026-10-11.** Projects are already listed in Revolution.slnx. Standing rule in docs/OWNERSHIP.md.

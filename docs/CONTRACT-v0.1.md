@@ -4,7 +4,7 @@ For Brave. These are stable. A change goes through a change request (`docs/chang
 
 ## Core (`Revolution.Core`)
 - `OperationResult` / `OperationResult(Of T)`: services return these. No MessageBox in Services or Data.
-- `UserRole`, `PlanTier`, `PlanFeature`, `ModuleKey`, `PermissionAction`.
+- `UserRole`, `PlanTier`, `PlanFeature`, `ModuleKey`, `PermissionAction` (now includes `Reopen`, ADR 0008).
 - `ISessionContext.Current` gives the `UserSession` (UserId, UserName, Role, CompanyId, Plan).
 - `IPermissionService.IsAllowed(module, action)`: role questions. Never compare a role name.
 - `IEntitlementService.IsEnabled(feature)`: plan questions. Never compare a plan name.
@@ -31,6 +31,9 @@ End Class
 - Long work: `Await RunBusyAsync(Function() Task.Run(Sub() ...))`.
 - Errors: `SetFieldError(control, message)` for one field, `ShowError(message)` for a summary, `ClearValidation()` first.
 - Set `AcceptButton` and `CancelButton`; data entry is keyboard-first.
+
+## Module data access (ADR 0008)
+Modules write their own `Sql<Name>Repository` using `IConnectionFactory` and the public `StoredProcedure` helpers. Migration lanes are in `docs/OWNERSHIP.md`.
 
 ## Not frozen yet
 Employee and company models, master-data repositories, `IPunchSource` (Phase 8). Ask by change request when a module needs them.

@@ -6,4 +6,5 @@ Public Enum PermissionAction
     Delete = 4
     Approve = 5
     Export = 6
+    Reopen = 7
 End Enum

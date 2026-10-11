@@ -8,7 +8,7 @@
 /src/Revolution.Setup/       @SIGMA-GITHUB
 /database/                   @SIGMA-GITHUB
 /Directory.Build.props       @SIGMA-GITHUB
-/Revolution.slnx             @SIGMA-GITHUB
+# Revolution.slnx: Brave may add Revolution.Modules.* lines (ADR 0008); other changes still need Sigma.
 /docs/adr/                   @SIGMA-GITHUB
 /.github/                    @SIGMA-GITHUB
 /scripts/                    @SIGMA-GITHUB

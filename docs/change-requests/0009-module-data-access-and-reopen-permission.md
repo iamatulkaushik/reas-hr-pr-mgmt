@@ -11,4 +11,4 @@
   2. Reserve migration numbers for Brave, reviewed by Sigma: 0100-0199 masters and employees, 0200-0299 attendance, 0300-0399 payroll, 0400-0499 statutory and tax, 0500-0599 biometric, 0600-0699 assets and expenses. Every `att` table with a CompanyID joins a security policy in its own migration (ADR 0007).
   3. Decide who may reopen. Option one: Owner only (matches the seed today, no change). Option two: Associate as well, via a new migration that grants Attendance `Approve` to Associate. That also lets an Associate approve anything else the screens map to Approve, so use a separate action if that is not wanted.
 - Workaround until done: Brave keeps the engine pure (no database) and drafts SQL on a branch only. Nothing merges.
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted with change, 2026-10-11.** See ADR 0008. (1) Option A. (2) Lanes accepted as proposed. (3) Owner only, via a new Reopen action (migration 0008), not Approve.
