@@ -14,3 +14,11 @@ Status: accepted, items marked Open to confirm. Owner: Sigma.
 - **Database access:** the app login is in role `hrms_app` with EXECUTE only (`0006`).
 
 Open: how the first Developer user and the first company are created (installer bootstrap, Phase 10). Open: an Owner who manages several companies on Platinum needs a user-to-company link table.
+
+## Addendum: setup tool and first accounts
+
+- `src/Revolution.Setup` (`RevolutionSetup.exe`) applies `database/migrations` in order and records each script's checksum in `cfg.SchemaVersion`. A script edited after it was applied stops the run. Line endings are normalised before hashing.
+- The migration runner is the only code that runs SQL text instead of a stored procedure, because it is what creates the procedures. Everything else stays stored-procedure-only (ADR 0001).
+- `add-company` and `add-user` use `mst.usp_Company_Create` and `sec.usp_User_Create`, which `0007` denies to `hrms_app`. The tool needs an administrator connection string in `HRMS_SETUP_CONNECTION`.
+- Users made this way must change their password at first login.
+- Passwords entered in the tool are read with hidden input; never pass a password as an argument.

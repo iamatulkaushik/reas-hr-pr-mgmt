@@ -5,6 +5,9 @@
     <RootNamespace>Revolution.UI.Common</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Import Include="Revolution.Core" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Revolution.Setup</RootNamespace>
+    <AssemblyName>RevolutionSetup</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Import Include="Revolution.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
+    <ProjectReference Include="..\Revolution.Data\Revolution.Data.vbproj" />
+    <ProjectReference Include="..\Revolution.Services\Revolution.Services.vbproj" />
+  </ItemGroup>
+</Project>

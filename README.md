@@ -9,3 +9,5 @@ Roles: Developer, Owner, Associate, Operator. Plans: Copper, Silver, Gold, Plati
 
 Build: `dotnet build Revolution.slnx` (Windows, .NET 10 SDK). Test: `dotnet test Revolution.slnx`.
 Guards: `./scripts/check-guards.sh`
+
+Setup and first run: `docs/CONTRACT-v0.1.md` (section "Running it"). Module contracts for Brave: the same file.
