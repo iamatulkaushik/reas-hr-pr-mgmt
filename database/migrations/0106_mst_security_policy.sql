@@ -1,5 +1,6 @@
-/* 0104_mst_security_policy.sql
+/* 0106_mst_security_policy.sql
    Row-level tenant filter on every mst table that has a CompanyID (ADR 0007). Uses sec.fn_TenantPredicate from 0005. Idempotent.
+   Runs after 0101, 0103 and 0105, because the tables must exist before a policy can name them.
    mst.Company is left out on purpose: login reads the plan of one company before a session exists (mst.usp_Company_GetPlan).
    mst.State, mst.District, mst.Bank and mst.DocumentType are shared reference data with no CompanyID. */
 SET XACT_ABORT ON;
@@ -20,8 +21,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.security_policies WHERE name = N'TenantPolicy_M
             ADD FILTER PREDICATE sec.fn_TenantPredicate(CompanyID) ON mst.EmployeeFamily,
             ADD FILTER PREDICATE sec.fn_TenantPredicate(CompanyID) ON mst.EmployeeNominee,
             ADD FILTER PREDICATE sec.fn_TenantPredicate(CompanyID) ON mst.EmployeeDocument,
-            ADD FILTER PREDICATE sec.fn_TenantPredicate(CompanyID) ON mst.EmployeeSeparation,
-            ADD FILTER PREDICATE sec.fn_TenantPredicate(CompanyID) ON mst.Bank,
-            ADD FILTER PREDICATE sec.fn_TenantPredicate(CompanyID) ON mst.Nominee
+            ADD FILTER PREDICATE sec.fn_TenantPredicate(CompanyID) ON mst.EmployeeSeparation
             WITH (STATE = ON)');
 GO
