@@ -23,8 +23,8 @@ Reviewed on origin/main `ef50cd1`. Reviewer: Sigma. Author: Brave.
 1. `SqlAttendanceRepository.SaveDay`: the new foreign key (0203) can raise SQL error 547 for an unknown employee. It is not mapped to `AttendanceRuleException`, so the screen would see a raw `SqlException`. Map 547 on `FK_AttendanceDaily_Employee`.
 2. Error 50002 (no company in session) is mapped as a rule error. It is a session fault, not a user mistake. Let it surface as a technical error.
 3. Roster procedures (0206) use errors 50020 and 50021. Map them when the roster repository is written.
-4. Attendance procedures with a transaction (close and reopen in 0202) do not set `XACT_ABORT` inside the procedure. A failure after the first statement can leave a transaction open until the connection is closed. Sigma will correct it with a new migration (0207), not by editing 0202.
-5. The tenant leak test (company A reads company B through each `att` and `mst` procedure) needs SQL Server. Write it now as a test that skips when no SQL Server is configured, and run it in CI.
+4. Attendance procedures with a transaction (close and reopen in 0202) do not set `XACT_ABORT` inside the procedure. A failure after the first statement can leave a transaction open until the connection is closed. Corrected by Sigma in migration 0207 (the three procedures re-created with the setting inside). Guard 8 now fails the build for any procedure that opens a transaction without it.
+5. The tenant leak test now exists: `tests/Revolution.Database.Tests` (Sigma). It needs a migrated, disposable SQL Server database and the environment variable `HRMS_TEST_CONNECTION`; see its README. It has not been run yet. Add Brave's own procedures to it as they are written.
 6. Tests: 87 facts and 49 data rows. Add a test that a closed month rejects `SaveDay` through the service, if not already covered.
 
 ## ReportViewer spike

@@ -3,8 +3,8 @@
 Status: accepted. Owner: Sigma. Written Oct 2026 after reviewing the older 19-script set (`docs/sql-intake/README.md`).
 
 ## Decisions
-- **Lanes.** 0010-0013 shared (cfg, aud, Reveal action). 0100-0106 masters and employees. 0203 employee key on attendance. 0400-0401 statutory rates.
-  Sigma wrote 0100-0106 because Phase 3 was blocked on them. Brave extends the lane from 0107 on (education, experience, contract, confirmation, shift history, promotion, increment, transfer, training, medical, asset, rehire).
+- **Lanes.** 0010-0013 shared (cfg, aud, Reveal action). 0100-0108 masters and employees (0102 and 0104 are unused numbers). 0203 employee key on attendance. 0400-0401 statutory rates.
+  Sigma wrote 0100-0108 because Phase 3 was blocked on them. Brave extends the lane from 0109 on (education, experience, contract, confirmation, shift history, promotion, increment, transfer, training, medical, asset, rehire).
 - **Cross-company safety in the database.** Every parent has `UNIQUE (CompanyID, <ID>)` and every child uses a composite foreign key `(CompanyID, <ID>)`. A row of one company cannot point at another company's row.
 - **Hierarchy.** Factory, then department (belongs to a factory), then section. An employee's department must belong to the employee's factory (composite key). Factory has the state: it drives professional tax and labour limits.
 - **Protected ids.** UAN, ESI IP, PAN, Aadhaar, bank account and document numbers are ciphertext made by the application. Columns: `<Id>Enc`, `<Id>Last4`, and for the four employee ids a keyed hash `<Id>Hash` with a filtered unique index per company (duplicate check without decrypting). `IdKeyVersion` is one value per row, so a rotation re-encrypts the whole row. The database holds no key.

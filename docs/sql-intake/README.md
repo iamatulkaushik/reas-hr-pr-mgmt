@@ -108,5 +108,5 @@ Use as a specification for Brave's services and tests. Do not port the T-SQL.
 - Bonus uses the 8.33% minimum, a 21,000 eligibility ceiling and a 7,000 or minimum-wage calculation ceiling. Treat as unverified.
 
 ## Status after the first port (ADR 0010)
-Done: shared tables (0010 to 0013), masters and employee core (0100 to 0106), attendance employee key (0203), statutory rate tables and readers (0400, 0401, empty).
+Done: shared tables (0010 to 0013), masters and employee core (0100 to 0108), attendance employee key (0203), statutory rate tables and readers (0400, 0401, empty).
 Still to port, by owner: see the Brave table above (leave, rosters, salary structure, payroll run, loans, F&F, contributions, challans, ECR, TDS procedures).

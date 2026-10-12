@@ -9,6 +9,11 @@ Friend NotInheritable Class ConsolePrompt
         Return If(String.Equals(first, second, StringComparison.Ordinal), first, Nothing)
     End Function
 
+    ''' <summary>One hidden entry, for a password that is typed once (opening a backup).</summary>
+    Friend Shared Function ReadSecret(prompt As String) As String
+        Return ReadHidden(prompt)
+    End Function
+
     Private Shared Function ReadHidden(prompt As String) As String
         Console.Write(prompt)
         Dim buffer As New Text.StringBuilder()

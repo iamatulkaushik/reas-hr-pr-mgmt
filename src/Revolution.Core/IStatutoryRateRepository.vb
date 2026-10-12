@@ -1,0 +1,10 @@
+''' <summary>Reads the effective-dated stat.* rows (ADR 0004, ADR 0010). Each method returns the row in force on the date, or Nothing.</summary>
+Public Interface IStatutoryRateRepository
+    Function GetEpfRate(asOf As Date) As EpfRate
+    Function GetEsiRate(asOf As Date) As EsiRate
+    ''' <summary>The state's rule with its slabs, or Nothing when the state has no rule on that date.</summary>
+    Function GetPtRule(stateId As Integer, asOf As Date) As PtRule
+    Function GetWageRule(asOf As Date) As WageRule
+    ''' <summary>The cfg.Setting RateVerificationRequired. True when the setting is missing, so the safe answer is the default.</summary>
+    Function IsVerificationRequired() As Boolean
+End Interface

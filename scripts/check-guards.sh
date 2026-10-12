@@ -48,5 +48,20 @@ duptab=$(grep -rhoiE 'CREATE TABLE[[:space:]]+[A-Za-z]+\.\[?[A-Za-z_]+\]?' datab
 duppol=$(grep -rhoiE 'CREATE SECURITY POLICY[[:space:]]+[A-Za-z]+\.[A-Za-z_]+' database/migrations 2>/dev/null | tr -d '\r' | sed -E 's/.*POLICY[[:space:]]+//I' | tr 'A-Z' 'a-z' | sort | uniq -d)
 [ -n "$duppol" ] && err "Security policy created in more than one migration: $(echo $duppol)"
 
+# 8. A procedure that opens a transaction sets XACT_ABORT ON inside its own body (the setup session's SET does not reach the app connection).
+# The latest definition of a procedure wins, because CREATE OR ALTER in a later script replaces it.
+badtran=$(awk '
+  BEGIN { IGNORECASE = 1 }
+  FNR == 1 { inblk = 0 }
+  /CREATE[ \t]+(OR[ \t]+ALTER[ \t]+)?PROCEDURE/ {
+    name = $0; sub(/.*PROCEDURE[ \t]+/, "", name); sub(/[ \t\r(@].*/, "", name); name = tolower(name)
+    inblk = 1; tran[name] = 0; abort[name] = 0; cur = name; next }
+  /^GO[ \t\r]*$/ { inblk = 0; next }
+  inblk && /BEGIN[ \t]+TRAN/ { tran[cur] = 1 }
+  inblk && /SET[ \t]+XACT_ABORT[ \t]+ON/ { abort[cur] = 1 }
+  END { for (n in tran) if (tran[n] && !abort[n]) print n }
+' database/migrations/*.sql 2>/dev/null | sort)
+[ -n "$badtran" ] && err "Procedure opens a transaction without SET XACT_ABORT ON: $(echo $badtran)"
+
 [ "$fail" -eq 0 ] && echo "All guards passed."
 exit "$fail"

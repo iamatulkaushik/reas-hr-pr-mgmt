@@ -6,11 +6,6 @@ Imports Revolution.Data
 Public NotInheritable Class SqlAttendanceRepository
     Implements IAttendanceRepository
 
-    Private Const ErrorMonthClosed As Integer = 50001
-    Private Const ErrorNoCompany As Integer = 50002
-    Private Const ErrorAlreadyClosed As Integer = 50003
-    Private Const ErrorNotClosed As Integer = 50004
-    Private Const ErrorReasonShort As Integer = 50005
     Private Const MaxReasonLength As Integer = 500
 
     Private ReadOnly _factory As IConnectionFactory
@@ -89,12 +84,8 @@ Public NotInheritable Class SqlAttendanceRepository
                     cmd.ExecuteNonQuery()
                 End Using
             End Using
-        Catch ex As SqlException When IsRuleError(ex.Number)
-            Throw New AttendanceRuleException(ex.Message, ex)
+        Catch ex As SqlException When AttendanceErrorMap.Translate(ex.Number, ex.Message) IsNot Nothing
+            Throw New AttendanceRuleException(AttendanceErrorMap.Translate(ex.Number, ex.Message), ex)
         End Try
     End Sub
-
-    Private Shared Function IsRuleError(number As Integer) As Boolean
-        Return number = ErrorMonthClosed OrElse number = ErrorNoCompany OrElse number = ErrorAlreadyClosed OrElse number = ErrorNotClosed OrElse number = ErrorReasonShort
-    End Function
 End Class

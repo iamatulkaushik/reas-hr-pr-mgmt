@@ -7,6 +7,9 @@
     <Import Include="Revolution.Core" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
     <ProjectReference Include="..\Revolution.Data\Revolution.Data.vbproj" />
   </ItemGroup>

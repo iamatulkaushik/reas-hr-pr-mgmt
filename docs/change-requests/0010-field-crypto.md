@@ -16,6 +16,6 @@
   2. Key rotation. Keys have versions, so old rows still decrypt after a new key is added. The index key does not rotate with the encryption key, so duplicate checks keep working.
   3. Blind index covers all four employee ids (Aadhaar, PAN, UAN, ESI IP), not only Aadhaar and PAN. The columns are in the ADR 0010 schema (`UanHash`, `EsiIpHash`, `PanHash`, `AadhaarHash`). The index normalises case, spaces and hyphens itself.
   4. Delivered by Sigma, in Core and Services: `IFieldCrypto`, `IFieldKeyProvider`, `FieldKeyPurpose`, `FieldContext`, `AesGcmFieldCrypto`, 21 test cases. Your module only calls `IFieldCrypto`.
-  5. NOT delivered yet: the Windows key store (DPAPI, machine scope) and the key setup step in `Revolution.Setup`. Needs the Windows CI to compile and test. Until then the repository can be built and tested with a fake key provider, but the app cannot save ids on a real machine.
-  6. Database. Your repository calls the `mst.usp_Employee_*` procedures of ADR 0010 (one set of migrations, 0100 to 0106). Your earlier 0100, 0103, 0105 and 0108 are superseded.
+  5. Key store written, awaiting its first Windows run: `DpapiFieldKeyStore` and the Setup commands `keys-init`, `keys-backup`, `keys-restore`, `keys-info`, `keys-add-version` (ADR 0011). Run `keys-init` on a test machine and send the output. The app wires `DpapiFieldKeyStore.Load` into `AesGcmFieldCrypto` at start-up (composition root: Sigma, with the shell).
+  6. Database. Your repository calls the `mst.usp_Employee_*` procedures of ADR 0010 (one set of migrations, 0100 to 0108). Your earlier 0100, 0103, 0105 and 0108 are superseded.
   7. Unblocked: EmployeeRepository, EmployeeService. Do not log plain or cipher values.

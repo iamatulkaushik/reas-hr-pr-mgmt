@@ -1,0 +1,53 @@
+Imports System.Globalization
+
+''' <summary>Looks up effective-dated statutory rows and applies the CA sign-off rule (cfg.Setting RateVerificationRequired).</summary>
+Public NotInheritable Class StatutoryRateService
+    Implements IStatutoryRateService
+
+    Private ReadOnly _repository As IStatutoryRateRepository
+
+    Public Sub New(repository As IStatutoryRateRepository)
+        If repository Is Nothing Then
+            Throw New ArgumentNullException(NameOf(repository))
+        End If
+        _repository = repository
+    End Sub
+
+    Public Function GetEpfRate(asOf As Date) As OperationResult(Of EpfRate) Implements IStatutoryRateService.GetEpfRate
+        Dim rate = _repository.GetEpfRate(asOf)
+        Return Check(rate, rate?.Verified, "EPF rate", asOf, rate?.EffectiveFrom)
+    End Function
+
+    Public Function GetEsiRate(asOf As Date) As OperationResult(Of EsiRate) Implements IStatutoryRateService.GetEsiRate
+        Dim rate = _repository.GetEsiRate(asOf)
+        Return Check(rate, rate?.Verified, "ESI rate", asOf, rate?.EffectiveFrom)
+    End Function
+
+    Public Function GetPtRule(stateId As Integer, asOf As Date) As OperationResult(Of PtRule) Implements IStatutoryRateService.GetPtRule
+        Dim rule = _repository.GetPtRule(stateId, asOf)
+        Dim label = "professional tax rule for state " & stateId.ToString(CultureInfo.InvariantCulture)
+        If rule IsNot Nothing AndAlso rule.Slabs.Count = 0 Then
+            Return OperationResult(Of PtRule).Fail($"The {label} from {Format(rule.EffectiveFrom)} has no slabs. Ask the CA to complete it.")
+        End If
+        Return Check(rule, rule?.Verified, label, asOf, rule?.EffectiveFrom)
+    End Function
+
+    Public Function GetWageRule(asOf As Date) As OperationResult(Of WageRule) Implements IStatutoryRateService.GetWageRule
+        Dim rule = _repository.GetWageRule(asOf)
+        Return Check(rule, rule?.Verified, "wage rule", asOf, rule?.EffectiveFrom)
+    End Function
+
+    Private Function Check(Of T As Class)(row As T, verified As Boolean?, label As String, asOf As Date, effectiveFrom As Date?) As OperationResult(Of T)
+        If row Is Nothing Then
+            Return OperationResult(Of T).Fail($"No {label} is set for {Format(asOf)}. Ask the CA to add one.")
+        End If
+        If _repository.IsVerificationRequired() AndAlso Not verified.GetValueOrDefault() Then
+            Return OperationResult(Of T).Fail($"The {label} from {Format(effectiveFrom.GetValueOrDefault())} has not been verified by the CA.")
+        End If
+        Return OperationResult(Of T).Ok(row)
+    End Function
+
+    Private Shared Function Format(value As Date) As String
+        Return value.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture)
+    End Function
+End Class
