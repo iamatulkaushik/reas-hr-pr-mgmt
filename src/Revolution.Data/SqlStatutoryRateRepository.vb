@@ -101,6 +101,59 @@ Public NotInheritable Class SqlStatutoryRateRepository
         End Using
     End Function
 
+    Public Function GetTdsRule(financialYear As Integer, regime As TdsRegime, ageBand As TdsAgeBand) As TdsRule Implements IStatutoryRateRepository.GetTdsRule
+        Dim standardDeduction As Decimal
+        Dim rebateLimit As Decimal
+        Dim rebateMaximum As Decimal
+        Dim cessPct As Decimal
+        Dim verified As Boolean
+        Dim sourceRef As String
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TdsParam_Get")
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                cmd.Parameters.Add("@RegimeID", SqlDbType.TinyInt).Value = CByte(regime)
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    standardDeduction = r.GetDecimal(r.GetOrdinal("StandardDeduction"))
+                    rebateLimit = r.GetDecimal(r.GetOrdinal("RebateIncomeLimit"))
+                    rebateMaximum = r.GetDecimal(r.GetOrdinal("RebateMaximum"))
+                    cessPct = r.GetDecimal(r.GetOrdinal("CessPct"))
+                    verified = r.GetBoolean(r.GetOrdinal("Verified"))
+                    sourceRef = Text(r, "SourceRef")
+                End Using
+            End Using
+            Dim slabs As New List(Of TdsSlab)()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TdsSlab_List")
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                cmd.Parameters.Add("@RegimeID", SqlDbType.TinyInt).Value = CByte(regime)
+                cmd.Parameters.Add("@AgeBandID", SqlDbType.TinyInt).Value = CByte(ageBand)
+                Using r = cmd.ExecuteReader()
+                    While r.Read()
+                        Dim toOrdinal = r.GetOrdinal("ToAmount")
+                        slabs.Add(New TdsSlab(CInt(r.GetByte(r.GetOrdinal("SlabNo"))), r.GetDecimal(r.GetOrdinal("FromAmount")),
+                                              If(r.IsDBNull(toOrdinal), CType(Nothing, Decimal?), r.GetDecimal(toOrdinal)),
+                                              r.GetDecimal(r.GetOrdinal("RatePct"))))
+                    End While
+                End Using
+            End Using
+            Dim surcharges As New List(Of TdsSurchargeBand)()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TdsSurcharge_List")
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                cmd.Parameters.Add("@RegimeID", SqlDbType.TinyInt).Value = CByte(regime)
+                Using r = cmd.ExecuteReader()
+                    While r.Read()
+                        Dim toOrdinal = r.GetOrdinal("ToIncome")
+                        surcharges.Add(New TdsSurchargeBand(CInt(r.GetByte(r.GetOrdinal("SlabNo"))), r.GetDecimal(r.GetOrdinal("FromIncome")),
+                                                            If(r.IsDBNull(toOrdinal), CType(Nothing, Decimal?), r.GetDecimal(toOrdinal)),
+                                                            r.GetDecimal(r.GetOrdinal("RatePct"))))
+                    End While
+                End Using
+            End Using
+            Return New TdsRule(financialYear, regime, ageBand, standardDeduction, rebateLimit, rebateMaximum, cessPct, verified,
+                               sourceRef, slabs, surcharges)
+        End Using
+    End Function
+
     Public Function IsVerificationRequired() As Boolean Implements IStatutoryRateRepository.IsVerificationRequired
         Using conn = _factory.Open()
             Using cmd = StoredProcedure.CreateCommand(conn, "cfg.usp_Setting_Get")

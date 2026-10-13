@@ -7,4 +7,6 @@ Public Interface IStatutoryRateService
     Function GetEsiRate(asOf As Date) As OperationResult(Of EsiRate)
     Function GetPtRule(stateId As Integer, asOf As Date) As OperationResult(Of PtRule)
     Function GetWageRule(asOf As Date) As OperationResult(Of WageRule)
+    ''' <summary>The income tax rule for the financial year the date falls in. Fails when missing, without slabs, or not signed off.</summary>
+    Function GetTdsRule(asOf As Date, regime As TdsRegime, ageBand As TdsAgeBand) As OperationResult(Of TdsRule)
 End Interface

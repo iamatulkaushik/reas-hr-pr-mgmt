@@ -94,4 +94,40 @@ Public Class StatutoryRateServiceTests
     Public Sub NoRepository_Throws()
         Assert.Throws(Of ArgumentNullException)(Function() New StatutoryRateService(Nothing))
     End Sub
+
+    <Fact>
+    Public Sub Tds_MissingRule_Fails_WithYearRegimeAndAgeBand()
+        Dim result = New StatutoryRateService(New FakeStatutoryRateRepository()).GetTdsRule(AsOf, TdsRegime.Old, TdsAgeBand.Senior)
+        Assert.False(result.Succeeded)
+        Assert.Contains("No TDS rule for the old regime, financial year 2026-27, age band 60 to 79 is set", result.Message)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_NoSlabs_Fails()
+        Dim repo As New FakeStatutoryRateRepository() With {.Tds = FakeStatutoryRateRepository.TdsRow(True, 0)}
+        Dim result = New StatutoryRateService(repo).GetTdsRule(AsOf, TdsRegime.[New], TdsAgeBand.General)
+        Assert.False(result.Succeeded)
+        Assert.Contains("has no tax slabs", result.Message)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_UnverifiedRule_Fails_WhenVerificationIsRequired_AndPasses_WhenOff()
+        Dim repo As New FakeStatutoryRateRepository() With {.Tds = FakeStatutoryRateRepository.TdsRow(False, 3)}
+        Dim service As New StatutoryRateService(repo)
+        Dim blocked = service.GetTdsRule(AsOf, TdsRegime.[New], TdsAgeBand.General)
+        Assert.False(blocked.Succeeded)
+        Assert.Contains("has not been verified by the CA", blocked.Message)
+        repo.VerificationRequired = False
+        Assert.True(service.GetTdsRule(AsOf, TdsRegime.[New], TdsAgeBand.General).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_VerifiedRule_Passes_AndAsksForTheFinancialYearOfTheDate()
+        Dim repo As New FakeStatutoryRateRepository() With {.Tds = FakeStatutoryRateRepository.TdsRow(True, 3)}
+        Dim result = New StatutoryRateService(repo).GetTdsRule(New Date(2027, 3, 31), TdsRegime.[New], TdsAgeBand.General)
+        Assert.True(result.Succeeded)
+        Assert.Equal(3, result.Value.Slabs.Count)
+        Assert.Equal(2026, repo.LastFinancialYear)
+        Assert.Equal(TdsRegime.[New], repo.LastRegime)
+    End Sub
 End Class

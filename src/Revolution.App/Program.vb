@@ -1,5 +1,4 @@
 Imports System.Windows.Forms
-Imports Revolution.Data
 Imports Revolution.Services
 Imports Revolution.UI.Common
 
@@ -12,23 +11,26 @@ Public Module Program
 
         Dim connection = AppSettings.LoadConnectionString()
         If String.IsNullOrWhiteSpace(connection) Then
-            MessageBox.Show("appsettings.json is missing or has no ConnectionStrings:Hrms setting. Copy appsettings.example.json and edit it.",
-                            "Revolution HRMS", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            ShowStartupError("appsettings.json is missing or has no ConnectionStrings:Hrms setting. Copy appsettings.example.json and edit it.")
             Return
         End If
 
-        Dim session As New SessionContext()
-        Dim factory As New SqlConnectionFactory(connection, session)
-        Dim entitlements As New EntitlementService(session)
-        Dim audit As New AuditService(New SqlAuditRepository(factory), session, entitlements)
-        Dim auth As New AuthService(New SqlUserRepository(factory), New SqlCompanyRepository(factory),
-                                    New PasswordHasher(), session, audit, TimeProvider.System)
+        Dim built = AppServices.Build(connection, DpapiFieldKeyStore.DefaultPath())
+        If Not built.Succeeded Then
+            ShowStartupError(built.Message)
+            Return
+        End If
+        Dim services = built.Value
 
-        Using login As New LoginForm(auth, session)
+        Using login As New LoginForm(services.Auth, services.Session)
             If login.ShowDialog() <> DialogResult.OK Then
                 Return
             End If
         End Using
-        Application.Run(New ShellForm(session))
+        Application.Run(New ShellForm(services.Session))
+    End Sub
+
+    Private Sub ShowStartupError(message As String)
+        MessageBox.Show(message, "Revolution HRMS", MessageBoxButtons.OK, MessageBoxIcon.Error)
     End Sub
 End Module

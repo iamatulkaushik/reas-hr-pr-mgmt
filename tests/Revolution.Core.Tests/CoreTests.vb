@@ -27,4 +27,17 @@ Public Class CoreTests
         Assert.True(r.Succeeded)
         Assert.Equal(String.Empty, r.Message)
     End Sub
+
+    <Fact>
+    Public Sub FinancialYear_RunsAprilToMarch()
+        Assert.Equal(2026, FinancialYearCalendar.StartYear(New Date(2026, 4, 1)))
+        Assert.Equal(2026, FinancialYearCalendar.StartYear(New Date(2027, 3, 31)))
+        Assert.Equal(2025, FinancialYearCalendar.StartYear(New Date(2026, 3, 31)))
+    End Sub
+
+    <Fact>
+    Public Sub FinancialYear_Label_UsesTwoDigitEndYear()
+        Assert.Equal("2026-27", FinancialYearCalendar.Label(2026))
+        Assert.Equal("2099-00", FinancialYearCalendar.Label(2099))
+    End Sub
 End Class

@@ -5,6 +5,7 @@
     <Project Path="src/Revolution.Data/Revolution.Data.vbproj" />
     <Project Path="src/Revolution.Modules.Attendance/Revolution.Modules.Attendance.vbproj" />
     <Project Path="src/Revolution.Modules.Employees/Revolution.Modules.Employees.vbproj" />
+    <Project Path="src/Revolution.Modules.Payroll/Revolution.Modules.Payroll.vbproj" />
     <Project Path="src/Revolution.ReportViewer/Revolution.ReportViewer.vbproj" />
     <Project Path="src/Revolution.Services/Revolution.Services.vbproj" />
     <Project Path="src/Revolution.Setup/Revolution.Setup.vbproj" />
@@ -15,6 +16,7 @@
     <Project Path="tests/Revolution.Database.Tests/Revolution.Database.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Attendance.Tests/Revolution.Modules.Attendance.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
+    <Project Path="tests/Revolution.Modules.Payroll.Tests/Revolution.Modules.Payroll.Tests.vbproj" />
     <Project Path="tests/Revolution.Services.Tests/Revolution.Services.Tests.vbproj" />
   </Folder>
 </Solution>

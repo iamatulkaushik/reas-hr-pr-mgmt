@@ -5,6 +5,8 @@ Public Interface IStatutoryRateRepository
     ''' <summary>The state's rule with its slabs, or Nothing when the state has no rule on that date.</summary>
     Function GetPtRule(stateId As Integer, asOf As Date) As PtRule
     Function GetWageRule(asOf As Date) As WageRule
+    ''' <summary>The income tax rule for a financial year (start year), regime and age band with its slabs and surcharge bands, or Nothing when there is no parameter row.</summary>
+    Function GetTdsRule(financialYear As Integer, regime As TdsRegime, ageBand As TdsAgeBand) As TdsRule
     ''' <summary>The cfg.Setting RateVerificationRequired. True when the setting is missing, so the safe answer is the default.</summary>
     Function IsVerificationRequired() As Boolean
 End Interface

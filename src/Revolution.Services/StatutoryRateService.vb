@@ -37,6 +37,33 @@ Public NotInheritable Class StatutoryRateService
         Return Check(rule, rule?.Verified, "wage rule", asOf, rule?.EffectiveFrom)
     End Function
 
+    Public Function GetTdsRule(asOf As Date, regime As TdsRegime, ageBand As TdsAgeBand) As OperationResult(Of TdsRule) Implements IStatutoryRateService.GetTdsRule
+        Dim year = FinancialYearCalendar.StartYear(asOf)
+        Dim label = $"TDS rule for {If(regime = TdsRegime.Old, "the old", "the new")} regime, financial year {FinancialYearCalendar.Label(year)}, age band {AgeBandName(ageBand)}"
+        Dim rule = _repository.GetTdsRule(year, regime, ageBand)
+        If rule Is Nothing Then
+            Return OperationResult(Of TdsRule).Fail($"No {label} is set. Ask the CA to add one.")
+        End If
+        If rule.Slabs.Count = 0 Then
+            Return OperationResult(Of TdsRule).Fail($"The {label} has no tax slabs. Ask the CA to complete it.")
+        End If
+        If _repository.IsVerificationRequired() AndAlso Not rule.Verified Then
+            Return OperationResult(Of TdsRule).Fail($"The {label} has not been verified by the CA.")
+        End If
+        Return OperationResult(Of TdsRule).Ok(rule)
+    End Function
+
+    Private Shared Function AgeBandName(ageBand As TdsAgeBand) As String
+        Select Case ageBand
+            Case TdsAgeBand.General
+                Return "below 60"
+            Case TdsAgeBand.Senior
+                Return "60 to 79"
+            Case Else
+                Return "80 and above"
+        End Select
+    End Function
+
     Private Function Check(Of T As Class)(row As T, verified As Boolean?, label As String, asOf As Date, effectiveFrom As Date?) As OperationResult(Of T)
         If row Is Nothing Then
             Return OperationResult(Of T).Fail($"No {label} is set for {Format(asOf)}. Ask the CA to add one.")

@@ -29,7 +29,7 @@ Use the rate service for every rate. A failure (no row, or row not signed off by
 | Phase gates (CI green, screens run, leak test) | Brave and Sigma, on Windows CI and a SQL Server |
 
 ## Sigma next
-1. Composition root: wire the key store, crypto, rate service and repositories in the app start-up with the shell.
-2. Re-encryption job for a new key version (after the first real rotation).
-3. Phase 6 contract: TDS rate reader (tables exist, empty).
-4. Review Brave's Phase 5 pull requests against the list above.
+1. ~~Composition root~~ Done 2026-10-13: `AppServices` in Revolution.App wires session, entitlements, permissions, audit, auth, approvals, rate service and field crypto. The app stops with a clear message when the key file is missing or cannot be opened. Modules get their services from `AppServices` (Brave registers module forms in the shell through a change request).
+2. Re-encryption job for a new key version (after the first real rotation). Not started: no rotation has happened.
+3. ~~Phase 6 contract: TDS rate reader~~ Done 2026-10-13: see `docs/phase6-contract-sigma.md`.
+4. Review Brave's Phase 5 pull requests against the list above. Nothing to review yet: origin/main has no payroll tables or services (0300 lane is empty).
