@@ -4,6 +4,9 @@
     <RootNamespace>Revolution.Modules.Attendance</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
     <ProjectReference Include="..\Revolution.Data\Revolution.Data.vbproj" />
   </ItemGroup>
