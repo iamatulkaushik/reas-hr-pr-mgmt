@@ -20,3 +20,6 @@ To finish the spike (Brave, then Sigma reviews):
 6. Record here: verdict, runtime version, package source, how it ships.
 
 Brave: please do not change the project shape (target, packages) without Sigma's OK. If something blocks steps 1 to 3, write it up and wait.
+
+## CI note (Sigma, 2026-10-14, approved by owner)
+`Revolution.ReportViewer` (net481, Crystal COM references, SAP install path) cannot build on the `windows-latest` runner. CI skips it: `.github/workflows/ci.yml` builds and tests every other project one by one. It stays in `Revolution.slnx`, so build it locally where Crystal is installed. Revisit when the spike gives a verdict (a build without COM references could return to CI).
