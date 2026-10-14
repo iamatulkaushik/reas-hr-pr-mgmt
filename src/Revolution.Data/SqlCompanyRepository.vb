@@ -22,4 +22,20 @@ Public NotInheritable Class SqlCompanyRepository
         End Using
         Return result
     End Function
+
+    Public Function ListForUser(userId As Integer) As IReadOnlyList(Of CompanySummary) Implements ICompanyRepository.ListForUser
+        Dim found As New List(Of CompanySummary)()
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "sec.usp_UserCompany_List")
+                cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = userId
+                Using r = cmd.ExecuteReader()
+                    While r.Read()
+                        found.Add(New CompanySummary(r.GetInt32(r.GetOrdinal("CompanyID")), r.GetString(r.GetOrdinal("CompanyName")),
+                                                     CType(CInt(r.GetByte(r.GetOrdinal("PlanTierID"))), PlanTier)))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return found
+    End Function
 End Class

@@ -40,4 +40,16 @@ Public Class CoreTests
         Assert.Equal("2026-27", FinancialYearCalendar.Label(2026))
         Assert.Equal("2099-00", FinancialYearCalendar.Label(2099))
     End Sub
+
+    <Fact>
+    Public Sub PtRule_IsDue_MonthlyIsAlways_OthersOnlyInListedMonths()
+        Dim slabs As New List(Of PtSlab) From {New PtSlab(0, 1, 0D, Nothing, 1250D, Nothing)}
+        Dim monthly As New PtRule(1, New Date(2026, 4, 1), PtFrequency.Monthly, Nothing, True, "t", slabs)
+        Dim half As New PtRule(1, New Date(2026, 4, 1), PtFrequency.HalfYearly, Nothing, True, "t", slabs, New List(Of Integer) From {9, 3})
+        Assert.True(monthly.IsDue(5))
+        Assert.True(half.IsDue(9))
+        Assert.True(half.IsDue(3))
+        Assert.False(half.IsDue(4))
+        Assert.Throws(Of ArgumentOutOfRangeException)(Function() half.IsDue(13))
+    End Sub
 End Class

@@ -29,6 +29,10 @@ Public NotInheritable Class StatutoryRateService
         If rule IsNot Nothing AndAlso rule.Slabs.Count = 0 Then
             Return OperationResult(Of PtRule).Fail($"The {label} from {Format(rule.EffectiveFrom)} has no slabs. Ask the CA to complete it.")
         End If
+        Dim needed = If(rule Is Nothing, 0, DueMonthsNeeded(rule.Frequency))
+        If rule IsNot Nothing AndAlso needed > 0 AndAlso rule.DueMonths.Count <> needed Then
+            Return OperationResult(Of PtRule).Fail($"The {label} from {Format(rule.EffectiveFrom)} is not monthly but does not list its {needed.ToString(CultureInfo.InvariantCulture)} due month(s). Ask the CA to complete it.")
+        End If
         Return Check(rule, rule?.Verified, label, asOf, rule?.EffectiveFrom)
     End Function
 
@@ -51,6 +55,17 @@ Public NotInheritable Class StatutoryRateService
             Return OperationResult(Of TdsRule).Fail($"The {label} has not been verified by the CA.")
         End If
         Return OperationResult(Of TdsRule).Ok(rule)
+    End Function
+
+    Private Shared Function DueMonthsNeeded(frequency As PtFrequency) As Integer
+        Select Case frequency
+            Case PtFrequency.HalfYearly
+                Return 2
+            Case PtFrequency.Yearly
+                Return 1
+            Case Else
+                Return 0
+        End Select
     End Function
 
     Private Shared Function AgeBandName(ageBand As TdsAgeBand) As String

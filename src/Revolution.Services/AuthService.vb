@@ -48,6 +48,29 @@ Public NotInheritable Class AuthService
         Return CompleteLogin(user)
     End Function
 
+    Public Function ListCompanies() As OperationResult(Of IReadOnlyList(Of CompanySummary)) Implements IAuthService.ListCompanies
+        Dim current = _session.Current
+        If current Is Nothing OrElse current.Role <> UserRole.Associate Then
+            Return OperationResult(Of IReadOnlyList(Of CompanySummary)).Fail("Only an Associate chooses between companies.")
+        End If
+        Return OperationResult(Of IReadOnlyList(Of CompanySummary)).Ok(_companies.ListForUser(current.UserId))
+    End Function
+
+    Public Function SelectCompany(companyId As Integer) As OperationResult(Of UserSession) Implements IAuthService.SelectCompany
+        Dim current = _session.Current
+        If current Is Nothing OrElse current.Role <> UserRole.Associate Then
+            Return OperationResult(Of UserSession).Fail("Only an Associate chooses between companies.")
+        End If
+        Dim chosen = _companies.ListForUser(current.UserId).FirstOrDefault(Function(c) c.CompanyId = companyId)
+        If chosen Is Nothing Then
+            Return OperationResult(Of UserSession).Fail("You do not work on that company.")
+        End If
+        Dim session = New UserSession(current.UserId, current.UserName, current.Role, chosen.CompanyId, chosen.Plan, current.MustChangePassword)
+        _session.SignIn(session)
+        RecordSecurityEvent("CompanySelected", current.UserName, $"Company {chosen.CompanyId.ToString(Globalization.CultureInfo.InvariantCulture)}")
+        Return OperationResult(Of UserSession).Ok(session)
+    End Function
+
     Public Function ChangePassword(userName As String, currentPassword As String, newPassword As String) As OperationResult Implements IAuthService.ChangePassword
         Dim policy = PasswordPolicy.Validate(newPassword)
         If Not policy.Succeeded Then
@@ -80,7 +103,16 @@ Public NotInheritable Class AuthService
     Private Function CompleteLogin(user As UserRecord) As OperationResult(Of UserSession)
         Dim companyId = 0
         Dim plan = PlanTier.Platinum
-        If user.Role <> UserRole.Developer Then
+        If user.Role = UserRole.Associate Then
+            ' An Associate works on several companies. One company opens straight away; otherwise the user picks one (SelectCompany).
+            Dim mine = _companies.ListForUser(user.UserId)
+            If mine.Count = 1 Then
+                companyId = mine(0).CompanyId
+                plan = mine(0).Plan
+            Else
+                plan = PlanTier.Copper
+            End If
+        ElseIf user.Role <> UserRole.Developer Then
             If Not user.CompanyId.HasValue Then
                 Return OperationResult(Of UserSession).Fail("This account is not assigned to a company.")
             End If

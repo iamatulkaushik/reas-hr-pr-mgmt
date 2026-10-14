@@ -46,6 +46,21 @@ Friend NotInheritable Class SetupCommands
         Return Report(result, "User created with id")
     End Function
 
+    Friend Shared Function SetAssociatePlan(connection As String, args As String()) As Integer
+        Dim plan As PlanTier
+        If args.Length < 3 OrElse Not [Enum].TryParse(args(2), True, plan) Then
+            Console.Error.WriteLine("Usage: set-associate-plan <userName> <Copper|Silver|Gold|Platinum>")
+            Return 2
+        End If
+        Dim result = BuildProvisioning(connection).SetAssociatePlan(args(1), plan)
+        If result.Succeeded Then
+            Console.WriteLine($"Associate plan set to {plan}.")
+            Return 0
+        End If
+        Console.Error.WriteLine(result.Message)
+        Return 1
+    End Function
+
     Private Shared Function Report(result As OperationResult(Of Integer), successText As String) As Integer
         If result.Succeeded Then
             Console.WriteLine($"{successText} {result.Value}.")

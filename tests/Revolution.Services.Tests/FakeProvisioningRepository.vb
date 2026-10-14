@@ -9,6 +9,14 @@ Public NotInheritable Class FakeProvisioningRepository
     Public Property LastSalt As Byte()
     Public Property LastIterations As Integer
 
+    Public Property LastAssociatePlanUserId As Integer
+    Public Property LastAssociatePlan As PlanTier
+
+    Public Sub SetAssociatePlan(userId As Integer, plan As PlanTier) Implements IProvisioningRepository.SetAssociatePlan
+        LastAssociatePlanUserId = userId
+        LastAssociatePlan = plan
+    End Sub
+
     Public Function CreateCompany(companyName As String, plan As PlanTier) As Integer Implements IProvisioningRepository.CreateCompany
         Return 1
     End Function

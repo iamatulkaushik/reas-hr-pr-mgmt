@@ -29,7 +29,7 @@ Public Class TenantIsolationTests
             Using cmd = conn.CreateCommand()
                 cmd.CommandText = "SELECT s.name + '.' + t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id " &
                                   "JOIN sys.columns c ON c.object_id = t.object_id AND c.name = 'CompanyID' " &
-                                  "WHERE s.name + '.' + t.name NOT IN ('mst.Company', 'sec.User') AND NOT EXISTS " &
+                                  "WHERE s.name + '.' + t.name NOT IN ('mst.Company', 'sec.User', 'sec.UserCompany') AND NOT EXISTS " &
                                   "(SELECT 1 FROM sys.security_predicates p JOIN sys.security_policies sp ON sp.object_id = p.object_id " &
                                   " WHERE p.target_object_id = t.object_id AND p.predicate_type = 0 AND sp.is_enabled = 1)"
                 Using r = cmd.ExecuteReader()

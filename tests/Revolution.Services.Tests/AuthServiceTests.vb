@@ -118,4 +118,64 @@ Public Class AuthServiceTests
         Assert.False(_f.Service.ChangePassword("owner1", "wrong", NewPassword).Succeeded)
         Assert.True(_f.Users.FailedLogins.Contains(u.UserId))
     End Sub
+
+    <Fact>
+    Public Sub Associate_WithOneCompany_OpensItAtLogin()
+        Dim u = TestData.User("assoc1", GoodPassword, UserRole.Associate, Nothing)
+        _f.Users.Add(u)
+        _f.Companies.Link(u.UserId, 9, "Alpha Works", PlanTier.Silver)
+        Dim r = _f.Service.Login("assoc1", GoodPassword)
+        Assert.True(r.Succeeded)
+        Assert.Equal(9, _f.Session.Current.CompanyId)
+        Assert.Equal(PlanTier.Silver, _f.Session.Current.Plan)
+    End Sub
+
+    <Fact>
+    Public Sub Associate_WithSeveralCompanies_StartsWithNoCompanyUntilOneIsChosen()
+        Dim u = TestData.User("assoc2", GoodPassword, UserRole.Associate, Nothing)
+        _f.Users.Add(u)
+        _f.Companies.Link(u.UserId, 9, "Alpha Works", PlanTier.Silver)
+        _f.Companies.Link(u.UserId, 12, "Beta Mills", PlanTier.Gold)
+        Assert.True(_f.Service.Login("assoc2", GoodPassword).Succeeded)
+        Assert.Equal(0, _f.Session.Current.CompanyId)
+        Dim listed = _f.Service.ListCompanies()
+        Assert.True(listed.Succeeded)
+        Assert.Equal(2, listed.Value.Count)
+        Dim chosen = _f.Service.SelectCompany(12)
+        Assert.True(chosen.Succeeded)
+        Assert.Equal(12, _f.Session.Current.CompanyId)
+        Assert.Equal(PlanTier.Gold, _f.Session.Current.Plan)
+        Assert.Equal(u.UserId, _f.Session.Current.UserId)
+        Assert.True(_f.AuditRows.Entries.Any(Function(e) e.Action = "CompanySelected"))
+    End Sub
+
+    <Fact>
+    Public Sub Associate_WithNoCompany_CanSignInToCreateOne()
+        Dim u = TestData.User("assoc3", GoodPassword, UserRole.Associate, Nothing)
+        _f.Users.Add(u)
+        Assert.True(_f.Service.Login("assoc3", GoodPassword).Succeeded)
+        Assert.Equal(0, _f.Session.Current.CompanyId)
+        Assert.Equal(0, _f.Service.ListCompanies().Value.Count)
+    End Sub
+
+    <Fact>
+    Public Sub SelectCompany_RejectsACompanyTheAssociateDoesNotWorkOn()
+        Dim u = TestData.User("assoc4", GoodPassword, UserRole.Associate, Nothing)
+        _f.Users.Add(u)
+        _f.Companies.Link(u.UserId, 9, "Alpha Works", PlanTier.Silver)
+        _f.Companies.Link(u.UserId, 12, "Beta Mills", PlanTier.Gold)
+        _f.Service.Login("assoc4", GoodPassword)
+        Dim r = _f.Service.SelectCompany(77)
+        Assert.False(r.Succeeded)
+        Assert.Equal(0, _f.Session.Current.CompanyId)
+    End Sub
+
+    <Fact>
+    Public Sub SelectCompany_IsOnlyForAssociates()
+        AddOwner()
+        _f.Service.Login("owner1", GoodPassword)
+        Assert.False(_f.Service.SelectCompany(7).Succeeded)
+        Assert.False(_f.Service.ListCompanies().Succeeded)
+        Assert.Equal(7, _f.Session.Current.CompanyId)
+    End Sub
 End Class

@@ -26,7 +26,7 @@ Status: accepted, items marked Open to confirm. Owner: Sigma. Answers Brave's qu
 ## Crystal spike (ADR 0005)
 - **x86 and .NET Framework 4.8: approved for the helper project only** (`Revolution.ReportViewer`). Use x64 if the runtime in use supports it. The main app stays net10.0-windows, AnyCPU.
 - **Package source:** use only SAP's own developer package and runtime installer. Do not use unofficial NuGet repackages. Record the exact version, download page and install steps in ADR 0005. Do not commit installers or SAP binaries.
-- **Licence:** this needs the SAP licence terms for redistributing the runtime read and confirmed in writing by the business. Sigma cannot answer it. Open: the Owner of the business.
+- **Licence:** the business's note that the runtime is free for internal applications is recorded in ADR 0013 as a note, not a confirmation, because the product is delivered to client companies. SAP's redistribution terms must be read and confirmed in writing before Phase 10.
 - **CI:** until the verdict, the helper cannot build on the runner (no SAP assemblies). Keep it in the solution (guard 4) but build it only on the machine that has the SAP install; Sigma will add a condition to CI so the runner skips it.
 
 ## Payroll screens and composition root
@@ -42,7 +42,7 @@ Status: accepted, items marked Open to confirm. Owner: Sigma. Answers Brave's qu
 - **No unattended payroll.** Payroll, statutory and approval work is always started by a signed-in user, on that user's session. SQL Agent runs backups only.
 - **Agent login:** a separate SQL login `hrms_agent` in its own role, EXECUTE only on a small named set of procedures (punch ingest and agent authentication). Created by Setup with the administrator connection. Its connection string is kept machine-protected on the agent computer. It does not use the app login.
 - **No session company for the agent.** The company comes from the agent's registration row, resolved inside the procedure, never from a parameter or from `SESSION_CONTEXT` set by the client. Open: how the lookup passes row-level security (the tenant predicate hides rows when no company is set). Sigma settles it in migration 0015 and adds the case to the tenant leak test.
-- **Agent auth: per device, bound to one company.** The Owner registers a device (permission Biometric, Create); a random 32-byte key is shown once and only its hash is stored. Revoking one lost device does not touch the others. The agent keeps its key in a machine-protected file. Tables and procedures: Sigma, migration 0015. Punch tables and `IPunchSource`: Brave, lane 0500.
+- **Agent auth: superseded by ADR 0013.** The key belongs to the agent installation, bound to one company (the agent pulls from devices; devices do not authenticate). A random 32-byte key is shown once and only its hash is stored; it is kept in a machine-protected file on the agent computer. Tables and procedures: Sigma, migration 0015. Punch tables and `IPunchSource`: Brave, lane 0500.
 
 ## Audit events
 - **Fixed list.** Sigma adds a Core class `AuditActions` with constants, so names cannot drift. Format `<Entity>.<Verb>`, plus the existing names (`ApprovalSubmitted` and similar) kept as they are.

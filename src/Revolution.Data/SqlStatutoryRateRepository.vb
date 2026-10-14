@@ -83,7 +83,17 @@ Public NotInheritable Class SqlStatutoryRateRepository
                     End While
                 End Using
             End Using
-            Return New PtRule(stateId, effectiveFrom, frequency, specialMonth, verified, sourceRef, slabs)
+            Dim dueMonths As New List(Of Integer)()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_PtDueMonth_List")
+                cmd.Parameters.Add("@StateID", SqlDbType.TinyInt).Value = CByte(stateId)
+                cmd.Parameters.Add("@AsOf", SqlDbType.Date).Value = asOf.Date
+                Using r = cmd.ExecuteReader()
+                    While r.Read()
+                        dueMonths.Add(CInt(r.GetByte(r.GetOrdinal("MonthNo"))))
+                    End While
+                End Using
+            End Using
+            Return New PtRule(stateId, effectiveFrom, frequency, specialMonth, verified, sourceRef, slabs, dueMonths)
         End Using
     End Function
 

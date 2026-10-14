@@ -4,7 +4,7 @@ No deadline. Quality gates instead of dates. Sigma owns shared code. Brave owns 
 
 ## Locked decisions
 Stack: VB.NET, WinForms, .NET 10, SQL Server Standard, Crystal Reports. Roles: Developer, Owner, Associate, Operator. Plans: Copper, Silver, Gold, Platinum. Fresh repo; the three old repos are read-only reference.
-Assumed, change if wrong: Owner = old "Company" role; one database; on-premise with an offline licence key carrying the plan; custom-styled native controls; Crystal required with a .NET Framework helper as fallback.
+Assumed, change if wrong: Owner = old "Company" role, created by an Associate who works across several companies (ADR 0013); one database; on-premise with a Developer-issued licence key, designed before Phase 10 (ADR 0013); custom-styled native controls; Crystal required with a .NET Framework helper as fallback.
 
 ## Phase gate (every phase)
 CI green on a Windows runner, tests pass, the screens were actually run and screenshotted, the other developer reviewed the pull request.

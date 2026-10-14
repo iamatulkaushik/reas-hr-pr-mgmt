@@ -130,4 +130,33 @@ Public Class StatutoryRateServiceTests
         Assert.Equal(2026, repo.LastFinancialYear)
         Assert.Equal(TdsRegime.[New], repo.LastRegime)
     End Sub
+
+    Private Shared Function PtWith(frequency As PtFrequency, dueMonths As List(Of Integer)) As PtRule
+        Dim slabs As New List(Of PtSlab) From {New PtSlab(0, 1, 0D, Nothing, 1250D, Nothing)}
+        Return New PtRule(1, New Date(2026, 4, 1), frequency, Nothing, True, "test", slabs, dueMonths)
+    End Function
+
+    <Fact>
+    Public Sub Pt_MonthlyRule_NeedsNoDueMonths()
+        Dim repo As New FakeStatutoryRateRepository() With {.Pt = PtWith(PtFrequency.Monthly, Nothing)}
+        Assert.True(New StatutoryRateService(repo).GetPtRule(1, AsOf).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Pt_HalfYearlyRule_NeedsTwoDueMonths()
+        Dim bad As New FakeStatutoryRateRepository() With {.Pt = PtWith(PtFrequency.HalfYearly, New List(Of Integer) From {9})}
+        Dim blocked = New StatutoryRateService(bad).GetPtRule(1, AsOf)
+        Assert.False(blocked.Succeeded)
+        Assert.Contains("does not list its 2 due month(s)", blocked.Message)
+        Dim good As New FakeStatutoryRateRepository() With {.Pt = PtWith(PtFrequency.HalfYearly, New List(Of Integer) From {9, 3})}
+        Assert.True(New StatutoryRateService(good).GetPtRule(1, AsOf).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Pt_YearlyRule_NeedsOneDueMonth()
+        Dim bad As New FakeStatutoryRateRepository() With {.Pt = PtWith(PtFrequency.Yearly, Nothing)}
+        Assert.False(New StatutoryRateService(bad).GetPtRule(1, AsOf).Succeeded)
+        Dim good As New FakeStatutoryRateRepository() With {.Pt = PtWith(PtFrequency.Yearly, New List(Of Integer) From {3})}
+        Assert.True(New StatutoryRateService(good).GetPtRule(1, AsOf).Succeeded)
+    End Sub
 End Class

@@ -2,11 +2,45 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net48-windows</TargetFramework>
+    <TargetFramework>net481</TargetFramework>
     <StartupObject>Sub Main</StartupObject>
     <UseWindowsForms>true</UseWindowsForms>
     <MyType>WindowsForms</MyType>
+    <ReferencePath>C:\Program Files (x86)\SAP BusinessObjects\Crystal Reports for .NET Framework 4.0\Common\SAP BusinessObjects Enterprise XI 4.0\win64_x64\dotnet\</ReferencePath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <COMReference Include="CrystalActiveXReportViewerLib13">
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>13</VersionMajor>
+      <Guid>b816e96d-d151-4000-badb-53a2d8f3fc65</Guid>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>false</Isolated>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="CrystalPrintControlLib">
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>13</VersionMajor>
+      <Guid>62862e3f-f35b-455e-9459-49eaade80a25</Guid>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>false</Isolated>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+    </COMReference>
+    <COMReference Include="{62862e3f-f35b-455e-9459-49eaade80a25}">
+      <WrapperTool>aximp</WrapperTool>
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>13</VersionMajor>
+      <Guid>62862e3f-f35b-455e-9459-49eaade80a25</Guid>
+    </COMReference>
+    <COMReference Include="{b816e96d-d151-4000-badb-53a2d8f3fc65}">
+      <WrapperTool>aximp</WrapperTool>
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>13</VersionMajor>
+      <Guid>b816e96d-d151-4000-badb-53a2d8f3fc65</Guid>
+    </COMReference>
+  </ItemGroup>
 
   <ItemGroup>
     <Import Include="System.Data" />
@@ -33,6 +67,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="CrystalReport1.vb">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>CrystalReport1.rpt</DependentUpon>
+    </Compile>
     <Compile Update="My Project\Application.Designer.vb">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -41,10 +80,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="CrystalReport1.rpt">
+      <Generator>CrystalDecisions.VSDesigner.CodeGen.ReportCodeGenerator</Generator>
+      <LastGenOutput>CrystalReport1.vb</LastGenOutput>
+    </None>
     <None Update="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>
       <LastGenOutput>Application.Designer.vb</LastGenOutput>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Service Include="{c0c07587-41a7-46c8-8fbd-3f9c8ebe2ddc}" />
   </ItemGroup>
 
 </Project>

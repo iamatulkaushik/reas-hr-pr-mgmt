@@ -35,6 +35,7 @@ Public NotInheritable Class SqlConnectionFactory
         If user Is Nothing Then
             Return
         End If
+        SetContext(conn, "UserID", user.UserId)
         SetContext(conn, "CompanyID", user.CompanyId)
         SetContext(conn, "IsDeveloper", user.Role = UserRole.Developer)
     End Sub

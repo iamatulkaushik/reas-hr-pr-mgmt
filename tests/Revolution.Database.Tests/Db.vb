@@ -23,10 +23,13 @@ Friend NotInheritable Class Db
     ''' Opens a connection the way the app does: tenant context in SESSION_CONTEXT (read only), then optionally switches to a
     ''' database user without a login. runAs "rv_test_app" is the app role (EXECUTE only); "rv_test_reader" can SELECT the tables.
     ''' </summary>
-    Friend Shared Function Open(Optional companyId As Integer? = Nothing, Optional developer As Boolean = False, Optional runAs As String = Nothing) As SqlConnection
+    Friend Shared Function Open(Optional companyId As Integer? = Nothing, Optional developer As Boolean = False, Optional runAs As String = Nothing, Optional userId As Integer? = Nothing) As SqlConnection
         Dim builder As New SqlConnectionStringBuilder(ConnectionString) With {.Pooling = False}
         Dim conn As New SqlConnection(builder.ConnectionString)
         conn.Open()
+        If userId.HasValue Then
+            SetContext(conn, "UserID", userId.Value)
+        End If
         If companyId.HasValue Then
             SetContext(conn, "CompanyID", companyId.Value)
         End If

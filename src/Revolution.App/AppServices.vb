@@ -10,7 +10,7 @@ Imports Revolution.Services
 Public NotInheritable Class AppServices
     Private Sub New(session As SessionContext, factory As IConnectionFactory, entitlements As IEntitlementService,
                     permissions As IPermissionService, audit As IAuditService, auth As IAuthService,
-                    approvals As IApprovalService, rates As IStatutoryRateService, crypto As IFieldCrypto)
+                    approvals As IApprovalService, associateAdmin As IAssociateAdminService, rates As IStatutoryRateService, crypto As IFieldCrypto)
         Me.Session = session
         Me.Factory = factory
         Me.Entitlements = entitlements
@@ -18,8 +18,10 @@ Public NotInheritable Class AppServices
         Me.Audit = audit
         Me.Auth = auth
         Me.Approvals = approvals
+        Me.AssociateAdmin = associateAdmin
         Me.Rates = rates
         Me.Crypto = crypto
+        Me.Host = New ModuleHost(factory, session, entitlements, permissions, audit, approvals, rates, crypto)
     End Sub
 
     Public ReadOnly Property Session As SessionContext
@@ -29,8 +31,11 @@ Public NotInheritable Class AppServices
     Public ReadOnly Property Audit As IAuditService
     Public ReadOnly Property Auth As IAuthService
     Public ReadOnly Property Approvals As IApprovalService
+    Public ReadOnly Property AssociateAdmin As IAssociateAdminService
     Public ReadOnly Property Rates As IStatutoryRateService
     Public ReadOnly Property Crypto As IFieldCrypto
+    ''' <summary>What every feature module is composed from. Pass it to a module's composition class.</summary>
+    Public ReadOnly Property Host As ModuleHost
 
     ''' <summary>
     ''' Builds everything. Fails with a message the user can act on when the field key file is missing or unreadable:
@@ -52,12 +57,14 @@ Public NotInheritable Class AppServices
         Dim permissions As New PermissionService(session, New SqlPermissionRepository(factory))
         Dim audit As New AuditService(New SqlAuditRepository(factory), session, entitlements)
 
+        Dim hasher As New PasswordHasher()
         Dim auth As New AuthService(New SqlUserRepository(factory), New SqlCompanyRepository(factory),
-                                    New PasswordHasher(), session, audit, TimeProvider.System)
+                                    hasher, session, audit, TimeProvider.System)
         Dim approvals As New ApprovalService(New SqlApprovalRepository(factory), session, permissions, entitlements, audit)
+        Dim associateAdmin As New AssociateAdminService(New SqlAssociateAdminRepository(factory), permissions, hasher, audit)
         Dim rates As New StatutoryRateService(New SqlStatutoryRateRepository(factory))
 
-        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, rates, New AesGcmFieldCrypto(keys))
+        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys))
         Return OperationResult(Of AppServices).Ok(services)
     End Function
 End Class

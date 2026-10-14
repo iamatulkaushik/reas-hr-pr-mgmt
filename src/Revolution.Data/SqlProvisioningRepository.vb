@@ -39,4 +39,14 @@ Public NotInheritable Class SqlProvisioningRepository
         End Using
         Return id
     End Function
+
+    Public Sub SetAssociatePlan(userId As Integer, plan As PlanTier) Implements IProvisioningRepository.SetAssociatePlan
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "sec.usp_Associate_SetPlan")
+                cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = userId
+                cmd.Parameters.Add("@PlanTierID", SqlDbType.TinyInt).Value = CByte(CInt(plan))
+                cmd.ExecuteNonQuery()
+            End Using
+        End Using
+    End Sub
 End Class

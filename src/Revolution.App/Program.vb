@@ -27,6 +27,13 @@ Public Module Program
                 Return
             End If
         End Using
+        If services.Session.Current.Role = UserRole.Associate AndAlso services.Session.Current.CompanyId = 0 Then
+            Using picker As New CompanyPickerForm(services.Auth, services.AssociateAdmin)
+                If picker.ShowDialog() <> DialogResult.OK Then
+                    Return
+                End If
+            End Using
+        End If
         Application.Run(New ShellForm(services.Session))
     End Sub
 
