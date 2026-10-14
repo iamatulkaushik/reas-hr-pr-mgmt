@@ -14,9 +14,13 @@ jobs:
       - name: Drift guards
         shell: bash
         run: ./scripts/check-guards.sh
-      - name: Restore
-        run: dotnet restore Revolution.slnx
-      - name: Build
-        run: dotnet build Revolution.slnx --no-restore -c Release
-      - name: Test
-        run: dotnet test Revolution.slnx --no-build -c Release
+      # Revolution.ReportViewer is a net481 Crystal Reports helper (COM references, SAP install path).
+      # It cannot build on the runner, so CI skips it. Build it locally. See ADR 0005.
+      - name: Restore, build, test (ReportViewer excluded)
+        shell: bash
+        run: |
+          set -e
+          projects=$(find src tests -name '*.vbproj' ! -path '*Revolution.ReportViewer*' | sort)
+          for p in $projects; do dotnet restore "$p"; done
+          for p in $projects; do dotnet build "$p" --no-restore -c Release; done
+          for p in $(find tests -name '*.vbproj' | sort); do dotnet test "$p" --no-build -c Release; done
