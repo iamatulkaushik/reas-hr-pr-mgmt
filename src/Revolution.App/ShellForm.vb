@@ -69,7 +69,7 @@ Public Class ShellForm
             Return
         End If
         ClearValidation()
-        Dim screen As Form = item.OpenScreen()
+        Dim screen As Form = item.OpenScreen.Invoke()
         _openScreens.Add(screen)
         AddHandler screen.FormClosed, Sub(sender As Object, args As FormClosedEventArgs) _openScreens.Remove(screen)
         screen.Show(Me)
