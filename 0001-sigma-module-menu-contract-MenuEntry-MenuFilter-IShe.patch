@@ -1,0 +1,439 @@
+From 11a4222132d1b74ff68c8105859770729e865643 Mon Sep 17 00:00:00 2001
+From: Sigma <sigma@example.com>
+Date: Thu, 15 Oct 2026 02:30:46 +0000
+Subject: [PATCH 1/2] sigma: module menu contract (MenuEntry, MenuFilter,
+ IShellModule, ShellMenuBuilder), real shell with switch company, ADR 0016
+
+---
+ docs/adr/0016-module-menu-and-shell.md        |  44 ++++++++
+ src/Revolution.App/Program.vb                 |   4 +-
+ src/Revolution.App/ShellForm.vb               | 100 ++++++++++++++++--
+ src/Revolution.Core/MenuEntry.vb              |  36 +++++++
+ src/Revolution.Core/MenuFilter.vb             |  23 ++++
+ src/Revolution.UI.Common/IShellModule.vb      |   4 +
+ src/Revolution.UI.Common/ShellItem.vb         |  15 +++
+ src/Revolution.UI.Common/ShellMenuBuilder.vb  |  40 +++++++
+ .../Revolution.Core.Tests/MenuFilterTests.vb  |  78 ++++++++++++++
+ 9 files changed, 332 insertions(+), 12 deletions(-)
+ create mode 100644 docs/adr/0016-module-menu-and-shell.md
+ create mode 100644 src/Revolution.Core/MenuEntry.vb
+ create mode 100644 src/Revolution.Core/MenuFilter.vb
+ create mode 100644 src/Revolution.UI.Common/IShellModule.vb
+ create mode 100644 src/Revolution.UI.Common/ShellItem.vb
+ create mode 100644 src/Revolution.UI.Common/ShellMenuBuilder.vb
+ create mode 100644 tests/Revolution.Core.Tests/MenuFilterTests.vb
+
+diff --git a/docs/adr/0016-module-menu-and-shell.md b/docs/adr/0016-module-menu-and-shell.md
+new file mode 100644
+index 0000000..0086607
+--- /dev/null
++++ b/docs/adr/0016-module-menu-and-shell.md
+@@ -0,0 +1,44 @@
++# ADR 0016: How a module adds menu items, and how the shell switches company
++
++Status: accepted. Owner: Sigma. Date: 2026-10-14. Closes the open item at the end of ADR 0015.
++
++## Decision
++- A module describes its menu with `MenuEntry` objects (Revolution.Core): a unique key such as `payroll.runs`, a top-level group such as `Payroll`, a title, the `ModuleKey` the user needs View on, an optional `PlanFeature`, and a sort order.
++- The module wraps each entry with the code that opens its screen in a `ShellItem` (Revolution.UI.Common) and returns them from one class that implements `IShellModule`. The screen factory returns a new `BaseForm`-derived form, not yet shown.
++- The shell asks `IPermissionService` and `IEntitlementService` through `MenuFilter`. Entries the user may not open, or whose plan feature is off, are not shown. The shell checks View again when an entry is clicked. Nobody checks a role or plan name (ADR 0003).
++- Two entries with the same key stop the app at start-up with a clear message. Keys are unique across all modules.
++- Adding a module to the app is one line in `Program.vb` (Sigma does it when the module is pushed and reviewed): `modules.Add(New PayrollShellModule(PayrollModule.Compose(services.Host)))`.
++
++## Switch company
++- The File menu shows "Switch company..." when `IAuthService.ListCompanies` succeeds with more than one company. The shell does not look at the role.
++- Choosing it closes every screen opened from the menu (after a warning if any are open), then shows the company picker. When a company is chosen, the session, plan and menus are rebuilt. If a screen refuses to close, the company is not changed.
++- Why: row-level security follows the session company, so a screen left open would otherwise keep showing the old company's data under the new company's name.
++
++## For Brave
++```
++Public NotInheritable Class PayrollShellModule
++    Implements IShellModule
++
++    Private ReadOnly _items As IReadOnlyList(Of ShellItem)
++
++    Public Sub New(services As PayrollServices)
++        _items = New List(Of ShellItem) From {
++            New ShellItem(New MenuEntry("payroll.runs", "Payroll", "Payroll runs", ModuleKey.Payroll, PlanFeature.BasicPayroll, 10),
++                          Function() New PayrollRunForm(services))
++        }
++    End Sub
++
++    Public ReadOnly Property Items As IReadOnlyList(Of ShellItem) Implements IShellModule.Items
++        Get
++            Return _items
++        End Get
++    End Property
++End Class
++```
++Use the existing `PlanFeature` and `ModuleKey` values. A new one needs a change request.
++
++## Not done here
++No MDI, no tabs, no toolbar buttons, no recent-items list: screens open as normal windows owned by the shell. Revisit if the pilot month shows a need.
++
++## Status of testing
++`MenuFilter` has unit tests. The menu builder and the shell were written without a compiler or a Windows machine: build and run them before relying on them.
+diff --git a/src/Revolution.App/Program.vb b/src/Revolution.App/Program.vb
+index 975e5e9..5022e7f 100644
+--- a/src/Revolution.App/Program.vb
++++ b/src/Revolution.App/Program.vb
+@@ -34,7 +34,9 @@ Public Module Program
+                 End If
+             End Using
+         End If
+-        Application.Run(New ShellForm(services.Session))
++        ' Modules register here, one line each, when they are pushed and reviewed (ADR 0016).
++        Dim modules As New List(Of IShellModule)()
++        Application.Run(New ShellForm(services, modules))
+     End Sub
+ 
+     Private Sub ShowStartupError(message As String)
+diff --git a/src/Revolution.App/ShellForm.vb b/src/Revolution.App/ShellForm.vb
+index 9a23bdf..5d1efb3 100644
+--- a/src/Revolution.App/ShellForm.vb
++++ b/src/Revolution.App/ShellForm.vb
+@@ -2,20 +2,98 @@ Imports System.Drawing
+ Imports System.Windows.Forms
+ Imports Revolution.UI.Common
+ 
+-''' <summary>Placeholder main window on BaseForm. Replaced by the real shell when the first module lands.</summary>
++''' <summary>
++''' The main window: File menu (switch company for users who work on several, exit) plus the menus the registered modules offer.
++''' Screens opened from the menu are closed when the company changes, so no screen ever shows another company's data (ADR 0016).
++''' </summary>
+ Public Class ShellForm
+     Inherits BaseForm
+ 
+-    Public Sub New(session As ISessionContext)
+-        MyBase.New("Revolution HRMS", "Foundation build")
++    Private ReadOnly _services As AppServices
++    Private ReadOnly _modules As IReadOnlyList(Of IShellModule)
++    Private ReadOnly _menu As New MenuStrip()
++    Private ReadOnly _banner As New Label()
++    Private ReadOnly _openScreens As New List(Of Form)()
++
++    Public Sub New(services As AppServices, modules As IEnumerable(Of IShellModule))
++        MyBase.New("Revolution HRMS", String.Empty)
++        If services Is Nothing Then Throw New ArgumentNullException(NameOf(services))
++        If modules Is Nothing Then Throw New ArgumentNullException(NameOf(modules))
++        _services = services
++        _modules = modules.ToList()
+         StartPosition = FormStartPosition.CenterScreen
+-        ClientSize = New Size(960, 600)
+-        Dim user = session.Current
+-        Dim banner As New Label With {
+-            .Dock = DockStyle.Fill,
+-            .TextAlign = ContentAlignment.MiddleCenter,
+-            .Text = If(user Is Nothing, "Not signed in", $"Signed in as {user.UserName} ({user.Role}, {user.Plan})")
+-        }
+-        Content.Controls.Add(banner)
++        ClientSize = New Size(1100, 700)
++        _banner.Dock = DockStyle.Fill
++        _banner.TextAlign = ContentAlignment.MiddleCenter
++        _menu.Dock = DockStyle.Top
++        ' Fill control first, then the menu, so the menu docks to the top.
++        Content.Controls.Add(_banner)
++        Content.Controls.Add(_menu)
++        MainMenuStrip = _menu
++        RebuildMenu()
++    End Sub
++
++    Private Sub RebuildMenu()
++        _menu.Items.Clear()
++        _menu.Items.Add(BuildFileMenu())
++        For Each top In ShellMenuBuilder.Build(_modules, _services.Permissions, _services.Entitlements, AddressOf OnOpenItem)
++            _menu.Items.Add(top)
++        Next
++        Dim user = _services.Session.Current
++        _banner.Text = If(user Is Nothing, "Not signed in",
++                          $"Signed in as {user.UserName} ({user.Role}, {user.Plan}), company {user.CompanyId}")
++    End Sub
++
++    Private Function BuildFileMenu() As ToolStripMenuItem
++        Dim fileMenu As New ToolStripMenuItem("&File")
++        If CanSwitchCompany() Then
++            Dim switchItem As New ToolStripMenuItem("&Switch company...")
++            AddHandler switchItem.Click, AddressOf OnSwitchCompany
++            fileMenu.DropDownItems.Add(switchItem)
++        End If
++        Dim exitItem As New ToolStripMenuItem("E&xit")
++        AddHandler exitItem.Click, Sub(sender As Object, args As EventArgs) Close()
++        fileMenu.DropDownItems.Add(exitItem)
++        Return fileMenu
++    End Function
++
++    ''' <summary>True when the signed-in user works on more than one company. The auth service decides; the shell never checks a role name.</summary>
++    Private Function CanSwitchCompany() As Boolean
++        Dim companies = _services.Auth.ListCompanies()
++        Return companies.Succeeded AndAlso companies.Value.Count > 1
++    End Function
++
++    Private Sub OnOpenItem(item As ShellItem)
++        If Not _services.Permissions.IsAllowed(item.Entry.ModuleKey, PermissionAction.View) Then
++            ShowError("You do not have permission to open this screen.")
++            Return
++        End If
++        ClearValidation()
++        Dim screen As Form = item.OpenScreen()
++        _openScreens.Add(screen)
++        AddHandler screen.FormClosed, Sub(sender As Object, args As FormClosedEventArgs) _openScreens.Remove(screen)
++        screen.Show(Me)
++    End Sub
++
++    Private Sub OnSwitchCompany(sender As Object, args As EventArgs)
++        If _openScreens.Count > 0 Then
++            Dim answer = MessageBox.Show(Me, "Switching company closes the open screens. Unsaved work is lost. Continue?", Text,
++                                         MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
++            If answer <> DialogResult.Yes Then
++                Return
++            End If
++        End If
++        For Each screen In _openScreens.ToList()
++            screen.Close()
++        Next
++        If _openScreens.Count > 0 Then
++            ShowError("A screen did not close, so the company was not changed. Finish or cancel its work and try again.")
++            Return
++        End If
++        Using picker As New CompanyPickerForm(_services.Auth, _services.AssociateAdmin)
++            If picker.ShowDialog(Me) = DialogResult.OK Then
++                RebuildMenu()
++            End If
++        End Using
+     End Sub
+ End Class
+diff --git a/src/Revolution.Core/MenuEntry.vb b/src/Revolution.Core/MenuEntry.vb
+new file mode 100644
+index 0000000..4223771
+--- /dev/null
++++ b/src/Revolution.Core/MenuEntry.vb
+@@ -0,0 +1,36 @@
++''' <summary>
++''' One menu item a module offers the shell. Metadata only: the screen it opens lives in the UI layer (ShellItem).
++''' The shell shows the entry only when the user may View the module and the plan has the required feature (ADR 0016).
++''' </summary>
++Public NotInheritable Class MenuEntry
++    Public Sub New(entryKey As String, menuGroup As String, title As String, moduleKey As ModuleKey,
++                   Optional requiredFeature As PlanFeature? = Nothing, Optional sortOrder As Integer = 100)
++        If String.IsNullOrWhiteSpace(entryKey) Then
++            Throw New ArgumentException("A menu entry needs a key.", NameOf(entryKey))
++        End If
++        If String.IsNullOrWhiteSpace(menuGroup) Then
++            Throw New ArgumentException("A menu entry needs a group.", NameOf(menuGroup))
++        End If
++        If String.IsNullOrWhiteSpace(title) Then
++            Throw New ArgumentException("A menu entry needs a title.", NameOf(title))
++        End If
++        Me.EntryKey = entryKey.Trim()
++        Me.MenuGroup = menuGroup.Trim()
++        Me.Title = title.Trim()
++        Me.ModuleKey = moduleKey
++        Me.RequiredFeature = requiredFeature
++        Me.SortOrder = sortOrder
++    End Sub
++
++    ''' <summary>Unique across all modules, for example "payroll.runs".</summary>
++    Public ReadOnly Property EntryKey As String
++    ''' <summary>The top-level menu the entry sits under, for example "Payroll".</summary>
++    Public ReadOnly Property MenuGroup As String
++    Public ReadOnly Property Title As String
++    ''' <summary>The user needs View on this module to see the entry.</summary>
++    Public ReadOnly Property ModuleKey As ModuleKey
++    ''' <summary>The plan must include this feature. Nothing means any plan.</summary>
++    Public ReadOnly Property RequiredFeature As PlanFeature?
++    ''' <summary>Lower first. Groups follow the order of their first entry.</summary>
++    Public ReadOnly Property SortOrder As Integer
++End Class
+diff --git a/src/Revolution.Core/MenuFilter.vb b/src/Revolution.Core/MenuFilter.vb
+new file mode 100644
+index 0000000..0a822a3
+--- /dev/null
++++ b/src/Revolution.Core/MenuFilter.vb
+@@ -0,0 +1,23 @@
++''' <summary>Decides which menu entries the signed-in user sees. Asks the permission and entitlement services, never a role or plan name.</summary>
++Public NotInheritable Class MenuFilter
++    Private Sub New()
++    End Sub
++
++    Public Shared Function Visible(entries As IEnumerable(Of MenuEntry), permissions As IPermissionService,
++                                   entitlements As IEntitlementService) As IReadOnlyList(Of MenuEntry)
++        If entries Is Nothing Then Throw New ArgumentNullException(NameOf(entries))
++        If permissions Is Nothing Then Throw New ArgumentNullException(NameOf(permissions))
++        If entitlements Is Nothing Then Throw New ArgumentNullException(NameOf(entitlements))
++        Dim allowed = entries.Where(Function(entry) IsVisible(entry, permissions, entitlements))
++        Dim ordered = allowed.OrderBy(Function(entry) entry.SortOrder).ThenBy(Function(entry) entry.Title, StringComparer.Ordinal)
++        Return ordered.ToList()
++    End Function
++
++    Private Shared Function IsVisible(entry As MenuEntry, permissions As IPermissionService,
++                                      entitlements As IEntitlementService) As Boolean
++        If Not permissions.IsAllowed(entry.ModuleKey, PermissionAction.View) Then
++            Return False
++        End If
++        Return Not entry.RequiredFeature.HasValue OrElse entitlements.IsEnabled(entry.RequiredFeature.Value)
++    End Function
++End Class
+diff --git a/src/Revolution.UI.Common/IShellModule.vb b/src/Revolution.UI.Common/IShellModule.vb
+new file mode 100644
+index 0000000..71e1c68
+--- /dev/null
++++ b/src/Revolution.UI.Common/IShellModule.vb
+@@ -0,0 +1,4 @@
++''' <summary>What a feature module gives the shell: its menu items. One implementation per module (ADR 0016).</summary>
++Public Interface IShellModule
++    ReadOnly Property Items As IReadOnlyList(Of ShellItem)
++End Interface
+diff --git a/src/Revolution.UI.Common/ShellItem.vb b/src/Revolution.UI.Common/ShellItem.vb
+new file mode 100644
+index 0000000..51b9de2
+--- /dev/null
++++ b/src/Revolution.UI.Common/ShellItem.vb
+@@ -0,0 +1,15 @@
++Imports System.Windows.Forms
++
++''' <summary>A menu entry together with the factory that opens its screen. Modules build these; the shell shows them (ADR 0016).</summary>
++Public NotInheritable Class ShellItem
++    Public Sub New(entry As MenuEntry, openScreen As Func(Of Form))
++        If entry Is Nothing Then Throw New ArgumentNullException(NameOf(entry))
++        If openScreen Is Nothing Then Throw New ArgumentNullException(NameOf(openScreen))
++        Me.Entry = entry
++        Me.OpenScreen = openScreen
++    End Sub
++
++    Public ReadOnly Property Entry As MenuEntry
++    ''' <summary>Creates a new, unshown screen (a BaseForm). The shell shows it and closes it when the company changes.</summary>
++    Public ReadOnly Property OpenScreen As Func(Of Form)
++End Class
+diff --git a/src/Revolution.UI.Common/ShellMenuBuilder.vb b/src/Revolution.UI.Common/ShellMenuBuilder.vb
+new file mode 100644
+index 0000000..6723cc1
+--- /dev/null
++++ b/src/Revolution.UI.Common/ShellMenuBuilder.vb
+@@ -0,0 +1,40 @@
++Imports System.Windows.Forms
++
++''' <summary>Builds the module menus for the shell from the registered modules, showing only what the user may open (ADR 0016).</summary>
++Public NotInheritable Class ShellMenuBuilder
++    Private Sub New()
++    End Sub
++
++    ''' <summary>Throws InvalidOperationException when two entries share a key: that is a programming error found at start-up.</summary>
++    Public Shared Function Build(modules As IEnumerable(Of IShellModule), permissions As IPermissionService,
++                                 entitlements As IEntitlementService, onOpen As Action(Of ShellItem)) As IReadOnlyList(Of ToolStripMenuItem)
++        If modules Is Nothing Then Throw New ArgumentNullException(NameOf(modules))
++        If onOpen Is Nothing Then Throw New ArgumentNullException(NameOf(onOpen))
++        Dim items = modules.SelectMany(Function(m) m.Items).ToList()
++        RejectDuplicateKeys(items)
++        Dim byKey = items.ToDictionary(Function(item) item.Entry.EntryKey, StringComparer.Ordinal)
++        Dim visible = MenuFilter.Visible(items.Select(Function(item) item.Entry), permissions, entitlements)
++        Dim tops As New List(Of ToolStripMenuItem)()
++        For Each grp In visible.GroupBy(Function(entry) entry.MenuGroup)
++            Dim top As New ToolStripMenuItem(grp.Key)
++            For Each member In grp
++                top.DropDownItems.Add(CreateItem(byKey(member.EntryKey), onOpen))
++            Next
++            tops.Add(top)
++        Next
++        Return tops
++    End Function
++
++    Private Shared Function CreateItem(item As ShellItem, onOpen As Action(Of ShellItem)) As ToolStripMenuItem
++        Dim menuItem As New ToolStripMenuItem(item.Entry.Title) With {.Tag = item}
++        AddHandler menuItem.Click, Sub(sender As Object, args As EventArgs) onOpen(CType(CType(sender, ToolStripMenuItem).Tag, ShellItem))
++        Return menuItem
++    End Function
++
++    Private Shared Sub RejectDuplicateKeys(items As List(Of ShellItem))
++        Dim duplicate = items.GroupBy(Function(item) item.Entry.EntryKey, StringComparer.Ordinal).FirstOrDefault(Function(g) g.Count() > 1)
++        If duplicate IsNot Nothing Then
++            Throw New InvalidOperationException($"Two menu entries use the key '{duplicate.Key}'. Keys must be unique across modules.")
++        End If
++    End Sub
++End Class
+diff --git a/tests/Revolution.Core.Tests/MenuFilterTests.vb b/tests/Revolution.Core.Tests/MenuFilterTests.vb
+new file mode 100644
+index 0000000..eb8a0e4
+--- /dev/null
++++ b/tests/Revolution.Core.Tests/MenuFilterTests.vb
+@@ -0,0 +1,78 @@
++Imports Revolution.Core
++Imports Xunit
++
++Public Class MenuFilterTests
++    Private NotInheritable Class FakePermissions
++        Implements IPermissionService
++
++        Private ReadOnly _viewable As HashSet(Of ModuleKey)
++
++        Public Sub New(ParamArray viewable() As ModuleKey)
++            _viewable = New HashSet(Of ModuleKey)(viewable)
++        End Sub
++
++        Public Function IsAllowed(moduleKey As ModuleKey, action As PermissionAction) As Boolean Implements IPermissionService.IsAllowed
++            Return action = PermissionAction.View AndAlso _viewable.Contains(moduleKey)
++        End Function
++    End Class
++
++    Private NotInheritable Class FakeEntitlements
++        Implements IEntitlementService
++
++        Private ReadOnly _enabled As HashSet(Of PlanFeature)
++
++        Public Sub New(ParamArray enabled() As PlanFeature)
++            _enabled = New HashSet(Of PlanFeature)(enabled)
++        End Sub
++
++        Public ReadOnly Property CurrentPlan As PlanTier Implements IEntitlementService.CurrentPlan
++            Get
++                Return PlanTier.Copper
++            End Get
++        End Property
++
++        Public Function IsEnabled(feature As PlanFeature) As Boolean Implements IEntitlementService.IsEnabled
++            Return _enabled.Contains(feature)
++        End Function
++    End Class
++
++    <Fact>
++    Public Sub Hides_EntriesTheUserCannotView()
++        Dim entries = {
++            New MenuEntry("emp.list", "Employees", "Employee list", ModuleKey.Employees),
++            New MenuEntry("pay.runs", "Payroll", "Payroll runs", ModuleKey.Payroll)
++        }
++        Dim visible = MenuFilter.Visible(entries, New FakePermissions(ModuleKey.Employees), New FakeEntitlements())
++        Assert.Equal({"emp.list"}, visible.Select(Function(entry) entry.EntryKey).ToArray())
++    End Sub
++
++    <Fact>
++    Public Sub Hides_EntriesWhosePlanFeatureIsOff_AndShowsWhenNoFeatureIsNeeded()
++        Dim entries = {
++            New MenuEntry("pay.loans", "Payroll", "Loans", ModuleKey.Payroll, PlanFeature.Loans),
++            New MenuEntry("pay.runs", "Payroll", "Payroll runs", ModuleKey.Payroll)
++        }
++        Dim visible = MenuFilter.Visible(entries, New FakePermissions(ModuleKey.Payroll), New FakeEntitlements())
++        Assert.Equal({"pay.runs"}, visible.Select(Function(entry) entry.EntryKey).ToArray())
++        Dim withLoans = MenuFilter.Visible(entries, New FakePermissions(ModuleKey.Payroll), New FakeEntitlements(PlanFeature.Loans))
++        Assert.Equal(2, withLoans.Count)
++    End Sub
++
++    <Fact>
++    Public Sub Orders_BySortOrderThenTitle()
++        Dim entries = {
++            New MenuEntry("b", "Payroll", "Zeta", ModuleKey.Payroll, sortOrder:=10),
++            New MenuEntry("c", "Payroll", "Alpha", ModuleKey.Payroll, sortOrder:=20),
++            New MenuEntry("a", "Payroll", "Beta", ModuleKey.Payroll, sortOrder:=10)
++        }
++        Dim visible = MenuFilter.Visible(entries, New FakePermissions(ModuleKey.Payroll), New FakeEntitlements())
++        Assert.Equal({"a", "b", "c"}, visible.Select(Function(entry) entry.EntryKey).ToArray())
++    End Sub
++
++    <Fact>
++    Public Sub Entry_RequiresKeyGroupAndTitle()
++        Assert.Throws(Of ArgumentException)(Function() New MenuEntry(" ", "Payroll", "Runs", ModuleKey.Payroll))
++        Assert.Throws(Of ArgumentException)(Function() New MenuEntry("k", " ", "Runs", ModuleKey.Payroll))
++        Assert.Throws(Of ArgumentException)(Function() New MenuEntry("k", "Payroll", " ", ModuleKey.Payroll))
++    End Sub
++End Class
+-- 
+2.43.0
+
