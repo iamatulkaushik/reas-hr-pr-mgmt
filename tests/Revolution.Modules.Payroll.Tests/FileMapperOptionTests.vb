@@ -79,7 +79,7 @@ Public Class FileMapperOptionTests
     <Fact>
     Public Sub Instructions_HaveAllFourteenReasonCodes()
         Dim table As IReadOnlyList(Of String()) = EsicInstructions.Table()
-        Dim codes As Integer = table.Count(Function(r) r.Length = 3 AndAlso r(1) <> "Code")
+        Dim codes As Integer = table.Where(Function(r) r.Length = 3 AndAlso r(1) <> "Code").Count()
         Assert.Equal(14, codes)
     End Sub
 
