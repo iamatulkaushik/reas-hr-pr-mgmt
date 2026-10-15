@@ -97,9 +97,19 @@ Module code is pure. The app loads run lines, decrypts UAN, ESI number and accou
 
 Left out with a problem line: EPF member without UAN, ESI member without IP number, bank employee without account or IFSC. Cash and zero-net employees are skipped silently.
 
-Open points:
-1. Name as per UAN. No such column in mst.EmployeeStatutory. HR name used. Possible change request.
-2. NCP base days: calendar days of the month or the 26-day cycle. Caller passes it. Confirm with Owner.
-3. Higher wage option (EPS above ceiling) not handled.
-4. SBI branch code from IFSC is derived. Check against the first real SBI upload.
-5. ESIC exit reason and last working day need a source. Employee leaving date exists; reason code mapping not built.
+Owner decisions (2026-10-15):
+1. Name as per UAN is the employee name. Done.
+2. NCP days use calendar days of the wage month. Done.
+3. Company bank IFSC field holds the branch code. Used directly as debit branch code. A full 11 character IFSC is also accepted (last 5 characters). Employee IFSC stays a full IFSC; same-bank branch code is its last 5 characters.
+4. ESIC Excel: the portal reads sheet 1 only. Sheet 1 "Sheet1" is the upload sheet, six columns as the template. Sheet 2 "Instructions & Reason Codes" keeps the template reason code table and fill-in instructions only. No employee data on sheet 2. Template steps 10a and 10b (convert to Text by hand) are left out because the exporter writes Text.
+5. Per member option: EPF on higher wage, and EPS (pension) on higher wage. EPS on higher wage needs EPF on higher wage. EPS wages in ECR then pass the ceiling. EDLI wages stay capped. `EpfCalculator.Calculate` has a new optional argument `pensionOnActualWage`.
+
+Still open:
+1. Employee option store: `HigherWageOption` exists as one flag. Two flags needed (EPF higher, EPS higher). Change request to Sigma for the employee module.
+2. ESIC exit reason code has no source yet.
+3. Arrear ECR not built.
+4. PENDING (decide on runtime testing): ESIC detail information. Built as `EsicDetailSheetBuilder`, kept out of the upload workbook. Options: third sheet, separate file, or drop. Nothing calls it yet.
+
+## 6. File service
+`PayrollFileService` builds the files for a run. Needs Export on Statutory (ECR, ESIC) or Payroll (bank). Run must be Approved, Locked or Paid. Wage month is the month of the period end date. One audit entry per file, with line counts only. If the audit write fails, no file is released.
+`IPayrollFileSource` loads the run with ids decrypted. No implementation yet: CR 0016.

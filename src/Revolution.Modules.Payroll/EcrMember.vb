@@ -2,7 +2,8 @@
 Public NotInheritable Class EcrMember
     Public Sub New(uan As String, name As String, grossWages As Decimal, epfWages As Decimal, epsWages As Decimal,
                    edliWages As Decimal, employeeEpf As Decimal, epsContribution As Decimal,
-                   employerDifference As Decimal, ncpDays As Integer, refundOfAdvances As Decimal)
+                   employerDifference As Decimal, ncpDays As Integer, refundOfAdvances As Decimal,
+                   Optional epsOnHigherWage As Boolean = False)
         Me.Uan = uan
         Me.Name = name
         Me.GrossWages = grossWages
@@ -14,6 +15,7 @@ Public NotInheritable Class EcrMember
         Me.EmployerDifference = employerDifference
         Me.NcpDays = ncpDays
         Me.RefundOfAdvances = refundOfAdvances
+        Me.EpsOnHigherWage = epsOnHigherWage
     End Sub
 
     Public ReadOnly Property Uan As String
@@ -29,4 +31,6 @@ Public NotInheritable Class EcrMember
     Public ReadOnly Property EmployerDifference As Decimal
     Public ReadOnly Property NcpDays As Integer
     Public ReadOnly Property RefundOfAdvances As Decimal
+    ''' <summary>Member chose pension on higher wages. EPS wages may then pass the ceiling. Not written to the file.</summary>
+    Public ReadOnly Property EpsOnHigherWage As Boolean
 End Class

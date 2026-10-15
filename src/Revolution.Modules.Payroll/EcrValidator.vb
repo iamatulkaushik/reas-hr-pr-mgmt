@@ -40,7 +40,7 @@ Public NotInheritable Class EcrValidator
         If m.EpsWages > m.EpfWages Then
             errors.Add($"Line {row}: EPS wages are above EPF wages.")
         End If
-        If m.EpsWages > wageCeiling Then
+        If m.EpsWages > wageCeiling AndAlso Not m.EpsOnHigherWage Then
             errors.Add($"Line {row}: EPS wages are above the wage ceiling.")
         End If
         If m.EdliWages > wageCeiling Then

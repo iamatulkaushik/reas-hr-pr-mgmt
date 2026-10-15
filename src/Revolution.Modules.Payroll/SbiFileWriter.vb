@@ -20,6 +20,12 @@ Public NotInheritable Class SbiFileWriter
         End Get
     End Property
 
+    Public ReadOnly Property IfscPrefix As String Implements IBankFileWriter.IfscPrefix
+        Get
+            Return "SBIN"
+        End Get
+    End Property
+
     Public Function Build(batch As BankBatch) As BankFiles Implements IBankFileWriter.Build
         Dim problems As IReadOnlyList(Of String) = SbiValidator.Validate(batch, _options)
         If problems.Count > 0 Then

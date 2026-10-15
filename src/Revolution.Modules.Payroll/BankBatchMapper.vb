@@ -26,10 +26,16 @@ Public NotInheritable Class BankBatchMapper
         Return New MapResult(Of BankPayee)(items, problems)
     End Function
 
+    ''' <summary>Company bank value may be the 5 digit branch code or a full IFSC.</summary>
+    Public Shared Function ToBatch(debitAccount As String, companyBranchOrIfsc As String, paymentDate As Date, batchReference As String,
+                                   description As String, payees As IReadOnlyList(Of BankPayee)) As BankBatch
+        Return New BankBatch(debitAccount, SbiBranchCode.Normalize(companyBranchOrIfsc), paymentDate, batchReference, description, payees)
+    End Function
+
     Private Shared Function ToPayee(e As PayrollFileEmployee, ifscPrefix As String, mode As PaymentMode, reference As String) As BankPayee
         Dim ifsc As String = e.Ifsc.Trim().ToUpperInvariant()
         Dim sameBank As Boolean = ifsc.StartsWith(ifscPrefix, StringComparison.Ordinal)
-        Dim branchOrIfsc As String = If(sameBank, ifsc.Substring(6), ifsc)
+        Dim branchOrIfsc As String = If(sameBank, SbiBranchCode.Normalize(ifsc), ifsc)
         Return New BankPayee(EcrNameCleaner.Clean(e.Name), e.AccountNumber.Trim(), branchOrIfsc, sameBank, e.NetPay, reference, mode)
     End Function
 End Class

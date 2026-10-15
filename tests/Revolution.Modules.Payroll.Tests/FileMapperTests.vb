@@ -13,7 +13,7 @@ Public Class FileMapperTests
 
     <Fact>
     Public Sub Ecr_CapsEpsAndEdliAtCeiling()
-        Dim m As EcrMember = EcrMapper.Map({Worker()}, 15000D, 30).Items(0)
+        Dim m As EcrMember = EcrMapper.Map({Worker()}, 15000D, New Date(2026, 9, 1)).Items(0)
         Assert.Equal(18000D, m.GrossWages)
         Assert.Equal(18000D, m.EpfWages)
         Assert.Equal(15000D, m.EpsWages)
@@ -24,21 +24,21 @@ Public Class FileMapperTests
 
     <Fact>
     Public Sub Ecr_NcpDays_BaseLessPaidDaysRoundedUp()
-        Assert.Equal(4, EcrMapper.Map({Worker()}, 15000D, 30).Items(0).NcpDays)
+        Assert.Equal(4, EcrMapper.Map({Worker()}, 15000D, New Date(2026, 9, 1)).Items(0).NcpDays)
     End Sub
 
     <Fact>
     Public Sub Ecr_NonMemberLeftOut()
         Dim w As PayrollFileEmployee = Worker()
         w.IsEpfMember = False
-        Assert.Empty(EcrMapper.Map({w}, 15000D, 30).Items)
+        Assert.Empty(EcrMapper.Map({w}, 15000D, New Date(2026, 9, 1)).Items)
     End Sub
 
     <Fact>
     Public Sub Ecr_MissingUan_ReportedAndLeftOut()
         Dim w As PayrollFileEmployee = Worker(7)
         w.Uan = ""
-        Dim r As MapResult(Of EcrMember) = EcrMapper.Map({w}, 15000D, 30)
+        Dim r As MapResult(Of EcrMember) = EcrMapper.Map({w}, 15000D, New Date(2026, 9, 1))
         Assert.Empty(r.Items)
         Assert.Contains("Employee 7", r.Problems(0), StringComparison.Ordinal)
     End Sub
@@ -47,7 +47,7 @@ Public Class FileMapperTests
     Public Sub Ecr_NoPensionShare_EpsWagesZero()
         Dim w As PayrollFileEmployee = Worker()
         w.EpfEmployerEps = 0D
-        Assert.Equal(0D, EcrMapper.Map({w}, 15000D, 30).Items(0).EpsWages)
+        Assert.Equal(0D, EcrMapper.Map({w}, 15000D, New Date(2026, 9, 1)).Items(0).EpsWages)
     End Sub
 
     <Fact>
@@ -108,7 +108,7 @@ Public Class FileMapperTests
         staff(1).Uan = "100123456790"
         staff(1).EsiIpNumber = "2018517471"
         staff(1).AccountNumber = "01004567892"
-        Assert.NotEmpty(EcrFileWriter.Build(EcrMapper.Map(staff, 15000D, 30).Items, 15000D))
+        Assert.NotEmpty(EcrFileWriter.Build(EcrMapper.Map(staff, 15000D, New Date(2026, 9, 1)).Items, 15000D))
         Assert.Equal(3, EsicSheetBuilder.Build(EsicMapper.Map(staff).Items, {2, 3, 4, 5, 6, 10}, 10).Count)
         Dim payees As IReadOnlyList(Of BankPayee) = BankBatchMapper.Map(staff, "SBIN", PaymentMode.Neft, "SAL1026").Items
         Dim batch As New BankBatch("01600123456", "08586", New Date(2026, 10, 31), "SAL1026", "SALARY OCT 2026", payees)

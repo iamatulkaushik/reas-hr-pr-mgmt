@@ -11,18 +11,22 @@ Public NotInheritable Class EpfCalculator
     ''' <param name="epfWage">Wage flagged for EPF this month, after the wage rule.</param>
     ''' <param name="rate">The rate row in force for the month.</param>
     ''' <param name="contributeOnActualWage">True when the employee contributes above the ceiling by choice.</param>
-    Public Shared Function Calculate(epfWage As Decimal, rate As EpfRate, Optional contributeOnActualWage As Boolean = False) As EpfResult
+    Public Shared Function Calculate(epfWage As Decimal, rate As EpfRate, Optional contributeOnActualWage As Boolean = False, Optional pensionOnActualWage As Boolean = False) As EpfResult
         If rate Is Nothing Then
             Throw New ArgumentNullException(NameOf(rate))
         End If
         If epfWage < 0D Then
             Throw New ArgumentOutOfRangeException(NameOf(epfWage), "Wage cannot be negative.")
         End If
+        If pensionOnActualWage AndAlso Not contributeOnActualWage Then
+            Throw New ArgumentException("Pension on actual wage needs EPF on actual wage.", NameOf(pensionOnActualWage))
+        End If
         If epfWage = 0D Then
             Return New EpfResult(0D, 0D, 0D, 0D, 0D, 0D)
         End If
-        Dim pensionBase As Decimal = Math.Min(epfWage, rate.WageCeiling)
-        Dim epfBase As Decimal = If(contributeOnActualWage, epfWage, pensionBase)
+        Dim cappedWage As Decimal = Math.Min(epfWage, rate.WageCeiling)
+        Dim pensionBase As Decimal = If(pensionOnActualWage, epfWage, cappedWage)
+        Dim epfBase As Decimal = If(contributeOnActualWage, epfWage, cappedWage)
         Dim employee As Decimal = Round(epfBase, rate.EmployeePct)
         Dim eps As Decimal = Round(pensionBase, rate.EmployerEpsPct)
         Dim employerTotal As Decimal = Round(epfBase, rate.EmployerEpfPct + rate.EmployerEpsPct)
