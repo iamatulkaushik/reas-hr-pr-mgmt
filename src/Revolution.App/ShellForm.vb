@@ -36,8 +36,8 @@ Public Class ShellForm
     Private Sub RebuildMenu()
         _menu.Items.Clear()
         _menu.Items.Add(BuildFileMenu())
-        For Each top In ShellMenuBuilder.Build(_modules, _services.Permissions, _services.Entitlements, AddressOf OnOpenItem)
-            _menu.Items.Add(top)
+        For Each groupMenu In ShellMenuBuilder.Build(_modules, _services.Permissions, _services.Entitlements, AddressOf OnOpenItem)
+            _menu.Items.Add(groupMenu)
         Next
         Dim user = _services.Session.Current
         _banner.Text = If(user Is Nothing, "Not signed in",
@@ -83,8 +83,8 @@ Public Class ShellForm
                 Return
             End If
         End If
-        For Each screen In _openScreens.ToList()
-            screen.Close()
+        For Each openForm In _openScreens.ToList()
+            openForm.Close()
         Next
         If _openScreens.Count > 0 Then
             ShowError("A screen did not close, so the company was not changed. Finish or cancel its work and try again.")
