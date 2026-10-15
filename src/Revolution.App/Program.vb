@@ -34,7 +34,9 @@ Public Module Program
                 End If
             End Using
         End If
-        Application.Run(New ShellForm(services.Session))
+        ' Modules register here, one line each, when they are pushed and reviewed (ADR 0016).
+        Dim modules As New List(Of IShellModule)()
+        Application.Run(New ShellForm(services, modules))
     End Sub
 
     Private Sub ShowStartupError(message As String)
