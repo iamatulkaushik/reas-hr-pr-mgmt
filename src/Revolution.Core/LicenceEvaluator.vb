@@ -11,14 +11,14 @@ Public NotInheritable Class LicenceEvaluator
         If today.DayNumber < grant.ValidFrom.DayNumber Then
             Return LicenceState.NotYetValid
         End If
-        Dim daysLeft = DaysLeft(grant, today)
-        If daysLeft > WarningDays Then
+        Dim remaining = LicenceEvaluator.DaysLeft(grant, today)
+        If remaining > WarningDays Then
             Return LicenceState.Valid
         End If
-        If daysLeft >= 0 Then
+        If remaining >= 0 Then
             Return LicenceState.Expiring
         End If
-        If daysLeft >= -GraceDays Then
+        If remaining >= -GraceDays Then
             Return LicenceState.Grace
         End If
         Return LicenceState.Expired
