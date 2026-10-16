@@ -4,11 +4,14 @@ Public NotInheritable Class PermissionService
 
     Private ReadOnly _session As ISessionContext
     Private ReadOnly _repository As IPermissionRepository
+    Private ReadOnly _licence As ILicenceService
     Private ReadOnly _cache As New Dictionary(Of UserRole, HashSet(Of Integer))()
 
-    Public Sub New(session As ISessionContext, repository As IPermissionRepository)
+    ''' <summary>With a licence service, a module the licence does not include is denied, and an expired licence allows only viewing (ADR 0018).</summary>
+    Public Sub New(session As ISessionContext, repository As IPermissionRepository, Optional licence As ILicenceService = Nothing)
         _session = session
         _repository = repository
+        _licence = licence
     End Sub
 
     Public Function IsAllowed(moduleKey As ModuleKey, action As PermissionAction) As Boolean Implements IPermissionService.IsAllowed
@@ -16,7 +19,22 @@ Public NotInheritable Class PermissionService
         If user Is Nothing OrElse user.MustChangePassword Then
             Return False
         End If
+        If Not LicenceAllows(moduleKey, action) Then
+            Return False
+        End If
         Return GrantsFor(user.Role).Contains(KeyOf(moduleKey, action))
+    End Function
+
+    ''' <summary>Read-only (expired licence or trial) allows View and Reveal only: no create, edit, delete, approve, export or reopen.</summary>
+    Private Function LicenceAllows(moduleKey As ModuleKey, action As PermissionAction) As Boolean
+        If _licence Is Nothing Then
+            Return True
+        End If
+        Dim licence = _licence.Status
+        If Not licence.AllowsModule(moduleKey) Then
+            Return False
+        End If
+        Return Not licence.IsReadOnly OrElse action = PermissionAction.View OrElse action = PermissionAction.Reveal
     End Function
 
     ''' <summary>Forget cached grants, for example after the permission matrix is changed.</summary>

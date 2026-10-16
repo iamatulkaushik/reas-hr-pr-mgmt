@@ -9,4 +9,8 @@ Public Enum LicenceProblem
     BadSignature = 3
     ''' <summary>Genuine, but issued for a different installation.</summary>
     WrongInstallation = 4
+    ''' <summary>Genuine, but issued to a different Associate than the one it is stored for.</summary>
+    WrongAssociate = 5
+    ''' <summary>Genuine, but its start date has not arrived yet.</summary>
+    NotYetValid = 6
 End Enum

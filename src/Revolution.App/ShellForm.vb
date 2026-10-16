@@ -42,6 +42,20 @@ Public Class ShellForm
         Dim user = _services.Session.Current
         _banner.Text = If(user Is Nothing, "Not signed in",
                           $"Signed in as {user.UserName} ({user.Role}, {user.Plan}), company {user.CompanyId}")
+        ShowLicenceNotice()
+    End Sub
+
+    ''' <summary>Shows the licence or trial line when there is one. Grace and read-only are shown as a warning.</summary>
+    Private Sub ShowLicenceNotice()
+        Dim licence = _services.Licence.Status
+        If licence.Banner.Length = 0 Then
+            Return
+        End If
+        If licence.IsReadOnly OrElse licence.State = LicenceState.Grace Then
+            ShowError(licence.Banner)
+        Else
+            ShowStatus(licence.Banner)
+        End If
     End Sub
 
     Private Function BuildFileMenu() As ToolStripMenuItem

@@ -2,6 +2,8 @@
 Public NotInheritable Class LicenceEvaluator
     Public Const WarningDays As Integer = 30
     Public Const GraceDays As Integer = 15
+    ''' <summary>The trial runs this many days from the installation date, then the app is read-only.</summary>
+    Public Const TrialDays As Integer = 28
 
     Private Sub New()
     End Sub
