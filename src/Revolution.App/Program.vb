@@ -36,6 +36,7 @@ Public Module Program
         End If
         ' Modules register here, one line each, when they are pushed and reviewed (ADR 0016).
         Dim modules As New List(Of IShellModule)()
+        modules.Add(New LicenceShellModule(services.LicenceAdmin))
         Application.Run(New ShellForm(services, modules))
     End Sub
 

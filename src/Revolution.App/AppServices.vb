@@ -11,7 +11,7 @@ Public NotInheritable Class AppServices
     Private Sub New(session As SessionContext, factory As IConnectionFactory, entitlements As IEntitlementService,
                     permissions As IPermissionService, audit As IAuditService, auth As IAuthService,
                     approvals As IApprovalService, associateAdmin As IAssociateAdminService, rates As IStatutoryRateService, crypto As IFieldCrypto,
-                    licence As ILicenceService)
+                    licence As ILicenceService, licenceAdmin As ILicenceAdminService)
         Me.Session = session
         Me.Factory = factory
         Me.Entitlements = entitlements
@@ -23,6 +23,7 @@ Public NotInheritable Class AppServices
         Me.Rates = rates
         Me.Crypto = crypto
         Me.Licence = licence
+        Me.LicenceAdmin = licenceAdmin
         Me.Host = New ModuleHost(factory, session, entitlements, permissions, audit, approvals, rates, crypto)
     End Sub
 
@@ -37,6 +38,7 @@ Public NotInheritable Class AppServices
     Public ReadOnly Property Rates As IStatutoryRateService
     Public ReadOnly Property Crypto As IFieldCrypto
     Public ReadOnly Property Licence As ILicenceService
+    Public ReadOnly Property LicenceAdmin As ILicenceAdminService
     ''' <summary>What every feature module is composed from. Pass it to a module's composition class.</summary>
     Public ReadOnly Property Host As ModuleHost
 
@@ -56,7 +58,8 @@ Public NotInheritable Class AppServices
 
         Dim session As New SessionContext()
         Dim factory As New SqlConnectionFactory(connectionString, session)
-        Dim licence As New LicenceService(session, New SqlLicenceRepository(factory), LicenceKeys.Trusted)
+        Dim licenceRepository As New SqlLicenceRepository(factory)
+        Dim licence As New LicenceService(session, licenceRepository, LicenceKeys.Trusted)
         Dim entitlements As New EntitlementService(session, licence)
         Dim permissions As New PermissionService(session, New SqlPermissionRepository(factory), licence)
         Dim audit As New AuditService(New SqlAuditRepository(factory), session, entitlements)
@@ -65,10 +68,11 @@ Public NotInheritable Class AppServices
         Dim auth As New AuthService(New SqlUserRepository(factory), New SqlCompanyRepository(factory),
                                     hasher, session, audit, TimeProvider.System)
         Dim approvals As New ApprovalService(New SqlApprovalRepository(factory), session, permissions, entitlements, audit)
+        Dim licenceAdmin As New LicenceAdminService(licenceRepository, permissions, LicenceKeys.Trusted, audit)
         Dim associateAdmin As New AssociateAdminService(New SqlAssociateAdminRepository(factory), permissions, hasher, audit)
         Dim rates As New StatutoryRateService(New SqlStatutoryRateRepository(factory))
 
-        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence)
+        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence, licenceAdmin)
         Return OperationResult(Of AppServices).Ok(services)
     End Function
 End Class
