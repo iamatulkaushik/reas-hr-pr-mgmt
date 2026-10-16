@@ -13,11 +13,15 @@
     <Project Path="src/Revolution.UI.Common/Revolution.UI.Common.vbproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Revolution.LicenceTool.Tests/Revolution.LicenceTool.Tests.vbproj" />
     <Project Path="tests/Revolution.Core.Tests/Revolution.Core.Tests.vbproj" />
     <Project Path="tests/Revolution.Database.Tests/Revolution.Database.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Attendance.Tests/Revolution.Modules.Attendance.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Payroll.Tests/Revolution.Modules.Payroll.Tests.vbproj" />
     <Project Path="tests/Revolution.Services.Tests/Revolution.Services.Tests.vbproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Revolution.LicenceTool/Revolution.LicenceTool.vbproj" />
   </Folder>
 </Solution>

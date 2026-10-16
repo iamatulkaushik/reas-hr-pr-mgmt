@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          projects=$(find src tests -name '*.vbproj' ! -path '*Revolution.ReportViewer*' | sort)
+          projects=$(find src tests tools -name '*.vbproj' ! -path '*Revolution.ReportViewer*' | sort)
           for p in $projects; do dotnet restore "$p"; done
           for p in $projects; do dotnet build "$p" --no-restore -c Release; done
           for p in $(find tests -name '*.vbproj' | sort); do dotnet test "$p" --no-build -c Release; done

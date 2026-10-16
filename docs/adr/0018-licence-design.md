@@ -72,3 +72,13 @@ Status: **accepted** on 2026-10-15 with the business answers recorded under "Dec
 - **`LicenceKeys.Trusted` is empty** until the licence tool's keygen runs and its public key is pasted in. Until then every licence is refused as UnknownKey and every Associate runs as a trial, which is safe but means nothing can be licensed yet.
 - **Not enforced yet:** the trial's "one Associate" limit. Say if you want it in the database.
 - **Still to do:** the Developer's Licence screen (installation id, current licences, import), the licence tool (`keygen`, `issue`, `inspect`), and the role x plan x licence-state test matrix.
+
+## Build status, step 4: the licence tool (2026-10-15)
+- **Written, not compiled:** `tools/Revolution.LicenceTool` (not shipped to clients) with tests in `tests/Revolution.LicenceTool.Tests`. It is in the solution, in the drift guard and in CI.
+- **Commands.** All passwords are typed hidden, never on the command line.
+  - `keygen --key-id ID --out FILE`: makes the P-256 signing key and saves it password-protected (12+ characters, the same container as the field key backup). It refuses to overwrite a file. It prints the public key line to paste into `LicenceKeys.Trusted`, then ship a new build.
+  - `issue --key FILE --out FILE --associate NAME --installation GUID --plan Copper|Silver|Gold|Platinum --users N [--companies N] [--modules a,b,c|all] [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--issued-by NAME] [--note TEXT]`: signs a licence. Defaults: company cap = the plan's quota (5, 15, 35, 90); one year, with the end date being the last day of use; all modules. **Security, Licence and Audit are always included**, so an Associate can never be locked out of managing logins. It appends a line to `issued-licences.log` beside the key file: keep that log and a copy of every licence file (the Developer's backup duty).
+  - `inspect FILE [--key FILE] [--installation GUID]`: shows a licence. With `--key` it also checks the signature and installation.
+- **Keep the signing key file and its password with the Developer only**, backed up in two places, never in the repository (`*.key` is already ignored) and never given to an Associate.
+- **First time:** run `keygen`, paste the public key into `LicenceKeys.Trusted`, build and ship. Until then every Associate runs as a trial.
+- **Still to do:** the Developer's Licence screen (show the installation id, list current licences, import one: verify, then call `cfg.usp_Licence_Import`), and the role x plan x licence-state test matrix.

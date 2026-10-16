@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Revolution.LicenceTool</RootNamespace>
+    <AssemblyName>RevolutionLicenceTool</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+  </ItemGroup>
+  <ItemGroup>
+    <Import Include="Revolution.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Revolution.Core\Revolution.Core.vbproj" />
+    <ProjectReference Include="..\..\src\Revolution.Services\Revolution.Services.vbproj" />
+  </ItemGroup>
+</Project>

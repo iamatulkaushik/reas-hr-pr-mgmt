@@ -26,7 +26,7 @@ dupi=$(grep -rhoE --include='*.vb' '^\s*(Public|Friend)\s+Interface\s+I[A-Za-z0-
 # 4. Every project on disk is in the solution.
 while IFS= read -r p; do
   grep -q "$p" Revolution.slnx || err "Project not in Revolution.slnx: $p"
-done < <(find src tests -name '*.vbproj' | sort)
+done < <(find src tests tools -name '*.vbproj' | sort)
 
 # 5. Brave must not touch shared projects without Sigma: enforced by CODEOWNERS, listed here for visibility.
 [ -f .github/CODEOWNERS ] || err "CODEOWNERS missing"
