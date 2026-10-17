@@ -22,7 +22,13 @@ Public NotInheritable Class EmployeeErrorMap
         {"CK_EmpBank_BankMode", "Bank transfer needs an account number and an IFSC."},
         {"CK_EmpBank_Mode", "Payment mode is not valid."},
         {"FK_EmployeeBank_Bank", "Bank not found."},
-        {"CK_EmpStat_Regime", "Tax regime must be old or new."}}
+        {"CK_EmpStat_Regime", "Tax regime must be old or new."},
+        {"UQ_Factory_Code", "This factory code already exists."},
+        {"UQ_Factory_Name", "This factory name already exists."},
+        {"CK_Factory_MaxWorkers", "Maximum workers must be above zero."},
+        {"UQ_Department_Code", "This department code already exists in the factory."},
+        {"UQ_Designation_Code", "This designation code already exists."},
+        {"CK_Designation_Category", "Choose a skill category."}}
 
     Private Sub New()
     End Sub
