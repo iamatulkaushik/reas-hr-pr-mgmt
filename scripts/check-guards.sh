@@ -28,6 +28,10 @@ while IFS= read -r p; do
   grep -q "$p" Revolution.slnx || err "Project not in Revolution.slnx: $p"
 done < <(find src tests tools -name '*.vbproj' | sort)
 
+# 4b. Patch files are hand-over files, never part of the repository.
+patches=$(git ls-files '*.patch' 2>/dev/null)
+[ -n "$patches" ] && err "Patch file(s) committed: $patches"
+
 # 5. Brave must not touch shared projects without Sigma: enforced by CODEOWNERS, listed here for visibility.
 [ -f .github/CODEOWNERS ] || err "CODEOWNERS missing"
 

@@ -10,3 +10,4 @@ TestResults/
 appsettings.json
 *.pfx
 *.key
+*.patch
