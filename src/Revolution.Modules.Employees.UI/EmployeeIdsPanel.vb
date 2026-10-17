@@ -74,8 +74,8 @@ Friend NotInheritable Class EmployeeIdsPanel
     End Sub
 
     Private Shared Sub AddHeader(grid As TableLayoutPanel)
-        For Each text In New String() {"Number", "Saved", "New value", "Clear"}
-            grid.Controls.Add(New Label With {.Text = text, .AutoSize = True, .ForeColor = Theme.TextMuted, .Margin = New Padding(0, 0, Theme.Space2, 2)})
+        For Each heading As String In New String() {"Number", "Saved", "New value", "Clear"}
+            grid.Controls.Add(New Label With {.Text = heading, .AutoSize = True, .ForeColor = Theme.TextMuted, .Margin = New Padding(0, 0, Theme.Space2, 2)})
         Next
     End Sub
 
