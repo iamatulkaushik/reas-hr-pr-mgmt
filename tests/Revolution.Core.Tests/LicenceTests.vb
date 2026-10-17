@@ -111,7 +111,7 @@ Public Class LicenceTests
     End Sub
 
     <Theory>
-    <InlineData(400, LicenceState.Valid)>
+    <InlineData(300, LicenceState.Valid)>
     <InlineData(31, LicenceState.Valid)>
     <InlineData(30, LicenceState.Expiring)>
     <InlineData(1, LicenceState.Expiring)>
