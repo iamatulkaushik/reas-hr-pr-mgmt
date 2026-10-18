@@ -10,11 +10,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Import Include="Revolution.Core" />
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
     <ProjectReference Include="..\Revolution.Data\Revolution.Data.vbproj" />
     <ProjectReference Include="..\Revolution.Services\Revolution.Services.vbproj" />
     <ProjectReference Include="..\Revolution.UI.Common\Revolution.UI.Common.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Employees\Revolution.Modules.Employees.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Employees.UI\Revolution.Modules.Employees.UI.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Attendance\Revolution.Modules.Attendance.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Attendance.UI\Revolution.Modules.Attendance.UI.vbproj" />
   </ItemGroup>
 </Project>

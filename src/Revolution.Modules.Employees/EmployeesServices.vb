@@ -2,7 +2,7 @@
 Public NotInheritable Class EmployeesServices
     Public Sub New(factories As FactoryService, departments As DepartmentService, designations As DesignationService,
                    employees As EmployeeService, identifiers As EmployeeIdentifierService, bank As EmployeeBankService,
-                   reference As ReferenceService)
+                   reference As ReferenceService, family As EmployeeFamilyService)
         If factories Is Nothing Then Throw New ArgumentNullException(NameOf(factories))
         If departments Is Nothing Then Throw New ArgumentNullException(NameOf(departments))
         If designations Is Nothing Then Throw New ArgumentNullException(NameOf(designations))
@@ -10,6 +10,7 @@ Public NotInheritable Class EmployeesServices
         If identifiers Is Nothing Then Throw New ArgumentNullException(NameOf(identifiers))
         If bank Is Nothing Then Throw New ArgumentNullException(NameOf(bank))
         If reference Is Nothing Then Throw New ArgumentNullException(NameOf(reference))
+        If family Is Nothing Then Throw New ArgumentNullException(NameOf(family))
         Me.Factories = factories
         Me.Departments = departments
         Me.Designations = designations
@@ -17,6 +18,7 @@ Public NotInheritable Class EmployeesServices
         Me.Identifiers = identifiers
         Me.Bank = bank
         Me.Reference = reference
+        Me.Family = family
     End Sub
 
     Public ReadOnly Property Factories As FactoryService
@@ -26,4 +28,5 @@ Public NotInheritable Class EmployeesServices
     Public ReadOnly Property Identifiers As EmployeeIdentifierService
     Public ReadOnly Property Bank As EmployeeBankService
     Public ReadOnly Property Reference As ReferenceService
+    Public ReadOnly Property Family As EmployeeFamilyService
 End Class

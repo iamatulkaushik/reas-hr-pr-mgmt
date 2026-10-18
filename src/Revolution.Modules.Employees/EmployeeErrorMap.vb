@@ -23,6 +23,7 @@ Public NotInheritable Class EmployeeErrorMap
         {"CK_EmpBank_Mode", "Payment mode is not valid."},
         {"FK_EmployeeBank_Bank", "Bank not found."},
         {"CK_EmpStat_Regime", "Tax regime must be old or new."},
+        {"FK_EmployeeNominee_Family", "This person is still a nominee. Remove the nomination first."},
         {"UQ_Factory_Code", "This factory code already exists."},
         {"UQ_Factory_Name", "This factory name already exists."},
         {"CK_Factory_MaxWorkers", "Maximum workers must be above zero."},

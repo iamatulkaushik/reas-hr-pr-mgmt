@@ -18,6 +18,7 @@ Public NotInheritable Class EmployeesModule
             New EmployeeService(employees, identifiers, host.Permissions, host.Audit, host.Session, today),
             identifiers,
             New EmployeeBankService(New SqlEmployeeBankRepository(host.Factory), host.Crypto, host.Permissions, host.Audit, host.Session),
-            New ReferenceService(masters, host.Permissions))
+            New ReferenceService(masters, host.Permissions),
+            New EmployeeFamilyService(New SqlEmployeeFamilyRepository(host.Factory), host.Permissions, host.Audit, today))
     End Function
 End Class

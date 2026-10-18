@@ -1,6 +1,11 @@
 Imports System.Windows.Forms
 Imports Revolution.Services
+Imports Revolution.Modules.Attendance
+Imports Revolution.Modules.Attendance.UI
+Imports Revolution.Modules.Employees
+Imports Revolution.Modules.Employees.UI
 Imports Revolution.UI.Common
+
 
 Public Module Program
     <STAThread>
@@ -37,6 +42,8 @@ Public Module Program
         ' Modules register here, one line each, when they are pushed and reviewed (ADR 0016).
         Dim modules As New List(Of IShellModule)()
         modules.Add(New LicenceShellModule(services.LicenceAdmin))
+        modules.Add(New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions))
+        modules.Add(New EmployeesShellModule(EmployeesModule.Compose(services.Host), services.Permissions))
         Application.Run(New ShellForm(services, modules))
     End Sub
 

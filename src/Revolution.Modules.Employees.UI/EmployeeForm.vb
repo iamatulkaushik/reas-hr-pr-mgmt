@@ -3,7 +3,7 @@ Imports Revolution.Modules.Employees
 
 ''' <summary>
 ''' Employee screen: search and list on the left; Details, IDs and Bank tabs on the right.
-''' A new employee is saved on Details first; the IDs and Bank tabs open once the employee exists.
+''' A new employee is saved on Details first; the IDs, Bank and Nominees tabs open once the employee exists.
 ''' </summary>
 Friend NotInheritable Class EmployeeForm
     Inherits BaseForm
@@ -25,6 +25,7 @@ Friend NotInheritable Class EmployeeForm
     Private ReadOnly _tabs As New TabControl() With {.Dock = DockStyle.Fill}
     Private ReadOnly _ids As EmployeeIdsPanel
     Private ReadOnly _bank As EmployeeBankPanel
+    Private ReadOnly _nominees As EmployeeNomineesPanel
     Private ReadOnly _code As New TextBox() With {.ReadOnly = True}
     Private ReadOnly _name As New TextBox() With {.MaxLength = 100}
     Private ReadOnly _father As New TextBox() With {.MaxLength = 100}
@@ -57,6 +58,7 @@ Friend NotInheritable Class EmployeeForm
         _canEdit = canEdit
         _ids = New EmployeeIdsPanel(services, canEdit)
         _bank = New EmployeeBankPanel(services, canEdit)
+        _nominees = New EmployeeNomineesPanel(services, canEdit)
         ClientSize = New Drawing.Size(FormWidth, FormHeight)
         BuildLayout()
     End Sub
@@ -88,6 +90,9 @@ Friend NotInheritable Class EmployeeForm
         _tabs.TabPages(1).Controls.Add(_ids)
         _tabs.TabPages.Add(New TabPage("Bank"))
         _tabs.TabPages(2).Controls.Add(_bank)
+        _tabs.TabPages.Add(New TabPage("Nominees"))
+        _tabs.TabPages(3).Controls.Add(_nominees)
+        _nominees.Dock = DockStyle.Fill
         _ids.Dock = DockStyle.Fill
         _bank.Dock = DockStyle.Fill
 
@@ -139,6 +144,7 @@ Friend NotInheritable Class EmployeeForm
         AddHandler _factory.SelectionChangeCommitted, Sub(sender As Object, e As EventArgs) FillDepartments(Nothing)
         AddHandler _ids.Notice, AddressOf OnNotice
         AddHandler _bank.Notice, AddressOf OnNotice
+        AddHandler _nominees.Notice, AddressOf OnNotice
     End Sub
 
     Protected Overrides Sub OnLoad(e As EventArgs)
@@ -298,6 +304,7 @@ Friend NotInheritable Class EmployeeForm
         _status.Text = d.Status.ToString()
         _ids.ShowEmployee(d.EmployeeId)
         _bank.ShowEmployee(d.EmployeeId)
+        _nominees.ShowEmployee(d.EmployeeId)
     End Sub
 
     Private Shared Function ClampDate(picker As DateTimePicker, value As Date) As Date
@@ -333,6 +340,7 @@ Friend NotInheritable Class EmployeeForm
         _status.Text = EmployeeStatus.Active.ToString()
         _ids.ShowEmployee(0)
         _bank.ShowEmployee(0)
+        _nominees.ShowEmployee(0)
         _tabs.SelectedIndex = 0
         _name.Focus()
     End Sub
@@ -388,7 +396,7 @@ Friend NotInheritable Class EmployeeForm
             Return
         End If
         ReloadList(result.Value.EmployeeId)
-        ShowStatus($"Employee {result.Value.EmpCode} saved. Add the IDs and bank on the next tabs.")
+        ShowStatus($"Employee {result.Value.EmpCode} saved. Add the IDs, bank and nominees on the next tabs.")
         If result.Value.IdWarning.Length > 0 Then ShowError(result.Value.IdWarning)
     End Sub
 

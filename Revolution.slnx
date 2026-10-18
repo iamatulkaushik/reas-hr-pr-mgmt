@@ -4,6 +4,7 @@
     <Project Path="src/Revolution.Core/Revolution.Core.vbproj" />
     <Project Path="src/Revolution.Data/Revolution.Data.vbproj" />
     <Project Path="src/Revolution.Modules.Attendance/Revolution.Modules.Attendance.vbproj" />
+    <Project Path="src/Revolution.Modules.Attendance.UI/Revolution.Modules.Attendance.UI.vbproj" />
     <Project Path="src/Revolution.Modules.Employees/Revolution.Modules.Employees.vbproj" />
     <Project Path="src/Revolution.Modules.Employees.UI/Revolution.Modules.Employees.UI.vbproj" />
     <Project Path="src/Revolution.Modules.Payroll/Revolution.Modules.Payroll.vbproj" />
