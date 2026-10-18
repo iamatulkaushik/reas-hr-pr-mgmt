@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Revolution.Modules.Attendance.UI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Import Include="Revolution.Core" />
+    <Import Include="Revolution.UI.Common" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
+    <ProjectReference Include="..\Revolution.UI.Common\Revolution.UI.Common.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Attendance\Revolution.Modules.Attendance.vbproj" />
+  </ItemGroup>
+</Project>

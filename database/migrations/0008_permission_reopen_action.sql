@@ -1,15 +1,12 @@
 /* 0008_permission_reopen_action.sql
-   Adds permission action 7 (Reopen) for closed periods (CR 0009). Idempotent.
-   Seed: Owner may Reopen Attendance. Associate and Operator may not.
-   Widen the CHECK from 1..6 to 1..7, then insert the one grant if missing. */
+   Aligns CK_RolePermission_Action with the seeded actions (1..8). Idempotent.
+   Re-asserts the Owner's Reopen grant on module 3 (already seeded by 0004). */
 SET XACT_ABORT ON;
 GO
-IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_RolePermission_Action'
-           AND definition NOT LIKE N'%7%')
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_RolePermission_Action')
     ALTER TABLE sec.RolePermission DROP CONSTRAINT CK_RolePermission_Action;
 GO
-IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_RolePermission_Action')
-    ALTER TABLE sec.RolePermission ADD CONSTRAINT CK_RolePermission_Action CHECK (ActionID BETWEEN 1 AND 7);
+ALTER TABLE sec.RolePermission ADD CONSTRAINT CK_RolePermission_Action CHECK (ActionID BETWEEN 1 AND 8);
 GO
 IF NOT EXISTS (SELECT 1 FROM sec.RolePermission WHERE RoleID = 2 AND ModuleID = 3 AND ActionID = 7)
     INSERT sec.RolePermission (RoleID, ModuleID, ActionID) VALUES (2, 3, 7);

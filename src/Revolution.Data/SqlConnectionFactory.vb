@@ -14,10 +14,16 @@ Public NotInheritable Class SqlConnectionFactory
         If session Is Nothing Then
             Throw New ArgumentNullException(NameOf(session))
         End If
-        _connectionString = connectionString
+        _connectionString = WithLocalTrustDefault(connectionString)
         _session = session
     End Sub
-
+    Private Shared Function WithLocalTrustDefault(connectionString As String) As String
+        Dim builder As New SqlConnectionStringBuilder(connectionString)
+        If Not builder.ContainsKey("TrustServerCertificate") Then
+            builder.TrustServerCertificate = True
+        End If
+        Return builder.ConnectionString
+    End Function
     Public Function Open() As SqlConnection Implements IConnectionFactory.Open
         Dim conn As New SqlConnection(_connectionString)
         Try
