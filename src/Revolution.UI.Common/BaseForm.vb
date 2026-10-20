@@ -66,8 +66,8 @@ Public MustInherit Class BaseForm
             _status.Items.Remove(oldPanel)
         Next
         _infoPanels.Clear()
-        For Each text In panels
-            Dim panel As New ToolStripStatusLabel(text) With {.BorderSides = ToolStripStatusLabelBorderSides.Left}
+        For Each panelText As String In panels
+            Dim panel As New ToolStripStatusLabel(panelText) With {.BorderSides = ToolStripStatusLabelBorderSides.Left}
             _status.Items.Add(panel)
             _infoPanels.Add(panel)
         Next

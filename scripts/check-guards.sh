@@ -32,6 +32,10 @@ done < <(find src tests tools -name '*.vbproj' | sort)
 patches=$(git ls-files '*.patch' 2>/dev/null)
 [ -n "$patches" ] && err "Patch file(s) committed: $patches"
 
+# 4c. VB ignores case, so in a form a loop variable called text, top, name, size ... is the inherited property and does not compile (BC30039).
+risky=$(grep -rnEi --include='*.vb' 'For Each[[:space:]]+(text|top|left|right|bottom|width|height|size|location|name|tag|font|parent|visible|enabled|controls|region|handle|site|container|cursor|opacity|padding|margin|anchor|dock|bounds|owner|icon|modal|focused)[[:space:]]+In[[:space:]]' src/Revolution.UI.Common src/Revolution.App src/Revolution.Modules.*.UI 2>/dev/null)
+[ -n "$risky" ] && err "For Each variable named like a Control property. Give it another name and a type (For Each heading As String In ...): $risky"
+
 # 5. Brave must not touch shared projects without Sigma: enforced by CODEOWNERS, listed here for visibility.
 [ -f .github/CODEOWNERS ] || err "CODEOWNERS missing"
 
