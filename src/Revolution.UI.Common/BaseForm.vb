@@ -15,6 +15,7 @@ Public MustInherit Class BaseForm
     Private ReadOnly _status As New StatusStrip()
     Private ReadOnly _statusLabel As New ToolStripStatusLabel()
     Private ReadOnly _progress As New ToolStripProgressBar()
+    Private ReadOnly _infoPanels As New List(Of ToolStripStatusLabel)()
     Private ReadOnly _validationLabel As New Label()
     Private ReadOnly _content As New Panel()
     Private ReadOnly _errors As New ErrorProvider()
@@ -57,6 +58,19 @@ Public MustInherit Class BaseForm
 
     Protected Sub ShowStatus(message As String)
         _statusLabel.Text = message
+    End Sub
+
+    ''' <summary>Sets the permanent panels on the right of the status bar, for example the financial year and the server. Replaces earlier panels.</summary>
+    Protected Sub SetStatusInfo(ParamArray panels As String())
+        For Each oldPanel In _infoPanels
+            _status.Items.Remove(oldPanel)
+        Next
+        _infoPanels.Clear()
+        For Each text In panels
+            Dim panel As New ToolStripStatusLabel(text) With {.BorderSides = ToolStripStatusLabelBorderSides.Left}
+            _status.Items.Add(panel)
+            _infoPanels.Add(panel)
+        Next
     End Sub
 
     ''' <summary>Shows a summary error under the content. Cleared by ClearValidation.</summary>

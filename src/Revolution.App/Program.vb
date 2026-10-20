@@ -1,11 +1,11 @@
 Imports System.Windows.Forms
-Imports Revolution.Services
+Imports Microsoft.Data.SqlClient
 Imports Revolution.Modules.Attendance
 Imports Revolution.Modules.Attendance.UI
 Imports Revolution.Modules.Employees
 Imports Revolution.Modules.Employees.UI
+Imports Revolution.Services
 Imports Revolution.UI.Common
-
 
 Public Module Program
     <STAThread>
@@ -26,26 +26,61 @@ Public Module Program
             Return
         End If
         Dim services = built.Value
+        Dim modules = BuildModules(services)
+        Dim serverInfo = DescribeServer(connection)
 
+        Dim signedOut As Boolean
+        Do
+            If Not SignInAndSelectCompany(services) Then
+                Return
+            End If
+            Using shell As New ShellForm(services, modules, serverInfo)
+                Application.Run(shell)
+                signedOut = shell.SignOutRequested
+            End Using
+            If signedOut Then
+                services.Session.SignOut()
+            End If
+        Loop While signedOut
+    End Sub
+
+    ''' <summary>
+    ''' Feature modules are composed here and offer their screens to MenuLayoutModule, which places them in the menu.
+    ''' A new module is added to the sources list (ADR 0016); its menu positions are set in MenuLayoutModule.
+    ''' </summary>
+    Private Function BuildModules(services As AppServices) As List(Of IShellModule)
+        Dim sources As New List(Of IShellModule) From {
+            New EmployeesShellModule(EmployeesModule.Compose(services.Host), services.Permissions),
+            New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions)}
+        Return New List(Of IShellModule) From {
+            New MenuLayoutModule(sources),
+            New LicenceShellModule(services.LicenceAdmin)}
+    End Function
+
+    ''' <summary>Login, then the company picker for a user who works on several companies. False when the user cancels.</summary>
+    Private Function SignInAndSelectCompany(services As AppServices) As Boolean
         Using login As New LoginForm(services.Auth, services.Session)
             If login.ShowDialog() <> DialogResult.OK Then
-                Return
+                Return False
             End If
         End Using
         If services.Session.Current.Role = UserRole.Associate AndAlso services.Session.Current.CompanyId = 0 Then
             Using picker As New CompanyPickerForm(services.Auth, services.AssociateAdmin)
-                If picker.ShowDialog() <> DialogResult.OK Then
-                    Return
-                End If
+                Return picker.ShowDialog() = DialogResult.OK
             End Using
         End If
-        ' Modules register here, one line each, when they are pushed and reviewed (ADR 0016).
-        Dim modules As New List(Of IShellModule)()
-        modules.Add(New LicenceShellModule(services.LicenceAdmin))
-        modules.Add(New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions))
-        modules.Add(New EmployeesShellModule(EmployeesModule.Compose(services.Host), services.Permissions))
-        Application.Run(New ShellForm(services, modules))
-    End Sub
+        Return True
+    End Function
+
+    ''' <summary>Server and database name for the status bar. Only these two parts of the connection string are shown, never the password.</summary>
+    Private Function DescribeServer(connection As String) As String
+        Try
+            Dim builder As New SqlConnectionStringBuilder(connection)
+            Return $"{builder.DataSource} / {builder.InitialCatalog}"
+        Catch ex As ArgumentException
+            Return "unknown"
+        End Try
+    End Function
 
     Private Sub ShowStartupError(message As String)
         MessageBox.Show(message, "Revolution HRMS", MessageBoxButtons.OK, MessageBoxIcon.Error)

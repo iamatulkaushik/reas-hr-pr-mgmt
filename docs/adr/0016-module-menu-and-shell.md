@@ -42,3 +42,8 @@ No MDI, no tabs, no toolbar buttons, no recent-items list: screens open as norma
 
 ## Status of testing
 `MenuFilter` has unit tests. The menu builder and the shell were written without a compiler or a Windows machine: build and run them before relying on them.
+
+## Amendment (Oct 18 2026): menu layout
+- A menu group is a path: `Master|Company|Factory / Units` opens nested submenus.
+- Feature modules offer screens under their own keys. `MenuLayoutModule` (Revolution.App, Sigma) decides where each screen sits and lists agreed positions whose screens do not exist yet as planned items, shown disabled. Only `MenuLayoutModule` and the Licence module are registered with the shell.
+- File menu: Select Company, Financial Year (planned), Sign Out, Exit. Sign Out closes the open screens and returns to the login.

@@ -24,7 +24,7 @@ Public NotInheritable Class MenuEntry
 
     ''' <summary>Unique across all modules, for example "payroll.runs".</summary>
     Public ReadOnly Property EntryKey As String
-    ''' <summary>The top-level menu the entry sits under, for example "Payroll".</summary>
+    ''' <summary>The menu the entry sits under, for example "Payroll". A path with | opens submenus: "Master|Company" is Master > Company.</summary>
     Public ReadOnly Property MenuGroup As String
     Public ReadOnly Property Title As String
     ''' <summary>The user needs View on this module to see the entry.</summary>

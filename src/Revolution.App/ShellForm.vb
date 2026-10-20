@@ -3,24 +3,29 @@ Imports System.Windows.Forms
 Imports Revolution.UI.Common
 
 ''' <summary>
-''' The main window: File menu (switch company for users who work on several, exit) plus the menus the registered modules offer.
-''' Screens opened from the menu are closed when the company changes, so no screen ever shows another company's data (ADR 0016).
+''' The main window: File menu (select company, financial year, sign out, exit) plus the menus the registered modules offer.
+''' Screens opened from the menu are closed when the company changes or the user signs out, so no screen ever shows
+''' another company's data (ADR 0016).
 ''' </summary>
 Public Class ShellForm
     Inherits BaseForm
 
     Private ReadOnly _services As AppServices
     Private ReadOnly _modules As IReadOnlyList(Of IShellModule)
+    Private ReadOnly _serverInfo As String
     Private ReadOnly _menu As New MenuStrip()
     Private ReadOnly _banner As New Label()
     Private ReadOnly _openScreens As New List(Of Form)()
+    Private _signOutRequested As Boolean
 
-    Public Sub New(services As AppServices, modules As IEnumerable(Of IShellModule))
+    ''' <param name="serverInfo">Server and database name shown in the status bar. Never contains a password.</param>
+    Public Sub New(services As AppServices, modules As IEnumerable(Of IShellModule), serverInfo As String)
         MyBase.New("Revolution HRMS", String.Empty)
         If services Is Nothing Then Throw New ArgumentNullException(NameOf(services))
         If modules Is Nothing Then Throw New ArgumentNullException(NameOf(modules))
         _services = services
         _modules = modules.ToList()
+        _serverInfo = If(serverInfo, String.Empty)
         StartPosition = FormStartPosition.CenterScreen
         ClientSize = New Size(1100, 700)
         _banner.Dock = DockStyle.Fill
@@ -33,6 +38,13 @@ Public Class ShellForm
         RebuildMenu()
     End Sub
 
+    ''' <summary>True when the window was closed by Sign Out, so the caller shows the login again instead of ending the program.</summary>
+    Public ReadOnly Property SignOutRequested As Boolean
+        Get
+            Return _signOutRequested
+        End Get
+    End Property
+
     Private Sub RebuildMenu()
         _menu.Items.Clear()
         _menu.Items.Add(BuildFileMenu())
@@ -42,8 +54,35 @@ Public Class ShellForm
         Dim user = _services.Session.Current
         _banner.Text = If(user Is Nothing, "Not signed in",
                           $"Signed in as {user.UserName} ({user.Role}, {user.Plan}), company {user.CompanyId}")
+        UpdateStatusBar()
         ShowLicenceNotice()
     End Sub
+
+    ''' <summary>Right of the status bar: current financial year, server and database, the signed-in user and the company.</summary>
+    Private Sub UpdateStatusBar()
+        Dim user = _services.Session.Current
+        If user Is Nothing Then
+            SetStatusInfo("Not signed in")
+            Return
+        End If
+        Dim panels As New List(Of String) From {
+            "FY " & FinancialYearCalendar.Label(FinancialYearCalendar.StartYear(Date.Today)),
+            "Server: " & _serverInfo,
+            $"{If(user.Role = UserRole.Associate, "Associate", user.Role.ToString())}: {user.UserName} (id {user.UserId})"}
+        If user.CompanyId > 0 Then
+            panels.Add("Company: " & CompanyName(user.CompanyId))
+        End If
+        SetStatusInfo(panels.ToArray())
+    End Sub
+
+    Private Function CompanyName(companyId As Integer) As String
+        Dim companies = _services.Auth.ListCompanies()
+        If Not companies.Succeeded Then
+            Return "#" & companyId.ToString(Globalization.CultureInfo.InvariantCulture)
+        End If
+        Dim match = companies.Value.FirstOrDefault(Function(c) c.CompanyId = companyId)
+        Return If(match Is Nothing, "#" & companyId.ToString(Globalization.CultureInfo.InvariantCulture), match.CompanyName)
+    End Function
 
     ''' <summary>Shows the licence or trial line when there is one. Grace and read-only are shown as a warning.</summary>
     Private Sub ShowLicenceNotice()
@@ -60,14 +99,14 @@ Public Class ShellForm
 
     Private Function BuildFileMenu() As ToolStripMenuItem
         Dim fileMenu As New ToolStripMenuItem("&File")
-        If CanSwitchCompany() Then
-            Dim switchItem As New ToolStripMenuItem("&Switch company...")
-            AddHandler switchItem.Click, AddressOf OnSwitchCompany
-            fileMenu.DropDownItems.Add(switchItem)
-        End If
+        Dim selectItem As New ToolStripMenuItem("Select &Company...") With {.Enabled = CanSwitchCompany()}
+        AddHandler selectItem.Click, AddressOf OnSwitchCompany
+        Dim yearItem As New ToolStripMenuItem("&Financial Year...") With {.Enabled = False, .ToolTipText = "Planned: not available yet."}
+        Dim signOutItem As New ToolStripMenuItem("&Sign Out")
+        AddHandler signOutItem.Click, AddressOf OnSignOut
         Dim exitItem As New ToolStripMenuItem("E&xit")
         AddHandler exitItem.Click, Sub(sender As Object, args As EventArgs) Close()
-        fileMenu.DropDownItems.Add(exitItem)
+        fileMenu.DropDownItems.AddRange(New ToolStripItem() {selectItem, yearItem, signOutItem, New ToolStripSeparator(), exitItem})
         Return fileMenu
     End Function
 
@@ -78,6 +117,10 @@ Public Class ShellForm
     End Function
 
     Private Sub OnOpenItem(item As ShellItem)
+        If item.IsPlanned Then
+            ShowStatus("This screen is planned and not available yet.")
+            Return
+        End If
         If Not _services.Permissions.IsAllowed(item.Entry.ModuleKey, PermissionAction.View) Then
             ShowError("You do not have permission to open this screen.")
             Return
@@ -89,18 +132,23 @@ Public Class ShellForm
         screen.Show(Me)
     End Sub
 
+    ''' <summary>Closes every open screen. False when one refused to close (unsaved work), so the caller must not go on.</summary>
+    Private Function CloseOpenScreens() As Boolean
+        For Each openForm In _openScreens.ToList()
+            openForm.Close()
+        Next
+        Return _openScreens.Count = 0
+    End Function
+
     Private Sub OnSwitchCompany(sender As Object, args As EventArgs)
         If _openScreens.Count > 0 Then
-            Dim answer = MessageBox.Show(Me, "Switching company closes the open screens. Unsaved work is lost. Continue?", Text,
+            Dim answer = MessageBox.Show(Me, "Selecting another company closes the open screens. Unsaved work is lost. Continue?", Text,
                                          MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
             If answer <> DialogResult.Yes Then
                 Return
             End If
         End If
-        For Each openForm In _openScreens.ToList()
-            openForm.Close()
-        Next
-        If _openScreens.Count > 0 Then
+        If Not CloseOpenScreens() Then
             ShowError("A screen did not close, so the company was not changed. Finish or cancel its work and try again.")
             Return
         End If
@@ -109,5 +157,19 @@ Public Class ShellForm
                 RebuildMenu()
             End If
         End Using
+    End Sub
+
+    Private Sub OnSignOut(sender As Object, args As EventArgs)
+        Dim answer = MessageBox.Show(Me, "Sign out? Open screens are closed and unsaved work is lost.", Text,
+                                     MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+        If answer <> DialogResult.Yes Then
+            Return
+        End If
+        If Not CloseOpenScreens() Then
+            ShowError("A screen did not close, so you were not signed out. Finish or cancel its work and try again.")
+            Return
+        End If
+        _signOutRequested = True
+        Close()
     End Sub
 End Class
