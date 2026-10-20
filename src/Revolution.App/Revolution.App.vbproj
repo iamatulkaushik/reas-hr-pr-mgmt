@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Import Include="Revolution.Core" />
-    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
