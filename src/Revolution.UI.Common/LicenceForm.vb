@@ -13,6 +13,8 @@ Public NotInheritable Class LicenceForm
     Private ReadOnly _grid As New DataGridView()
     Private ReadOnly _copyButton As New Button()
     Private ReadOnly _importButton As New Button()
+    Private ReadOnly _revokeButton As New Button()
+    Private ReadOnly _reinstateButton As New Button()
     Private ReadOnly _refreshButton As New Button()
     Private ReadOnly _closeButton As New Button()
 
@@ -46,16 +48,20 @@ Public NotInheritable Class LicenceForm
         Dim bar = CreateButtonBar()
         _copyButton.Text = "Copy installation id"
         _importButton.Text = "Import licence file..."
+        _revokeButton.Text = "Revoke..."
+        _reinstateButton.Text = "Reinstate"
         _refreshButton.Text = "Refresh"
         _closeButton.Text = "Close"
         _closeButton.DialogResult = DialogResult.Cancel
-        For Each actionButton In {_copyButton, _importButton, _refreshButton, _closeButton}
+        For Each actionButton In {_copyButton, _importButton, _revokeButton, _reinstateButton, _refreshButton, _closeButton}
             actionButton.AutoSize = True
             bar.Controls.Add(actionButton)
         Next
         CancelButton = _closeButton
         AddHandler _copyButton.Click, AddressOf OnCopyClick
         AddHandler _importButton.Click, AddressOf OnImportClick
+        AddHandler _revokeButton.Click, AddressOf OnRevokeClick
+        AddHandler _reinstateButton.Click, AddressOf OnReinstateClick
         AddHandler _refreshButton.Click, AddressOf OnRefreshClick
         AddHandler Shown, AddressOf OnFormShown
     End Sub
@@ -101,6 +107,78 @@ Public NotInheritable Class LicenceForm
         End If
         _grid.DataSource = listed.Value.ToList()
         ShowStatus($"{listed.Value.Count} current licence(s).")
+    End Function
+
+    ''' <summary>The licence on the selected row, or Nothing when no row is selected.</summary>
+    Private Function SelectedLicence() As LicenceOverview
+        If _grid.CurrentRow Is Nothing Then
+            Return Nothing
+        End If
+        Return TryCast(_grid.CurrentRow.DataBoundItem, LicenceOverview)
+    End Function
+
+    Private Function IsRevoked(licence As LicenceOverview) As Boolean
+        Return licence.State.HasValue AndAlso licence.State.Value = LicenceState.Revoked
+    End Function
+
+    Private Async Sub OnRevokeClick(sender As Object, args As EventArgs)
+        ClearValidation()
+        Dim selected = SelectedLicence()
+        If selected Is Nothing Then
+            ShowError("Select an Associate's licence in the list first.")
+            Return
+        End If
+        If IsRevoked(selected) Then
+            ShowError("This licence is already revoked.")
+            Return
+        End If
+        Dim why = Microsoft.VisualBasic.Interaction.InputBox(
+            $"Why is the licence of {selected.AssociateUserName} being revoked? (required, up to 200 characters)", "Revoke licence")
+        If why.Trim().Length = 0 Then
+            Return
+        End If
+        Dim answer = MessageBox.Show(Me,
+            $"Revoke the licence of {selected.AssociateUserName}? Their companies become read-only (view and print only) within a few minutes. You can reinstate it later.",
+            Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+        If answer <> DialogResult.Yes Then
+            Return
+        End If
+        Await ChangeAsync(Function() _admin.Revoke(selected.AssociateUserName, why), "Licence revoked.")
+    End Sub
+
+    Private Async Sub OnReinstateClick(sender As Object, args As EventArgs)
+        ClearValidation()
+        Dim selected = SelectedLicence()
+        If selected Is Nothing Then
+            ShowError("Select an Associate's licence in the list first.")
+            Return
+        End If
+        If Not IsRevoked(selected) Then
+            ShowError("This licence is not revoked.")
+            Return
+        End If
+        Await ChangeAsync(Function() _admin.Reinstate(selected.AssociateUserName), "Licence reinstated.")
+    End Sub
+
+    ''' <summary>Runs one change on a worker thread, reports a failure in plain words, reloads the list and shows the done message.</summary>
+    Private Async Function ChangeAsync(change As Func(Of OperationResult), doneMessage As String) As Task
+        Dim result As OperationResult = Nothing
+        Try
+            Await RunBusyAsync(Function()
+                                   Return Task.Run(Sub()
+                                                       result = change()
+                                                   End Sub)
+                               End Function)
+        Catch
+            ShowError("The change could not be saved. Check the database connection and try again.")
+            Return
+        End Try
+        If Not result.Succeeded Then
+            ShowError(result.Message)
+            Return
+        End If
+        Await LoadAsync()
+        ShowStatus(doneMessage)
     End Function
 
     Private Async Sub OnImportClick(sender As Object, args As EventArgs)

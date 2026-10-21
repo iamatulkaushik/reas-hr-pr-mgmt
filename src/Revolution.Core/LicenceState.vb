@@ -10,4 +10,6 @@ Public Enum LicenceState
     Expired = 4
     ''' <summary>The start date has not arrived yet.</summary>
     NotYetValid = 5
+    ''' <summary>The Developer revoked the licence: read-only at once, with no grace period (ADR 0018, migration 0025).</summary>
+    Revoked = 6
 End Enum

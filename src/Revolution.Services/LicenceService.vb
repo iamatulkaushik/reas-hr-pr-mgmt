@@ -15,6 +15,10 @@ Public NotInheritable Class LicenceService
     Private _rememberedUserId As Integer
     Private _rememberedCompanyId As Integer
     Private _rememberedOn As DateTime
+    Private _rememberedAt As DateTime
+
+    ''' <summary>A revoke reaches a running session within this time, without a new sign-in.</summary>
+    Private Shared ReadOnly RecheckAfter As TimeSpan = TimeSpan.FromMinutes(5)
 
     Public Sub New(session As ISessionContext, repository As ILicenceRepository, trustedKeys As IReadOnlyDictionary(Of String, String))
         If session Is Nothing Then Throw New ArgumentNullException(NameOf(session))
@@ -32,11 +36,12 @@ Public NotInheritable Class LicenceService
                 Return LicenceStatus.NotLimited()
             End If
             If _remembered Is Nothing OrElse _rememberedUserId <> user.UserId OrElse _rememberedCompanyId <> user.CompanyId _
-                OrElse _rememberedOn <> DateTime.UtcNow.Date Then
+                OrElse _rememberedOn <> DateTime.UtcNow.Date OrElse DateTime.UtcNow - _rememberedAt >= RecheckAfter Then
                 _remembered = Compute()
                 _rememberedUserId = user.UserId
                 _rememberedCompanyId = user.CompanyId
                 _rememberedOn = DateTime.UtcNow.Date
+                _rememberedAt = DateTime.UtcNow
             End If
             Return _remembered
         End Get
@@ -61,7 +66,7 @@ Public NotInheritable Class LicenceService
                 problem = LicenceProblem.WrongAssociate
                 message = "This licence was issued to a different Associate."
             Else
-                Dim state = LicenceEvaluator.StateOn(check.Grant, today)
+                Dim state = If(stored.IsRevoked, LicenceState.Revoked, LicenceEvaluator.StateOn(check.Grant, today))
                 If state <> LicenceState.NotYetValid Then
                     Return LicenceStatus.ForLicence(check.Grant, state, LicenceEvaluator.DaysLeft(check.Grant, today))
                 End If

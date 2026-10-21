@@ -28,7 +28,7 @@ Public NotInheritable Class LicenceStatus
 
     Public ReadOnly Property IsReadOnly As Boolean
         Get
-            Return Kind <> LicenceKind.NotLimited AndAlso State = LicenceState.Expired
+            Return Kind <> LicenceKind.NotLimited AndAlso (State = LicenceState.Expired OrElse State = LicenceState.Revoked)
         End Get
     End Property
 
@@ -80,6 +80,9 @@ Public NotInheritable Class LicenceStatus
         End If
         If State = LicenceState.Expired Then
             Return "Your licence has expired. The app is read-only: view and print only."
+        End If
+        If State = LicenceState.Revoked Then
+            Return "Your licence has been withdrawn. The app is read-only: view and print only. Contact the Developer."
         End If
         Return String.Empty
     End Function

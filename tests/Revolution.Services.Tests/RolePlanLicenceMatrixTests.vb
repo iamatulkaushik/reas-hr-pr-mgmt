@@ -212,6 +212,7 @@ Public Class RolePlanLicenceMatrixTests
             Tuple.Create("expiring", Licensed(LicenceState.Expiring, PlanTier.Platinum, AllModules), AllModules, False),
             Tuple.Create("grace", Licensed(LicenceState.Grace, PlanTier.Platinum, AllModules), AllModules, False),
             Tuple.Create("expired", Licensed(LicenceState.Expired, PlanTier.Platinum, AllModules), AllModules, True),
+            Tuple.Create("revoked", Licensed(LicenceState.Revoked, PlanTier.Platinum, AllModules), AllModules, True),
             Tuple.Create("expired, two modules", Licensed(LicenceState.Expired, PlanTier.Platinum, twoModules), twoModules, True),
             Tuple.Create("trial, days left", LicenceStatus.ForTrial(5, LicenceProblem.None, String.Empty), AllModules, False),
             Tuple.Create("trial ended", LicenceStatus.ForTrial(-1, LicenceProblem.None, String.Empty), AllModules, True)}

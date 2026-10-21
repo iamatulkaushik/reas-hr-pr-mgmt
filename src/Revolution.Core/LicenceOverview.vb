@@ -50,6 +50,9 @@ Public NotInheritable Class LicenceOverview
             If State.Value = LicenceState.NotYetValid Then
                 Return "Not started yet"
             End If
+            If State.Value = LicenceState.Revoked Then
+                Return "Revoked (read-only): " & Message
+            End If
             Return "Expired (read-only)"
         End Get
     End Property

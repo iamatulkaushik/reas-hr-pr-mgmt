@@ -9,4 +9,8 @@ Public Interface ILicenceRepository
     Function ListCurrent() As OperationResult(Of IReadOnlyList(Of LicenceRecord))
     ''' <summary>Stores a licence that has already been verified. The database checks that the caller is the Developer.</summary>
     Function Import(grant As LicenceGrant, licenceText As String) As OperationResult
+    ''' <summary>Marks the Associate's current licence revoked, with the reason. The database checks that the caller is the Developer.</summary>
+    Function Revoke(associateUserName As String, reason As String) As OperationResult
+    ''' <summary>Undoes a revoke, for a mistake. The database checks that the caller is the Developer.</summary>
+    Function Reinstate(associateUserName As String) As OperationResult
 End Interface
