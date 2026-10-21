@@ -21,4 +21,9 @@
     <ProjectReference Include="..\Revolution.Modules.Attendance\Revolution.Modules.Attendance.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Attendance.UI\Revolution.Modules.Attendance.UI.vbproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

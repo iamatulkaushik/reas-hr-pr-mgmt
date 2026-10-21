@@ -22,3 +22,8 @@ ECR, the ESIC upload sheet and bank files must contain plain UAN, ESI IP number 
 ## Risks accepted
 - Anyone with Export on Statutory or Payroll can obtain plain ids for a whole run. That is the nature of the file. The control is the permission, the batch log and the file audit, reviewed by the Owner.
 - A saved file can be copied. Rule 5 is a warning, not a control.
+
+## Amendment (Oct 2026): exporter written
+- `NpoiTableExporter` is in Revolution.Services and reaches modules as `ModuleHost.Exporter`. Tests: `NpoiTableExporterTests`.
+- NPOI is pinned at 2.7.3 in Revolution.Services.vbproj. **Not yet checked against NuGet's vulnerability audit** (the machine that wrote it could not reach NuGet). Before merge: run `dotnet restore` and `dotnet list package --vulnerable --include-transitive`; warnings are errors in this repo, so a flagged package also fails the build. If a newer NPOI or a newer transitive package (for example SixLabors.ImageSharp) is needed, change that one line.
+- Limits of .xls enforced with plain messages that never quote a cell: 65,536 rows, 256 columns, 32,767 characters per cell, distinct sheet names. A failed save removes a half-written file unless the file existed before.

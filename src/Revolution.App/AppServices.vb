@@ -11,7 +11,7 @@ Public NotInheritable Class AppServices
     Private Sub New(session As SessionContext, factory As IConnectionFactory, entitlements As IEntitlementService,
                     permissions As IPermissionService, audit As IAuditService, auth As IAuthService,
                     approvals As IApprovalService, associateAdmin As IAssociateAdminService, rates As IStatutoryRateService, crypto As IFieldCrypto,
-                    licence As ILicenceService, licenceAdmin As ILicenceAdminService)
+                    licence As ILicenceService, licenceAdmin As ILicenceAdminService, exporter As ITableExporter)
         Me.Session = session
         Me.Factory = factory
         Me.Entitlements = entitlements
@@ -24,7 +24,7 @@ Public NotInheritable Class AppServices
         Me.Crypto = crypto
         Me.Licence = licence
         Me.LicenceAdmin = licenceAdmin
-        Me.Host = New ModuleHost(factory, session, entitlements, permissions, audit, approvals, rates, crypto)
+        Me.Host = New ModuleHost(factory, session, entitlements, permissions, audit, approvals, rates, crypto, exporter)
     End Sub
 
     Public ReadOnly Property Session As SessionContext
@@ -72,7 +72,7 @@ Public NotInheritable Class AppServices
         Dim associateAdmin As New AssociateAdminService(New SqlAssociateAdminRepository(factory), permissions, hasher, audit)
         Dim rates As New StatutoryRateService(New SqlStatutoryRateRepository(factory))
 
-        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence, licenceAdmin)
+        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence, licenceAdmin, New NpoiTableExporter())
         Return OperationResult(Of AppServices).Ok(services)
     End Function
 End Class

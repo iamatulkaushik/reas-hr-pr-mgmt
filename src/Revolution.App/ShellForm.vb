@@ -70,12 +70,12 @@ Public Class ShellForm
             "Server: " & _serverInfo,
             $"{If(user.Role = UserRole.Associate, "Associate", user.Role.ToString())}: {user.UserName} (id {user.UserId})"}
         If user.CompanyId > 0 Then
-            panels.Add("Company: " & CompanyName(user.CompanyId))
+            panels.Add("Company: " & LookUpCompanyName(user.CompanyId))
         End If
         SetStatusInfo(panels.ToArray())
     End Sub
 
-    Private Function CompanyName(companyId As Integer) As String
+    Private Function LookUpCompanyName(companyId As Integer) As String
         Dim companies = _services.Auth.ListCompanies()
         If Not companies.Succeeded Then
             Return "#" & companyId.ToString(Globalization.CultureInfo.InvariantCulture)

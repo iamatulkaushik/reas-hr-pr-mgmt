@@ -6,7 +6,7 @@
 Public NotInheritable Class ModuleHost
     Public Sub New(factory As IConnectionFactory, session As ISessionContext, entitlements As IEntitlementService,
                    permissions As IPermissionService, audit As IAuditService, approvals As IApprovalService,
-                   rates As IStatutoryRateService, crypto As IFieldCrypto)
+                   rates As IStatutoryRateService, crypto As IFieldCrypto, exporter As ITableExporter)
         If factory Is Nothing Then Throw New ArgumentNullException(NameOf(factory))
         If session Is Nothing Then Throw New ArgumentNullException(NameOf(session))
         If entitlements Is Nothing Then Throw New ArgumentNullException(NameOf(entitlements))
@@ -15,6 +15,7 @@ Public NotInheritable Class ModuleHost
         If approvals Is Nothing Then Throw New ArgumentNullException(NameOf(approvals))
         If rates Is Nothing Then Throw New ArgumentNullException(NameOf(rates))
         If crypto Is Nothing Then Throw New ArgumentNullException(NameOf(crypto))
+        If exporter Is Nothing Then Throw New ArgumentNullException(NameOf(exporter))
         Me.Factory = factory
         Me.Session = session
         Me.Entitlements = entitlements
@@ -23,6 +24,7 @@ Public NotInheritable Class ModuleHost
         Me.Approvals = approvals
         Me.Rates = rates
         Me.Crypto = crypto
+        Me.Exporter = exporter
     End Sub
 
     ''' <summary>Opens connections with the tenant context applied.</summary>
@@ -39,4 +41,6 @@ Public NotInheritable Class ModuleHost
     Public ReadOnly Property Rates As IStatutoryRateService
     ''' <summary>Encrypts and decrypts protected ids (ADR 0011).</summary>
     Public ReadOnly Property Crypto As IFieldCrypto
+    ''' <summary>Writes Excel 97-2003 (.xls) files for statutory and bank exports (ADR 0019).</summary>
+    Public ReadOnly Property Exporter As ITableExporter
 End Class
