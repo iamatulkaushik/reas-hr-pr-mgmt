@@ -1,3 +1,4 @@
+Imports Revolution.Core
 ''' <summary>
 ''' ESIC Excel workbook. Sheet 1 is the upload sheet exactly as the ESIC template; the portal reads this sheet only.
 ''' Sheet 2 keeps the template instructions and reason codes only. No employee data on sheet 2.

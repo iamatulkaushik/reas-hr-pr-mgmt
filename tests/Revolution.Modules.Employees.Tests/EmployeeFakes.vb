@@ -42,6 +42,8 @@ Friend NotInheritable Class FakeEmployeeRepository
     Public ReadOnly Last4s As New Dictionary(Of Integer, IdentifierLast4)()
     Public ReadOnly Hashes As New Dictionary(Of String, Integer)()
     Public ReadOnly RevealLog As New List(Of String)()
+    Public ReadOnly BatchLogs As New List(Of String)()
+    Public FailBatchLog As Boolean
     Public ReadOnly Writes As New List(Of IdentifierWrite)()
     Private _nextId As Integer = 100
 
@@ -118,6 +120,11 @@ Friend NotInheritable Class FakeEmployeeRepository
 
     Public Sub LogReveal(userId As Integer, employeeId As Integer, fields As String) Implements IEmployeeRepository.LogReveal
         RevealLog.Add($"{userId}:{employeeId}:{fields}")
+    End Sub
+
+    Public Sub LogRevealBatch(userId As Integer, reason As String, fields As String, employeeIds As IReadOnlyCollection(Of Integer)) Implements IEmployeeRepository.LogRevealBatch
+        If FailBatchLog Then Throw New EmployeeRuleException("log down")
+        BatchLogs.Add($"{userId}:{reason}:{fields}:{String.Join(",", employeeIds)}")
     End Sub
 
     Private Shared Function Apply(change As IdChange, current As Byte()) As Byte()

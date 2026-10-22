@@ -1,4 +1,5 @@
 Imports System.Data
+Imports System.Text.Json
 Imports Microsoft.Data.SqlClient
 Imports Revolution.Data
 
@@ -158,6 +159,17 @@ Public NotInheritable Class SqlEmployeeRepository
                     cmd.Parameters.Add("@EmployeeID", SqlDbType.Int).Value = employeeId
                     cmd.Parameters.Add("@Fields", SqlDbType.NVarChar, 100).Value = fields
                     cmd.Parameters.Add("@RowsRevealed", SqlDbType.Int).Value = 1
+                End Sub)
+    End Sub
+
+    Public Sub LogRevealBatch(userId As Integer, reason As String, fields As String, employeeIds As IReadOnlyCollection(Of Integer)) Implements IEmployeeRepository.LogRevealBatch
+        Dim idsJson As String = JsonSerializer.Serialize(employeeIds)
+        Execute("aud.usp_Reveal_InsertBatch",
+                Sub(cmd)
+                    cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = userId
+                    cmd.Parameters.Add("@Reason", SqlDbType.NVarChar, 50).Value = reason
+                    cmd.Parameters.Add("@Fields", SqlDbType.NVarChar, 100).Value = fields
+                    cmd.Parameters.Add("@EmployeeIdsJson", SqlDbType.NVarChar, -1).Value = idsJson
                 End Sub)
     End Sub
 

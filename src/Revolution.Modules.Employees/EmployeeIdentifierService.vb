@@ -103,6 +103,11 @@ Public NotInheritable Class EmployeeIdentifierService
         End Try
     End Function
 
+    ''' <summary>Decrypts the named ids of one employee with no permission check and no log row. Only EmployeeExportService calls it, after it has written the batch log.</summary>
+    Friend Function DecryptForExport(employeeId As Integer, fields As IdField, companyId As Integer) As RevealedIds
+        Return DecryptRequested(_repository.GetEncryptedIdentifiers(employeeId), fields, companyId, employeeId)
+    End Function
+
     Private Function DecryptRequested(stored As EncryptedIdentifiers, fields As IdField, companyId As Integer, employeeId As Integer) As RevealedIds
         Dim result As New RevealedIds()
         If stored Is Nothing Then

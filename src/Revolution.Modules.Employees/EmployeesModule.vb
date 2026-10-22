@@ -10,6 +10,8 @@ Public NotInheritable Class EmployeesModule
         Dim masters As New SqlOrgMasterRepository(host.Factory)
         Dim employees As New SqlEmployeeRepository(host.Factory)
         Dim identifiers As New EmployeeIdentifierService(employees, host.Crypto, host.Permissions, host.Audit, host.Session)
+        Dim bankRepository As New SqlEmployeeBankRepository(host.Factory)
+        Dim bank As New EmployeeBankService(bankRepository, host.Crypto, host.Permissions, host.Audit, host.Session)
         Dim today As Func(Of Date) = Function() Date.Today
         Return New EmployeesServices(
             New FactoryService(masters, host.Permissions, host.Audit, host.Session),
@@ -17,8 +19,9 @@ Public NotInheritable Class EmployeesModule
             New DesignationService(masters, host.Permissions, host.Audit, host.Session),
             New EmployeeService(employees, identifiers, host.Permissions, host.Audit, host.Session, today),
             identifiers,
-            New EmployeeBankService(New SqlEmployeeBankRepository(host.Factory), host.Crypto, host.Permissions, host.Audit, host.Session),
+            bank,
             New ReferenceService(masters, host.Permissions),
-            New EmployeeFamilyService(New SqlEmployeeFamilyRepository(host.Factory), host.Permissions, host.Audit, today))
+            New EmployeeFamilyService(New SqlEmployeeFamilyRepository(host.Factory), host.Permissions, host.Audit, today),
+            New EmployeeExportService(employees, identifiers, bank, host.Permissions, host.Session))
     End Function
 End Class

@@ -25,4 +25,7 @@ Public Interface IEmployeeRepository
 
     ''' <summary>Writes aud.RevealLog. Fields are names only, never values.</summary>
     Sub LogReveal(userId As Integer, employeeId As Integer, fields As String)
+
+    ''' <summary>One reveal log row per employee for one export, all or none (aud.usp_Reveal_InsertBatch). Field names only.</summary>
+    Sub LogRevealBatch(userId As Integer, reason As String, fields As String, employeeIds As IReadOnlyCollection(Of Integer))
 End Interface

@@ -1,5 +1,6 @@
 Imports Revolution.Modules.Payroll
 Imports Xunit
+Imports Revolution.Core
 
 Public Class FileMapperOptionTests
     Private Shared Function Worker() As PayrollFileEmployee

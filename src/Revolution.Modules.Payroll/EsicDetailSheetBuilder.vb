@@ -1,4 +1,5 @@
 Imports System.Globalization
+Imports Revolution.Core
 
 ''' <summary>
 ''' Optional ESIC detail sheet with a totals row. NOT part of the upload workbook.

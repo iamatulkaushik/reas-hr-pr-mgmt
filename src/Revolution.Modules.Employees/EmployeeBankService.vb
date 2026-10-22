@@ -70,6 +70,13 @@ Public NotInheritable Class EmployeeBankService
                                             $"Mode {details.PaymentMode}; account {AccountOutcome(details.Account)}"))
     End Function
 
+    ''' <summary>Decrypts the account of one employee with no permission check and no log row. Only EmployeeExportService calls it, after it has written the batch log.</summary>
+    Friend Function DecryptAccountForExport(employeeId As Integer, companyId As Integer) As String
+        Dim stored = _repository.GetEncryptedAccount(employeeId)
+        If stored Is Nothing OrElse stored.Cipher Is Nothing Then Return String.Empty
+        Return _crypto.Decrypt(stored.Cipher, stored.KeyVersion, FieldContext.Build(companyId, employeeId, FieldContext.BankAccount))
+    End Function
+
     ''' <summary>Shows the account number in clear. Needs Reveal on Employees and writes the reveal log before returning it.</summary>
     Public Function RevealAccount(employeeId As Integer) As OperationResult(Of String)
         If Not _permissions.IsAllowed(ModuleKey.Employees, PermissionAction.Reveal) Then
