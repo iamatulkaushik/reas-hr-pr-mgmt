@@ -72,7 +72,7 @@ Public NotInheritable Class AppServices
         Dim associateAdmin As New AssociateAdminService(New SqlAssociateAdminRepository(factory), permissions, hasher, audit)
         Dim rates As New StatutoryRateService(New SqlStatutoryRateRepository(factory))
 
-        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence, licenceAdmin, New NpoiTableExporter())
+        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence, licenceAdmin, New ExcelTableExporter())
         Return OperationResult(Of AppServices).Ok(services)
     End Function
 End Class

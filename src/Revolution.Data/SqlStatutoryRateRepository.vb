@@ -111,6 +111,77 @@ Public NotInheritable Class SqlStatutoryRateRepository
         End Using
     End Function
 
+    Public Function GetGratuityRule(asOf As Date) As GratuityRule Implements IStatutoryRateRepository.GetGratuityRule
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_GratuityRule_Get")
+                cmd.Parameters.Add("@AsOf", SqlDbType.Date).Value = asOf.Date
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                    Return New GratuityRule(r.GetDateTime(r.GetOrdinal("EffectiveFrom")), CInt(r.GetByte(r.GetOrdinal("MinYearsRegular"))),
+                                            CInt(r.GetByte(r.GetOrdinal("MinYearsFixedTerm"))), r.GetDecimal(r.GetOrdinal("DaysPerYear")),
+                                            r.GetDecimal(r.GetOrdinal("MonthDivisor")), CInt(r.GetByte(r.GetOrdinal("RoundUpAfterMonths"))),
+                                            r.GetDecimal(r.GetOrdinal("CapAmount")), r.GetBoolean(r.GetOrdinal("Verified")),
+                                            If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef"))
+                End Using
+            End Using
+        End Using
+    End Function
+
+    Public Function GetBonusRule(asOf As Date) As BonusRule Implements IStatutoryRateRepository.GetBonusRule
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_BonusRule_Get")
+                cmd.Parameters.Add("@AsOf", SqlDbType.Date).Value = asOf.Date
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                    Return New BonusRule(r.GetDateTime(r.GetOrdinal("EffectiveFrom")), r.GetDecimal(r.GetOrdinal("EligibilityWageCeiling")),
+                                         r.GetDecimal(r.GetOrdinal("CalcWageCeiling")), r.GetDecimal(r.GetOrdinal("MinPct")),
+                                         r.GetDecimal(r.GetOrdinal("MaxPct")), CInt(r.GetInt16(r.GetOrdinal("MinDaysWorked"))),
+                                         r.GetBoolean(r.GetOrdinal("Verified")),
+                                         If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef"))
+                End Using
+            End Using
+        End Using
+    End Function
+
+    Public Function GetTdsDeductionLimits(financialYear As Integer, regime As TdsRegime) As IReadOnlyList(Of TdsDeductionLimit) Implements IStatutoryRateRepository.GetTdsDeductionLimits
+        Dim limits As New List(Of TdsDeductionLimit)()
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TdsDeductionLimit_List")
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                cmd.Parameters.Add("@RegimeID", SqlDbType.TinyInt).Value = CByte(regime)
+                Using r = cmd.ExecuteReader()
+                    While r.Read()
+                        Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                        limits.Add(New TdsDeductionLimit(financialYear, regime, Text(r, "SectionCode"), Text(r, "SubLimitKey"),
+                                                         r.GetDecimal(r.GetOrdinal("MaxAmount")), Text(r, "Note"), r.GetBoolean(r.GetOrdinal("Verified")),
+                                                         If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef")))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return limits
+    End Function
+
+    Public Function GetHraCities(asOf As Date) As IReadOnlyList(Of HraCity) Implements IStatutoryRateRepository.GetHraCities
+        Dim cities As New List(Of HraCity)()
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_HraMetroCity_List")
+                cmd.Parameters.Add("@AsOf", SqlDbType.Date).Value = asOf.Date
+                Using r = cmd.ExecuteReader()
+                    While r.Read()
+                        Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                        cities.Add(New HraCity(r.GetDateTime(r.GetOrdinal("EffectiveFrom")), Text(r, "CityName"), r.GetBoolean(r.GetOrdinal("IsMetro")),
+                                               r.GetDecimal(r.GetOrdinal("ExemptPct")), r.GetBoolean(r.GetOrdinal("Verified")),
+                                               If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef")))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return cities
+    End Function
+
     Public Function GetTdsRule(financialYear As Integer, regime As TdsRegime, ageBand As TdsAgeBand) As TdsRule Implements IStatutoryRateRepository.GetTdsRule
         Dim standardDeduction As Decimal
         Dim rebateLimit As Decimal

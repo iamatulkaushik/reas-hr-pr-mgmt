@@ -10,6 +10,7 @@
     <Project Path="src/Revolution.Modules.Payroll/Revolution.Modules.Payroll.vbproj" />
     <Project Path="src/Revolution.ReportViewer/Revolution.ReportViewer.vbproj" />
     <Project Path="src/Revolution.Services/Revolution.Services.vbproj" />
+    <Project Path="src/RevolutionAssociates.Excel/RevolutionAssociates.Excel.csproj" />
     <Project Path="src/Revolution.Setup/Revolution.Setup.vbproj" />
     <Project Path="src/Revolution.UI.Common/Revolution.UI.Common.vbproj" />
   </Folder>
@@ -21,6 +22,7 @@
     <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Payroll.Tests/Revolution.Modules.Payroll.Tests.vbproj" />
     <Project Path="tests/Revolution.Services.Tests/Revolution.Services.Tests.vbproj" />
+    <Project Path="tests/RevolutionAssociates.Excel.Tests/RevolutionAssociates.Excel.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Revolution.LicenceTool/Revolution.LicenceTool.vbproj" />

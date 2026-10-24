@@ -1,16 +1,15 @@
 Imports System.IO
-Imports NPOI.HSSF.UserModel
-Imports NPOI.SS.UserModel
+Imports RevolutionAssociates.Excel
 
 ''' <summary>
-''' Writes Excel 97-2003 (.xls) workbooks with NPOI (CR 0014, ADR 0019). Sheets keep their order, the first row is the header,
-''' every cell is stored as text with the Text number format, with no formulas and no other styling.
+''' Writes Excel 97-2003 (.xls) workbooks with RevolutionAssociates.Excel (CR 0014, ADR 0019). Sheets keep their order, the first row is the
+''' header, and every cell is a text cell with the Text number format: no formulas, no numbers, no dates.
 ''' The sheets may hold plain statutory ids, so nothing here writes a temporary file, logs a cell, or puts a cell in an error message.
 ''' </summary>
-Public NotInheritable Class NpoiTableExporter
+Public NotInheritable Class ExcelTableExporter
     Implements ITableExporter
 
-    ' Limits of the Excel 97-2003 format.
+    ' Limits of the Excel 97-2003 format. They are checked here, with plain messages, before the library is called.
     Private Const MaxRows As Integer = 65536
     Private Const MaxColumns As Integer = 256
     Private Const MaxCellLength As Integer = 32767
@@ -83,30 +82,25 @@ Public NotInheritable Class NpoiTableExporter
     End Function
 
     Private Shared Function Build(sheets As IReadOnlyList(Of ExportSheet)) As Byte()
-        Dim workbook As New HSSFWorkbook()
-        Dim textStyle = workbook.CreateCellStyle()
-        textStyle.DataFormat = workbook.CreateDataFormat().GetFormat("@")
+        Dim book As New Workbook()
         For Each sheet In sheets
-            FillSheet(workbook.CreateSheet(sheet.Name), sheet.Table, textStyle)
+            Dim target = book.AddSheet(sheet.Name)
+            For rowIndex = 0 To sheet.Table.Count - 1
+                FillRow(target, rowIndex, sheet.Table(rowIndex))
+            Next
         Next
-        Using stream As New MemoryStream()
-            workbook.Write(stream, True)
-            Return stream.ToArray()
-        End Using
+        Return ExcelFile.WriteToBytes(book, ExcelFormat.Xls)
     End Function
 
-    Private Shared Sub FillSheet(target As ISheet, table As IReadOnlyList(Of String()), textStyle As ICellStyle)
-        For rowIndex = 0 To table.Count - 1
-            Dim row = target.CreateRow(rowIndex)
-            Dim source = table(rowIndex)
-            If source Is Nothing Then
-                Continue For
+    ''' <summary>Only text goes in. Missing and empty cells are left out, which Excel shows as empty cells.</summary>
+    Private Shared Sub FillRow(target As Worksheet, rowIndex As Integer, source As String())
+        If source Is Nothing Then
+            Return
+        End If
+        For columnIndex = 0 To source.Length - 1
+            If Not String.IsNullOrEmpty(source(columnIndex)) Then
+                target.Set(rowIndex, columnIndex, source(columnIndex))
             End If
-            For columnIndex = 0 To source.Length - 1
-                Dim cell = row.CreateCell(columnIndex, CellType.String)
-                cell.SetCellValue(If(source(columnIndex), String.Empty))
-                cell.CellStyle = textStyle
-            Next
         Next
     End Sub
 

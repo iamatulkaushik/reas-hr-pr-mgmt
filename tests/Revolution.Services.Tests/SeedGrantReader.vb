@@ -16,13 +16,13 @@ Friend NotInheritable Class SeedGrantReader
     ''' <summary>Every "role/module/action" the scripts that insert into sec.RolePermission grant.</summary>
     Friend Shared Function ReadGrants() As HashSet(Of String)
         Dim grants As New HashSet(Of String)()
-        For Each text In InsertingScripts()
-            For Each row As Match In SpecRow.Matches(text)
+        For Each script In InsertingScripts()
+            For Each row As Match In SpecRow.Matches(script)
                 For Each action In row.Groups(3).Value.Split(","c)
                     grants.Add(MatrixSpec.KeyOf(CInt(row.Groups(1).Value), CInt(row.Groups(2).Value), CInt(action.Trim())))
                 Next
             Next
-            For Each row As Match In PlainRow.Matches(text)
+            For Each row As Match In PlainRow.Matches(script)
                 grants.Add(MatrixSpec.KeyOf(CInt(row.Groups(1).Value), CInt(row.Groups(2).Value), CInt(row.Groups(3).Value)))
             Next
         Next
@@ -41,7 +41,7 @@ Friend NotInheritable Class SeedGrantReader
         Return Directory.GetFiles(MigrationsFolder(), "*.sql").
             OrderBy(Function(path) path, StringComparer.Ordinal).
             Select(Function(path) File.ReadAllText(path)).
-            Where(Function(text) text.Contains("INSERT sec.RolePermission", StringComparison.OrdinalIgnoreCase)).
+            Where(Function(script) script.Contains("INSERT sec.RolePermission", StringComparison.OrdinalIgnoreCase)).
             ToList()
     End Function
 

@@ -45,11 +45,11 @@ Public Class RolePlanLicenceMatrixTests
     <Fact>
     Public Sub SeedScripts_GrantExactlyTheDocumentedMatrix()
         Dim seed = SeedGrantReader.ReadGrants()
-        Dim missing = MatrixSpec.Grants.Except(seed).Select(Function(key) MatrixSpec.Describe(key)).OrderBy(Function(text) text).ToList()
-        Dim unexpected = seed.Except(MatrixSpec.Grants).Select(Function(key) MatrixSpec.Describe(key)).OrderBy(Function(text) text).ToList()
+        Dim missing = MatrixSpec.Grants.Except(seed).Select(Function(key) MatrixSpec.Describe(key)).OrderBy(Function(line) line).ToList()
+        Dim unexpected = seed.Except(MatrixSpec.Grants).Select(Function(key) MatrixSpec.Describe(key)).OrderBy(Function(line) line).ToList()
         Assert.True(seed.Count > 0, "No grants were read from the migration scripts.")
-        Assert.Empty(missing.Select(Function(text) "documented but not seeded: " & text))
-        Assert.Empty(unexpected.Select(Function(text) "seeded but not documented: " & text))
+        Assert.Empty(missing.Select(Function(line) "documented but not seeded: " & line))
+        Assert.Empty(unexpected.Select(Function(line) "seeded but not documented: " & line))
     End Sub
 
     <Fact>

@@ -7,6 +7,10 @@ Friend NotInheritable Class FakeStatutoryRateRepository
     Public Property Esi As EsiRate
     Public Property Pt As PtRule
     Public Property Wage As WageRule
+    Public Property Gratuity As GratuityRule
+    Public Property Bonus As BonusRule
+    Public Property DeductionLimits As IReadOnlyList(Of TdsDeductionLimit) = New List(Of TdsDeductionLimit)()
+    Public Property HraCities As IReadOnlyList(Of HraCity) = New List(Of HraCity)()
     Public Property Tds As TdsRule
     Public Property LastFinancialYear As Integer
     Public Property LastRegime As TdsRegime
@@ -34,6 +38,27 @@ Friend NotInheritable Class FakeStatutoryRateRepository
     Public Function GetWageRule(asOf As Date) As WageRule Implements IStatutoryRateRepository.GetWageRule
         LastAsOf = asOf
         Return Wage
+    End Function
+
+    Public Function GetGratuityRule(asOf As Date) As GratuityRule Implements IStatutoryRateRepository.GetGratuityRule
+        LastAsOf = asOf
+        Return Gratuity
+    End Function
+
+    Public Function GetBonusRule(asOf As Date) As BonusRule Implements IStatutoryRateRepository.GetBonusRule
+        LastAsOf = asOf
+        Return Bonus
+    End Function
+
+    Public Function GetTdsDeductionLimits(financialYear As Integer, regime As TdsRegime) As IReadOnlyList(Of TdsDeductionLimit) Implements IStatutoryRateRepository.GetTdsDeductionLimits
+        LastFinancialYear = financialYear
+        LastRegime = regime
+        Return DeductionLimits
+    End Function
+
+    Public Function GetHraCities(asOf As Date) As IReadOnlyList(Of HraCity) Implements IStatutoryRateRepository.GetHraCities
+        LastAsOf = asOf
+        Return HraCities
     End Function
 
     Public Function GetTdsRule(financialYear As Integer, regime As TdsRegime, ageBand As TdsAgeBand) As TdsRule Implements IStatutoryRateRepository.GetTdsRule

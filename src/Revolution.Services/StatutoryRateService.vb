@@ -41,6 +41,49 @@ Public NotInheritable Class StatutoryRateService
         Return Check(rule, rule?.Verified, "wage rule", asOf, rule?.EffectiveFrom)
     End Function
 
+    Public Function GetGratuityRule(asOf As Date) As OperationResult(Of GratuityRule) Implements IStatutoryRateService.GetGratuityRule
+        Dim rule = _repository.GetGratuityRule(asOf)
+        Return Check(rule, rule?.Verified, "gratuity rule", asOf, rule?.EffectiveFrom)
+    End Function
+
+    Public Function GetBonusRule(asOf As Date) As OperationResult(Of BonusRule) Implements IStatutoryRateService.GetBonusRule
+        Dim rule = _repository.GetBonusRule(asOf)
+        Return Check(rule, rule?.Verified, "bonus rule", asOf, rule?.EffectiveFrom)
+    End Function
+
+    Public Function GetTdsDeductionLimits(asOf As Date, regime As TdsRegime) As OperationResult(Of IReadOnlyList(Of TdsDeductionLimit)) _
+        Implements IStatutoryRateService.GetTdsDeductionLimits
+        Dim year = FinancialYearCalendar.StartYear(asOf)
+        Dim label = $"TDS deduction limits for {If(regime = TdsRegime.Old, "the old", "the new")} regime, financial year {FinancialYearCalendar.Label(year)}"
+        Dim rows = _repository.GetTdsDeductionLimits(year, regime)
+        If rows Is Nothing OrElse rows.Count = 0 Then
+            Return OperationResult(Of IReadOnlyList(Of TdsDeductionLimit)).Fail($"No {label} are set. Ask the CA to add them.")
+        End If
+        If _repository.IsVerificationRequired() Then
+            Dim unverified = rows.Where(Function(row) Not row.Verified).Count()
+            If unverified > 0 Then
+                Return OperationResult(Of IReadOnlyList(Of TdsDeductionLimit)).Fail(
+                    $"{unverified.ToString(CultureInfo.InvariantCulture)} of the {rows.Count.ToString(CultureInfo.InvariantCulture)} {label} have not been verified by the CA.")
+            End If
+        End If
+        Return OperationResult(Of IReadOnlyList(Of TdsDeductionLimit)).Ok(rows)
+    End Function
+
+    Public Function GetHraMetroList(asOf As Date) As OperationResult(Of HraMetroList) Implements IStatutoryRateService.GetHraMetroList
+        Dim rows = _repository.GetHraCities(asOf)
+        If rows Is Nothing OrElse rows.Count = 0 Then
+            Return OperationResult(Of HraMetroList).Fail($"No HRA city list is set for {Format(asOf)}. Ask the CA to add one.")
+        End If
+        Dim startDate = Format(rows.Min(Function(row) row.EffectiveFrom))
+        If Not rows.Any(Function(row) row.IsOtherCities) Then
+            Return OperationResult(Of HraMetroList).Fail($"The HRA city list from {startDate} has no row for other cities (city name *). Ask the CA to complete it.")
+        End If
+        If _repository.IsVerificationRequired() AndAlso rows.Any(Function(row) Not row.Verified) Then
+            Return OperationResult(Of HraMetroList).Fail($"The HRA city list from {startDate} has not been fully verified by the CA.")
+        End If
+        Return OperationResult(Of HraMetroList).Ok(New HraMetroList(rows))
+    End Function
+
     Public Function GetTdsRule(asOf As Date, regime As TdsRegime, ageBand As TdsAgeBand) As OperationResult(Of TdsRule) Implements IStatutoryRateService.GetTdsRule
         Dim year = FinancialYearCalendar.StartYear(asOf)
         Dim label = $"TDS rule for {If(regime = TdsRegime.Old, "the old", "the new")} regime, financial year {FinancialYearCalendar.Label(year)}, age band {AgeBandName(ageBand)}"

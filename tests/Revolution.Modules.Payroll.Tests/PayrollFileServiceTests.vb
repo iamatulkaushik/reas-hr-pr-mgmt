@@ -8,9 +8,23 @@ Friend NotInheritable Class FakeFileSource
     Public Snapshot As PayrollFileSnapshot
     Public Calls As Integer
 
-    Public Function Load(runId As Integer) As PayrollFileSnapshot Implements IPayrollFileSource.Load
+    Public LastKind As PayrollFileKind
+
+    Public Function Load(runId As Integer, kind As PayrollFileKind) As OperationResult(Of PayrollFileSnapshot) Implements IPayrollFileSource.Load
         Calls += 1
-        Return Snapshot
+        LastKind = kind
+        If Snapshot Is Nothing Then Return OperationResult(Of PayrollFileSnapshot).Fail("Payroll run not found.")
+        Return OperationResult(Of PayrollFileSnapshot).Ok(Snapshot)
+    End Function
+End Class
+
+Friend NotInheritable Class FakeRunLister
+    Implements IPayrollRunLister
+
+    Public Runs As New List(Of PayrollRunItem)()
+
+    Public Function ListRuns() As IReadOnlyList(Of PayrollRunItem) Implements IPayrollRunLister.ListRuns
+        Return Runs
     End Function
 End Class
 
@@ -43,9 +57,10 @@ Public Class PayrollFileServiceTests
     Private ReadOnly _source As New FakeFileSource()
     Private ReadOnly _permissions As New FakeFilePermissions()
     Private ReadOnly _audit As New FakeFileAudit()
+    Private ReadOnly _runs As New FakeRunLister()
 
     Private Function Service() As PayrollFileService
-        Return New PayrollFileService(_source, _permissions, _audit)
+        Return New PayrollFileService(_source, _permissions, _audit, _runs)
     End Function
 
     Private Shared Function Worker(id As Integer, uan As String, ip As String) As PayrollFileEmployee
@@ -145,5 +160,54 @@ Public Class PayrollFileServiceTests
         Dim r = Service().BuildBank(7, New SbiFileWriter(), "ABC", "08586", New Date(2026, 10, 31), "SAL1026", "SALARY OCT 2026")
         Assert.False(r.Succeeded)
         Assert.Empty(_audit.Entries)
+    End Sub
+
+    <Fact>
+    Public Sub EachBuilder_AsksTheSourceForItsOwnKind()
+        Arrange(PayrollRunStatus.Approved, Worker(1, "100123456789", "2018517470"))
+        Service().BuildEcr(7, 15000D)
+        Assert.Equal(PayrollFileKind.Ecr, _source.LastKind)
+        Service().BuildEsic(7)
+        Assert.Equal(PayrollFileKind.Esic, _source.LastKind)
+    End Sub
+
+    <Fact>
+    Public Sub SourceFailure_GivesNoFile_AndNoAuditEntry()
+        _permissions.Allowed.Add("Statutory:Export")
+        _source.Snapshot = Nothing
+        Dim r = Service().BuildEcr(7, 15000D)
+        Assert.False(r.Succeeded)
+        Assert.Equal("Payroll run not found.", r.Message)
+        Assert.Empty(_audit.Entries)
+    End Sub
+
+    <Fact>
+    Public Sub ListRuns_NoPermission_Fails()
+        Assert.False(Service().ListRuns(PayrollFileKind.Ecr).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub ListRuns_ShowsApprovedLockedAndPaidOnly()
+        _permissions.Allowed.Add("Statutory:Export")
+        For Each status In {PayrollRunStatus.Draft, PayrollRunStatus.Processed, PayrollRunStatus.Submitted, PayrollRunStatus.Approved, PayrollRunStatus.Locked, PayrollRunStatus.Paid}
+            _runs.Runs.Add(New PayrollRunItem(CInt(status), New Date(2026, 9, 26), New Date(2026, 10, 25), 1, status, 10))
+        Next
+        Dim r = Service().ListRuns(PayrollFileKind.Esic)
+        Assert.True(r.Succeeded)
+        Assert.Equal(New List(Of Integer) From {4, 5, 6}, r.Value.Select(Function(x) x.RunId).ToList())
+    End Sub
+
+    <Fact>
+    Public Sub ListRuns_ForTheBankFile_NeedsExportOnPayroll()
+        _permissions.Allowed.Add("Statutory:Export")
+        Assert.False(Service().ListRuns(PayrollFileKind.BankFile).Succeeded)
+        _permissions.Allowed.Add("Payroll:Export")
+        Assert.True(Service().ListRuns(PayrollFileKind.BankFile).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub RunItem_Label_ShowsPeriodRunStatusAndCount()
+        Dim item As New PayrollRunItem(1, New Date(2026, 9, 26), New Date(2026, 10, 25), 1, PayrollRunStatus.Approved, 120)
+        Assert.Equal("26-09-2026 to 25-10-2026, run 1, Approved, 120 employees", item.Label)
     End Sub
 End Class

@@ -36,6 +36,11 @@ patches=$(git ls-files '*.patch' 2>/dev/null)
 risky=$(grep -rnEi --include='*.vb' 'For Each[[:space:]]+(text|top|left|right|bottom|width|height|size|location|name|tag|font|parent|visible|enabled|controls|region|handle|site|container|cursor|opacity|padding|margin|anchor|dock|bounds|owner|icon|modal|focused)[[:space:]]+In[[:space:]]' src/Revolution.UI.Common src/Revolution.App src/Revolution.Modules.*.UI 2>/dev/null)
 [ -n "$risky" ] && err "For Each variable named like a Control property. Give it another name and a type (For Each heading As String In ...): $risky"
 
+# 4d. Anywhere: a For Each variable without a type that is named like a System namespace (text, io, linq, data, net ...) binds to the namespace and
+# does not compile (BC30112). Give the variable another name, or write its type.
+nsrisky=$(grep -rnEi --include='*.vb' 'For Each[[:space:]]+(text|io|linq|collections|net|data|xml|security|threading|diagnostics|globalization|reflection|runtime|buffers|numerics|resources|timers|transactions|formats|drawing)[[:space:]]+In[[:space:]]' src tests 2>/dev/null)
+[ -n "$nsrisky" ] && err "For Each variable named like a System namespace (BC30112). Give it another name: $nsrisky"
+
 # 5. Brave must not touch shared projects without Sigma: enforced by CODEOWNERS, listed here for visibility.
 [ -f .github/CODEOWNERS ] || err "CODEOWNERS missing"
 

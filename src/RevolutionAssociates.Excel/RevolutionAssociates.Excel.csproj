@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- NuGet metadata -->
+    <PackageId>RevolutionAssociates.Excel</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Revolution Associates</Authors>
+    <Company>Revolution Associates</Company>
+    <Product>Revolution Excel</Product>
+    <Description>Dependency-free .NET 10 library to read and write Excel workbooks: .xlsx, .xlsm (OpenXML), legacy .xls (BIFF8) and .csv/.tsv. Includes DataTable and POCO import/export.</Description>
+    <PackageTags>excel;xlsx;xls;csv;spreadsheet;openxml;biff8;dotnet10</PackageTags>
+    <PackageProjectUrl>https://reas.host/</PackageProjectUrl>
+    <RepositoryUrl>https://reas.host/</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Copyright>Copyright (c) Revolution Associates</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

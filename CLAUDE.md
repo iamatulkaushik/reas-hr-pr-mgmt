@@ -9,5 +9,5 @@ Read `docs/adr/` and `docs/OWNERSHIP.md` before changing anything.
 - Statutory rates and slabs come from effective-dated tables, never from code.
 - No screen checks a role or plan name directly. Use IPermissionService and IEntitlementService.
 - Definition of done: CI green, tests pass, screen actually run and checked, other developer reviewed.
-- In forms and controls, write the type of every For Each variable (`For Each heading As String In ...`) and never call a variable text, top, left, name, size, tag, font or parent: VB ignores case, so it becomes the inherited property and fails with BC30039 or BC30369. `scripts/check-guards.sh` checks the common names.
+- In forms and controls, write the type of every For Each variable (`For Each heading As String In ...`) and never call a variable text, top, left, name, size, tag, font or parent: VB ignores case, so it becomes the inherited property and fails with BC30039 or BC30369. Everywhere, including tests, a For Each variable without a type must not be named like a System namespace (text, io, linq, data, net, xml, security ...): it binds to the namespace and fails with BC30112. `scripts/check-guards.sh` checks the common names.
 - One class per file. Methods up to 50 lines. No commented-out code.

@@ -5,6 +5,7 @@
 /src/Revolution.Data/        @SIGMA-GITHUB
 /src/Revolution.Services/    @SIGMA-GITHUB
 /src/Revolution.UI.Common/   @SIGMA-GITHUB
+/src/RevolutionAssociates.Excel/ @SIGMA-GITHUB
 /src/Revolution.Setup/       @SIGMA-GITHUB
 /database/                   @SIGMA-GITHUB
 /Directory.Build.props       @SIGMA-GITHUB

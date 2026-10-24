@@ -1,19 +1,18 @@
 Imports System.IO
-Imports NPOI.HSSF.UserModel
-Imports NPOI.SS.UserModel
+Imports RevolutionAssociates.Excel
 Imports Revolution.Core
 Imports Revolution.Services
 Imports Xunit
 
-Public Class NpoiTableExporterTests
-    Private ReadOnly _exporter As New NpoiTableExporter()
+Public Class ExcelTableExporterTests
+    Private ReadOnly _exporter As New ExcelTableExporter()
 
     Private Shared Function Sheet(name As String, ParamArray rows As String()()) As ExportSheet
         Return New ExportSheet(name, rows)
     End Function
 
-    Private Shared Function ReadWorkbook(bytes As Byte()) As HSSFWorkbook
-        Return New HSSFWorkbook(New MemoryStream(bytes))
+    Private Shared Function ReadWorkbook(bytes As Byte()) As Workbook
+        Return ExcelFile.Read(bytes, ExcelFormat.Xls)
     End Function
 
     Private Shared Function TempFile() As String
@@ -32,32 +31,47 @@ Public Class NpoiTableExporterTests
             Sheet("Upload", New String() {"IP Number", "Name"}, New String() {"1234567890", "A Person"}),
             Sheet("Instructions", New String() {"Step"}, New String() {"Upload this file"})})
         Dim workbook = ReadWorkbook(bytes)
-        Assert.Equal(2, workbook.NumberOfSheets)
-        Assert.Equal("Upload", workbook.GetSheetName(0))
-        Assert.Equal("Instructions", workbook.GetSheetName(1))
-        Assert.Equal("IP Number", workbook.GetSheetAt(0).GetRow(0).GetCell(0).StringCellValue)
-        Assert.Equal("A Person", workbook.GetSheetAt(0).GetRow(1).GetCell(1).StringCellValue)
-        Assert.Equal(1, workbook.GetSheetAt(0).LastRowNum)
+        Assert.Equal(2, workbook.Sheets.Count)
+        Assert.Equal("Upload", workbook(0).Name)
+        Assert.Equal("Instructions", workbook(1).Name)
+        Assert.Equal("IP Number", workbook(0).GetString(0, 0))
+        Assert.Equal("A Person", workbook(0).GetString(1, 1))
+        Assert.Equal(2, workbook(0).RowCount)
     End Sub
 
     <Fact>
     Public Sub ToXls_KeepsLeadingZerosLongDigitsAndFormulaLookalikesAsText()
-        Dim values = {"0012345678", "100123456789012", "1E5", "=1+1", "-5"}
+        Dim values = {"0012345678", "100123456789012", "1E5", "=1+1", "-5", "  padded  "}
         Dim workbook = ReadWorkbook(_exporter.ToXls({Sheet("Upload", values)}))
-        Dim row = workbook.GetSheetAt(0).GetRow(0)
         For index = 0 To values.Length - 1
-            Assert.Equal(CellType.String, row.GetCell(index).CellType)
-            Assert.Equal(values(index), row.GetCell(index).StringCellValue)
+            Assert.IsType(Of String)(workbook(0)(0, index))
+            Assert.Equal(values(index), workbook(0).GetString(0, index))
         Next
     End Sub
 
     <Fact>
-    Public Sub ToXls_WritesMissingCellsAsEmpty()
-        Dim workbook = ReadWorkbook(_exporter.ToXls({Sheet("Upload", New String() {"a", Nothing, "c"}, Nothing)}))
-        Dim firstSheet = workbook.GetSheetAt(0)
-        Dim middle = firstSheet.GetRow(0).GetCell(1)
-        Assert.True(middle Is Nothing OrElse middle.StringCellValue.Length = 0)
-        Assert.Equal("c", firstSheet.GetRow(0).GetCell(2).StringCellValue)
+    Public Sub ToXls_KeepsNonLatinText()
+        Dim workbook = ReadWorkbook(_exporter.ToXls({Sheet("Upload", New String() {"अनुराग शर्मा", "Zoë Müller"})}))
+        Assert.Equal("अनुराग शर्मा", workbook(0).GetString(0, 0))
+        Assert.Equal("Zoë Müller", workbook(0).GetString(0, 1))
+    End Sub
+
+    <Fact>
+    Public Sub ToXls_WritesMissingAndEmptyCellsAsEmpty()
+        Dim workbook = ReadWorkbook(_exporter.ToXls({Sheet("Upload", New String() {"a", Nothing, "", "d"}, Nothing, New String() {"x"})}))
+        Dim first = workbook(0)
+        Assert.Equal("a", first.GetString(0, 0))
+        Assert.Equal(String.Empty, first.GetString(0, 1))
+        Assert.Equal(String.Empty, first.GetString(0, 2))
+        Assert.Equal("d", first.GetString(0, 3))
+        Assert.Equal("x", first.GetString(2, 0))
+    End Sub
+
+    <Fact>
+    Public Sub ToXls_KeepsALongCell_AtTheLimit()
+        Dim longText = New String("é"c, 32767)
+        Dim workbook = ReadWorkbook(_exporter.ToXls({Sheet("Upload", New String() {longText})}))
+        Assert.Equal(longText, workbook(0).GetString(0, 0))
     End Sub
 
     <Fact>
@@ -78,13 +92,20 @@ Public Class NpoiTableExporterTests
     End Sub
 
     <Fact>
+    Public Sub ToXls_RejectsACellThatIsTooLong_WithoutQuotingIt()
+        Dim tooLong = "SECRET" & New String("x"c, 32767)
+        Dim ex = Assert.Throws(Of ArgumentException)(Function() _exporter.ToXls({Sheet("Upload", New String() {tooLong})}))
+        Assert.DoesNotContain("SECRET", ex.Message)
+    End Sub
+
+    <Fact>
     Public Sub WriteXls_SavesAFileThatReadsBack()
         Dim target = TempFile()
         Try
             Dim result = _exporter.WriteXls(target, {Sheet("Upload", New String() {"UAN"}, New String() {"100123456789"})})
             Assert.True(result.Succeeded, result.Message)
             Dim workbook = ReadWorkbook(File.ReadAllBytes(target))
-            Assert.Equal("100123456789", workbook.GetSheetAt(0).GetRow(1).GetCell(0).StringCellValue)
+            Assert.Equal("100123456789", workbook(0).GetString(1, 0))
         Finally
             File.Delete(target)
         End Try
