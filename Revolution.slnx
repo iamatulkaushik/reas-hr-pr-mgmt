@@ -8,6 +8,7 @@
     <Project Path="src/Revolution.Modules.Employees/Revolution.Modules.Employees.vbproj" />
     <Project Path="src/Revolution.Modules.Employees.UI/Revolution.Modules.Employees.UI.vbproj" />
     <Project Path="src/Revolution.Modules.Payroll/Revolution.Modules.Payroll.vbproj" />
+    <Project Path="src/Revolution.Modules.Payroll/Revolution.Modules.Payroll.UI.vbproj" />
     <Project Path="src/Revolution.ReportViewer/Revolution.ReportViewer.vbproj" />
     <Project Path="src/Revolution.Services/Revolution.Services.vbproj" />
     <Project Path="src/RevolutionAssociates.Excel/RevolutionAssociates.Excel.csproj" />

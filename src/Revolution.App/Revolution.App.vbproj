@@ -20,6 +20,8 @@
     <ProjectReference Include="..\Revolution.Modules.Employees.UI\Revolution.Modules.Employees.UI.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Attendance\Revolution.Modules.Attendance.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Attendance.UI\Revolution.Modules.Attendance.UI.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Payroll\Revolution.Modules.Payroll.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Payroll.UI\Revolution.Modules.Payroll.UI.vbproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json">

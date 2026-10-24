@@ -16,6 +16,7 @@ Public NotInheritable Class MenuLayoutModule
     Private Const UpdateEmployeeGroup As String = "Employee|Update"
     Private Const AttendanceGroup As String = "Attendance"
     Private Const InsertAttendanceGroup As String = "Attendance|Insert"
+    Private Const ExportGroup As String = "Payroll|Export"
 
     ' Entry keys of the screens the feature modules offer.
     Private Const EmployeeScreen As String = "masters.employee"
@@ -24,6 +25,9 @@ Public NotInheritable Class MenuLayoutModule
     Private Const DesignationScreen As String = "masters.designation"
     Private Const DailyAttendanceScreen As String = "attendance.daily"
     Private Const MonthCloseScreen As String = "attendance.monthclose"
+    Private Const EcrScreen As String = "payroll.export.ecr"
+    Private Const EsicScreen As String = "payroll.export.esic"
+    Private Const BankScreen As String = "payroll.export.bank"
 
     Private ReadOnly _screens As Dictionary(Of String, ShellItem)
     Private ReadOnly _items As New List(Of ShellItem)()
@@ -35,6 +39,7 @@ Public NotInheritable Class MenuLayoutModule
         AddMaster()
         AddEmployee()
         AddAttendance()
+        AddPayroll()
     End Sub
 
     Public ReadOnly Property Items As IReadOnlyList(Of ShellItem) Implements IShellModule.Items
@@ -78,6 +83,16 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("attendance.update", AttendanceGroup, "Update", ModuleKey.Attendance, feature, 330, DailyAttendanceScreen)
         ' Not in the agreed list, kept because payroll needs the month lock.
         AddScreen("attendance.monthclose", AttendanceGroup, "Month close", ModuleKey.Attendance, feature, 340, MonthCloseScreen)
+    End Sub
+
+    ''' <summary>
+    ''' Payroll menu: the statutory and bank files (ADR 0019). The EPF and ESIC files are statutory filings (Silver plan and up); the bank file is
+    ''' a payroll output (Silver plan and up). Until the Payroll module is registered, these show as planned.
+    ''' </summary>
+    Private Sub AddPayroll()
+        AddScreen("payroll.export.ecr", ExportGroup, "EPF ECR file", ModuleKey.Statutory, PlanFeature.EpfEsi, 400, EcrScreen)
+        AddScreen("payroll.export.esic", ExportGroup, "ESIC upload file", ModuleKey.Statutory, PlanFeature.EpfEsi, 410, EsicScreen)
+        AddScreen("payroll.export.bank", ExportGroup, "Bank file", ModuleKey.Payroll, PlanFeature.BankFiles, 420, BankScreen)
     End Sub
 
     ''' <summary>A position with a screen. When the module that offers the screen is not registered the position is shown as planned.</summary>

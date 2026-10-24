@@ -4,6 +4,8 @@ Imports Revolution.Modules.Attendance
 Imports Revolution.Modules.Attendance.UI
 Imports Revolution.Modules.Employees
 Imports Revolution.Modules.Employees.UI
+Imports Revolution.Modules.Payroll
+Imports Revolution.Modules.Payroll.UI
 Imports Revolution.Services
 Imports Revolution.UI.Common
 
@@ -49,9 +51,11 @@ Public Module Program
     ''' A new module is added to the sources list (ADR 0016); its menu positions are set in MenuLayoutModule.
     ''' </summary>
     Private Function BuildModules(services As AppServices) As List(Of IShellModule)
+        Dim employees = EmployeesModule.Compose(services.Host)
         Dim sources As New List(Of IShellModule) From {
-            New EmployeesShellModule(EmployeesModule.Compose(services.Host), services.Permissions),
-            New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions)}
+            New EmployeesShellModule(employees, services.Permissions),
+            New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions),
+            New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions)}
         Return New List(Of IShellModule) From {
             New MenuLayoutModule(sources),
             New LicenceShellModule(services.LicenceAdmin)}
