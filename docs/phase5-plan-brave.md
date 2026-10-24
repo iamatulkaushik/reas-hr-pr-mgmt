@@ -118,3 +118,15 @@ Run service: reads attendance, salary, policy, rates and open installments. Call
 
 ### Waiting
 ECR, ESI upload and SBI bank file builders need the official format files (Owner, evening).
+
+## Increment 7 (2026-10-24): salary structure service and repository, review fixes
+- Review fixes (Sigma, 2026-10-14): `PtCalculator` returns 0 outside the months a half-yearly or yearly rule lists (`PtRule.IsDue`). Migration 0310 replaces `pay.usp_Run_ChangeStatus`: user from `SESSION_CONTEXT`, the submitter cannot approve (50329), no user in session refused (50330). Net pay test for statutory deductions on negative pay. Split-month EPF ceiling: options and a recommendation for the CA in `docs/phase5-split-month-proposal-brave.md`. No code until the CA decides.
+- New in `Revolution.Modules.Payroll`: `SalaryService`, `ISalaryRepository`, `SqlSalaryRepository`, `SalaryValidator`, `PayrollErrorMap`, `PayrollRuleException`, and the types `PolicySettings`, `SalaryComponentItem`, `SalaryLineWrite`, `SalaryLineView`, `EmployeeSalaryView`. `PayrollModule.Compose` builds it. `PayrollServices.Salary` exposes it.
+- Rules: feature `BasicPayroll` and Payroll permissions. View reads. Edit changes policy and components. Create adds a component or a salary revision. A salary needs a basic or DA amount above zero, each component once, active components only, amounts of two decimals at most. Audit text holds no amount.
+- Error numbers 50301 to 50304, 50311 to 50319, 50321 to 50329 keep the procedure text. 50002 and 50330 stay faults. Duplicate component code (2627, 2601), basic-and-DA check and unknown employee (547) are mapped by constraint name.
+- Tests: 105 cases in the touched test files, 105 passed through the throwaway runner (.NET 8 SDK, xunit stand-in, warnings as errors). `SqlSalaryRepository` and `PayrollModule` need Revolution.Data (SqlClient from NuGet), so they are not compiled here. Windows CI must confirm.
+- Not run: migrations 0302 and 0310 on SQL Server.
+
+### Next in this lane
+Payroll run service (reads attendance, salary, policy, rates, installments; calls wage builder, EPF, ESI, PT, net pay; saves lines; submit, approve, lock), loan service, payslip data service.
+

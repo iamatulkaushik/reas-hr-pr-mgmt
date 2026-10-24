@@ -1,8 +1,10 @@
 Imports Revolution.Core
 
 ''' <summary>
-''' Professional tax for one month from the state's rule and slabs. Monthly rules only for now: other frequencies return a failure,
-''' because the rule table does not say which months are due (open question to Sigma and the CA).
+''' Professional tax for one month from the state's rule and slabs.
+''' A monthly rule is due every month. A half-yearly or yearly rule is due only in the months the rule lists (PtRule.IsDue, CR 0011):
+''' in any other month the tax is zero, and in a due month it is the slab amount (the slab amount is per due month).
+''' The special month amount, when the slab has one, replaces the slab amount in that month.
 ''' A slab applies from its FromAmount up to its ToAmount, both included.
 ''' </summary>
 Public NotInheritable Class PtCalculator
@@ -19,8 +21,8 @@ Public NotInheritable Class PtCalculator
         If month < 1 OrElse month > 12 Then
             Throw New ArgumentOutOfRangeException(NameOf(month))
         End If
-        If rule.Frequency <> PtFrequency.Monthly Then
-            Return OperationResult(Of Decimal).Fail("Professional tax for this state is not monthly. Payroll cannot compute it yet.")
+        If Not rule.IsDue(month) Then
+            Return OperationResult(Of Decimal).Ok(0D)
         End If
         Dim slab As PtSlab = FindSlab(rule, genderId, monthlyGross)
         If slab Is Nothing Then

@@ -43,6 +43,16 @@ Public Class NetPayCalculatorTests
     End Sub
 
     <Fact>
+    Public Sub StatutoryDeductions_AreDueEvenWhenPayIsNegative()
+        ' EPF, ESI and PT are owed whatever the pay. Net is zero, the whole shortfall carries forward and the EMI is deferred.
+        Dim r As NetPayResult = NetPayCalculator.Calculate(3000D, 4000D, 0D, 0D, 1000D, 25D)
+        Assert.Equal(0D, r.NetPay)
+        Assert.Equal(1000D, r.CarryForwardOut)
+        Assert.Equal(0D, r.EmiRecovered)
+        Assert.Equal(1000D, r.EmiDeferred)
+    End Sub
+
+    <Fact>
     Public Sub CarryIn_ReducesPay()
         Dim r As NetPayResult = NetPayCalculator.Calculate(10000D, 1000D, 0D, 500D, 0D, 25D)
         Assert.Equal(8500D, r.NetPay)

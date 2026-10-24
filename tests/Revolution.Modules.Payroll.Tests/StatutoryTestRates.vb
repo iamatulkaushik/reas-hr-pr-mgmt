@@ -23,7 +23,7 @@ Friend NotInheritable Class StatutoryTestRates
         Return New WageRule(Start, False, 0D, "test", True, "test")
     End Function
 
-    Friend Shared Function Pt(frequency As PtFrequency, specialMonth As Integer?) As PtRule
+    Friend Shared Function Pt(frequency As PtFrequency, specialMonth As Integer?, Optional dueMonths As IReadOnlyList(Of Integer) = Nothing) As PtRule
         Dim slabs As New List(Of PtSlab) From {
             New PtSlab(0, 1, 0D, 10000D, 0D, Nothing),
             New PtSlab(0, 2, 10001D, 15000D, 150D, Nothing),
@@ -31,6 +31,6 @@ Friend NotInheritable Class StatutoryTestRates
             New PtSlab(2, 1, 0D, 25000D, 0D, Nothing),
             New PtSlab(2, 2, 25001D, Nothing, 200D, 300D)
         }
-        Return New PtRule(1, Start, frequency, specialMonth, True, "test", slabs)
+        Return New PtRule(1, Start, frequency, specialMonth, True, "test", slabs, dueMonths)
     End Function
 End Class

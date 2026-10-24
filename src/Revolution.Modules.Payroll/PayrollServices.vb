@@ -2,16 +2,21 @@ Imports Revolution.Core
 
 ''' <summary>The services of the Payroll module that screens use. Grows as screens ship.</summary>
 Public NotInheritable Class PayrollServices
-    Public Sub New(files As PayrollFileService, rates As IStatutoryRateService, exporter As ITableExporter, bankWriters As IReadOnlyList(Of IBankFileWriter))
+    Public Sub New(salary As SalaryService, files As PayrollFileService, rates As IStatutoryRateService, exporter As ITableExporter, bankWriters As IReadOnlyList(Of IBankFileWriter))
+        If salary Is Nothing Then Throw New ArgumentNullException(NameOf(salary))
         If files Is Nothing Then Throw New ArgumentNullException(NameOf(files))
         If rates Is Nothing Then Throw New ArgumentNullException(NameOf(rates))
         If exporter Is Nothing Then Throw New ArgumentNullException(NameOf(exporter))
         If bankWriters Is Nothing OrElse bankWriters.Count = 0 Then Throw New ArgumentException("At least one bank file writer is needed.", NameOf(bankWriters))
+        Me.Salary = salary
         Me.Files = files
         Me.Rates = rates
         Me.Exporter = exporter
         Me.BankWriters = bankWriters
     End Sub
+
+    ''' <summary>Company pay policy, salary components and effective-dated employee salary.</summary>
+    Public ReadOnly Property Salary As SalaryService
 
     ''' <summary>ECR, ESIC and bank file builders for an approved run.</summary>
     Public ReadOnly Property Files As PayrollFileService
