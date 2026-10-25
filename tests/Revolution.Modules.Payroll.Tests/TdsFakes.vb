@@ -142,6 +142,22 @@ Friend NotInheritable Class FakeTdsRates
         Return OperationResult(Of LabourWelfareRule).Fail("Not used in these tests.")
     End Function
 
+    Public Function GetTdsRuleValue(valueKey As String, asOf As Date) As OperationResult(Of Decimal) Implements IStatutoryRateService.GetTdsRuleValue
+        Return OperationResult(Of Decimal).Fail("Not used in these tests.")
+    End Function
+
+    Public Function GetTdsEmployerNps(asOf As Date, regime As TdsRegime) As OperationResult(Of Decimal) Implements IStatutoryRateService.GetTdsEmployerNps
+        Return OperationResult(Of Decimal).Fail("Not used in these tests.")
+    End Function
+
+    Public Function GetTaxFormNo(purposeKey As String, financialYear As Integer) As OperationResult(Of String) Implements IStatutoryRateService.GetTaxFormNo
+        Return OperationResult(Of String).Fail("Not used in these tests.")
+    End Function
+
+    Public Function GetTaxSectionRef(topicKey As String, financialYear As Integer) As OperationResult(Of String) Implements IStatutoryRateService.GetTaxSectionRef
+        Return OperationResult(Of String).Fail("Not used in these tests.")
+    End Function
+
     Public Function GetMinimumWages(stateId As Integer, asOf As Date) As OperationResult(Of IReadOnlyList(Of MinimumWageRate)) Implements IStatutoryRateService.GetMinimumWages
         Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Fail("Not used in these tests.")
     End Function
