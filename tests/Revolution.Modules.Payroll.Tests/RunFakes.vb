@@ -170,6 +170,14 @@ Friend NotInheritable Class FakeRates
         Return OperationResult(Of HraMetroList).Fail("Not used in these tests.")
     End Function
 
+    Public Function GetTaxFormNo(purposeKey As String, financialYear As Integer) As OperationResult(Of String) Implements IStatutoryRateService.GetTaxFormNo
+        Return OperationResult(Of String).Fail("Not used in these tests.")
+    End Function
+
+    Public Function GetTaxSectionRef(topicKey As String, financialYear As Integer) As OperationResult(Of String) Implements IStatutoryRateService.GetTaxSectionRef
+        Return OperationResult(Of String).Fail("Not used in these tests.")
+    End Function
+
     Public Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As OperationResult(Of LabourWelfareRule) Implements IStatutoryRateService.GetLabourWelfareRule
         Return OperationResult(Of LabourWelfareRule).Fail("Not used in these tests.")
     End Function

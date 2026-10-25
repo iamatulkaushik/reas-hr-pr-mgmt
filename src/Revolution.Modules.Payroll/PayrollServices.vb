@@ -2,11 +2,13 @@ Imports Revolution.Core
 
 ''' <summary>The services of the Payroll module that screens use. Grows as screens ship.</summary>
 Public NotInheritable Class PayrollServices
-    Public Sub New(salary As SalaryService, runs As PayrollRunService, payslips As PayslipService, loans As LoanService, files As PayrollFileService, rates As IStatutoryRateService, exporter As ITableExporter, bankWriters As IReadOnlyList(Of IBankFileWriter))
+    Public Sub New(salary As SalaryService, runs As PayrollRunService, payslips As PayslipService, loans As LoanService, tds As TdsDeclarationService, tdsProjection As TdsProjectionService, files As PayrollFileService, rates As IStatutoryRateService, exporter As ITableExporter, bankWriters As IReadOnlyList(Of IBankFileWriter))
         If salary Is Nothing Then Throw New ArgumentNullException(NameOf(salary))
         If runs Is Nothing Then Throw New ArgumentNullException(NameOf(runs))
         If payslips Is Nothing Then Throw New ArgumentNullException(NameOf(payslips))
         If loans Is Nothing Then Throw New ArgumentNullException(NameOf(loans))
+        If tds Is Nothing Then Throw New ArgumentNullException(NameOf(tds))
+        If tdsProjection Is Nothing Then Throw New ArgumentNullException(NameOf(tdsProjection))
         If files Is Nothing Then Throw New ArgumentNullException(NameOf(files))
         If rates Is Nothing Then Throw New ArgumentNullException(NameOf(rates))
         If exporter Is Nothing Then Throw New ArgumentNullException(NameOf(exporter))
@@ -15,6 +17,8 @@ Public NotInheritable Class PayrollServices
         Me.Runs = runs
         Me.Payslips = payslips
         Me.Loans = loans
+        Me.Tds = tds
+        Me.TdsProjection = tdsProjection
         Me.Files = files
         Me.Rates = rates
         Me.Exporter = exporter
@@ -32,6 +36,12 @@ Public NotInheritable Class PayrollServices
 
     ''' <summary>Loan types, sanction with schedule, cancel and list.</summary>
     Public ReadOnly Property Loans As LoanService
+
+    ''' <summary>TDS declarations (Form 124): regime, deductions, HRA rent, previous employer.</summary>
+    Public ReadOnly Property Tds As TdsDeclarationService
+
+    ''' <summary>The year's tax and this month's TDS for one employee. The payroll run uses it from Phase 6 step 5.</summary>
+    Public ReadOnly Property TdsProjection As TdsProjectionService
 
     ''' <summary>ECR, ESIC and bank file builders for an approved run.</summary>
     Public ReadOnly Property Files As PayrollFileService

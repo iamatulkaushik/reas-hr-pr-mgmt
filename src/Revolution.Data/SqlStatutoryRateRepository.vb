@@ -235,6 +235,38 @@ Public NotInheritable Class SqlStatutoryRateRepository
         End Using
     End Function
 
+    Public Function GetTaxForm(purposeKey As String, financialYear As Integer) As TaxReference Implements IStatutoryRateRepository.GetTaxForm
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TaxForm_Get")
+                cmd.Parameters.Add("@PurposeKey", SqlDbType.NVarChar, 30).Value = purposeKey
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    Return ReadReference(r, purposeKey, "FormNo", Text(r, "Title"))
+                End Using
+            End Using
+        End Using
+    End Function
+
+    Public Function GetTaxSectionRef(topicKey As String, financialYear As Integer) As TaxReference Implements IStatutoryRateRepository.GetTaxSectionRef
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TaxSectionRef_Get")
+                cmd.Parameters.Add("@TopicKey", SqlDbType.NVarChar, 30).Value = topicKey
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    Return ReadReference(r, topicKey, "SectionRef", String.Empty)
+                End Using
+            End Using
+        End Using
+    End Function
+
+    Private Shared Function ReadReference(r As SqlDataReader, key As String, valueColumn As String, title As String) As TaxReference
+        Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+        Return New TaxReference(key, CInt(r.GetInt16(r.GetOrdinal("FromFinancialYear"))), Text(r, valueColumn), title, r.GetBoolean(r.GetOrdinal("Verified")),
+                                If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef"))
+    End Function
+
     Public Function IsVerificationRequired() As Boolean Implements IStatutoryRateRepository.IsVerificationRequired
         Using conn = _factory.Open()
             Using cmd = StoredProcedure.CreateCommand(conn, "cfg.usp_Setting_Get")

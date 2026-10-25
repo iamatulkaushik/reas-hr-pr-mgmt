@@ -10,8 +10,8 @@ Both regimes as options per employee. TDS spread equally over the remaining mont
 |---|---|---|---|
 | 1 | `TdsCalculator` (pure, no database). **Done 2026-10-25**, 25 tests | Payroll module | Nothing: rules come in as `TdsRule` |
 | 2 | `HraExemptionCalculator`. **Done 2026-10-25**, 14 tests | Payroll module | `HraMetroList` from Sigma; rent share and PAN threshold need a stat home (CR 0018 addendum) |
-| 3 | Declaration tables and procs, migrations 0312 onward | Payroll database | None |
-| 4 | `TdsDeclarationService`, `TdsProjectionService` | Payroll module | 1 to 3 |
+| 3 | Declaration tables and procs, migrations 0312 to 0314. **Written 2026-10-25, not run** (no SQL Server here; Windows CI runs the isolation test) | Payroll database | None |
+| 4 | `TdsDeclarationService`, `TdsProjectionService`, `SqlTdsRepository`, wiring in `PayrollServices` and `PayrollModule`. **Done 2026-10-25**, 78 new tests; the SQL repository and wiring are not compiled here (SqlClient) | Payroll module | 1 to 3 |
 | 5 | Hook into the payroll run line: monthly TDS amount | Payroll run service | 4 |
 | 6 | Form 130 data, Form 138 data, FVU-ready file | Payroll module | CA answers 4 and 5 of CR 0018 |
 
@@ -28,6 +28,12 @@ Both regimes as options per employee. TDS spread equally over the remaining mont
 
 ## New tables (migrations 0312 onward, no CompanyID except through the employee)
 `pay.TdsDeclaration` (employee, financial year, regime, status Draft / Submitted / Locked). `pay.TdsDeclarationItem` (section code, sub-limit key, declared amount, proof reference, verified amount). `pay.TdsHraRent` (employee, FY, months, monthly rent, city, landlord name, **landlord relationship**, landlord PAN, required above 1,00,000 a year: Form 124). `pay.TdsPrevEmployer` (income, perquisites, TDS, PF, PT). `pay.TdsMonthLine` (run line, projected annual tax, TDS this month). Landlord PAN is encrypted like other identifiers (ADR 0011). Proof files are stored as references only.
+
+## Migrations written
+0312 tables (`TdsDeclaration`, `TdsDeclarationItem`, `TdsHraRent`, `TdsPrevEmployer`, `TdsMonthLine`). 0313 tenant policy. 0314 procs: declaration Get, Save, SetStatus; item List and Replace; rent List and Replace (landlord PAN arrives already encrypted, month ranges checked inside the financial year, no overlap); previous employer Get, Save, Clear. Errors 50340 to 50345. `TdsMonthLine` procs come with step 5 (0315).
+
+## Step 4 rules to confirm with the CA
+A deduction item counts at its verified amount when proof was checked, otherwise its declared amount. A previous employer's provident fund and professional tax are not added to deductions automatically; the Associate declares them as items. No declaration means the new regime. Projection uses the first day of the run month for rate dates. Two flagged constants wait for `stat.TdsRuleValue`: `HraRentSharePct` (10) and `LandlordPanRentThreshold` (1,00,000).
 
 ## Not in this phase
 Full and final tax and arrears (Phase 7). Perquisite valuation tables beyond what the Owner enables. Employee portal.

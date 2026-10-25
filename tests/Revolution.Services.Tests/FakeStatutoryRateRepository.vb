@@ -68,6 +68,22 @@ Friend NotInheritable Class FakeStatutoryRateRepository
         Return Tds
     End Function
 
+    Public Property TaxForm As TaxReference
+    Public Property TaxSectionRef As TaxReference
+    Public Property LastKey As String
+
+    Public Function GetTaxForm(purposeKey As String, financialYear As Integer) As TaxReference Implements IStatutoryRateRepository.GetTaxForm
+        LastKey = purposeKey
+        LastFinancialYear = financialYear
+        Return TaxForm
+    End Function
+
+    Public Function GetTaxSectionRef(topicKey As String, financialYear As Integer) As TaxReference Implements IStatutoryRateRepository.GetTaxSectionRef
+        LastKey = topicKey
+        LastFinancialYear = financialYear
+        Return TaxSectionRef
+    End Function
+
     Public Function IsVerificationRequired() As Boolean Implements IStatutoryRateRepository.IsVerificationRequired
         Return VerificationRequired
     End Function

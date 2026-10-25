@@ -23,6 +23,16 @@ Public Interface IStatutoryRateService
     ''' required, when any row is not signed off. A city that is not listed gets the percentage of the "*" row.
     ''' </summary>
     Function GetHraMetroList(asOf As Date) As OperationResult(Of HraMetroList)
+    ''' <summary>
+    ''' The number of the form used for a purpose (DECLARATION, SALARY_CERT, SALARY_RETURN, PREV_EMPLOYER) in a financial year, given as its start year
+    ''' (2026 means 2026-27). Fails when there is no row or, while verification is required, the row is not signed off. Never typed in screens.
+    ''' </summary>
+    Function GetTaxFormNo(purposeKey As String, financialYear As Integer) As OperationResult(Of String)
+    ''' <summary>
+    ''' The section reference for a topic (SALARY_TDS, DEDUCTION_INVEST, NPS, HEALTH_INSURANCE, SAVINGS_INTEREST, NEW_REGIME, REBATE) in a financial year,
+    ''' given as its start year. Fails when there is no row or, while verification is required, the row is not signed off.
+    ''' </summary>
+    Function GetTaxSectionRef(topicKey As String, financialYear As Integer) As OperationResult(Of String)
     ''' <summary>The labour welfare fund rule of the state in force on the date. Fails when there is none or the CA has not signed it off; never returns a default.</summary>
     Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As OperationResult(Of LabourWelfareRule)
     ''' <summary>

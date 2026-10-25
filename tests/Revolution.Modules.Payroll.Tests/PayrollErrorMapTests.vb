@@ -20,6 +20,9 @@ Public Class PayrollErrorMapTests
     <InlineData(50324)>
     <InlineData(50328)>
     <InlineData(50329)>
+    <InlineData(50340)>
+    <InlineData(50343)>
+    <InlineData(50345)>
     Public Sub RuleNumbers_KeepProcedureText(number As Integer)
         Assert.Equal("Text from the procedure.", PayrollErrorMap.Translate(number, "Text from the procedure."))
     End Sub

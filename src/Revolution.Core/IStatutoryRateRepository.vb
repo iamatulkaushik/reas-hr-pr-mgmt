@@ -15,6 +15,10 @@ Public Interface IStatutoryRateRepository
     Function GetTdsDeductionLimits(financialYear As Integer, regime As TdsRegime) As IReadOnlyList(Of TdsDeductionLimit)
     ''' <summary>The HRA city rows in force on the date (all rows of the latest list on or before it), or an empty list.</summary>
     Function GetHraCities(asOf As Date) As IReadOnlyList(Of HraCity)
+    ''' <summary>The form row for the purpose in force in the financial year (latest FromFinancialYear on or before it), or Nothing.</summary>
+    Function GetTaxForm(purposeKey As String, financialYear As Integer) As TaxReference
+    ''' <summary>The section reference row for the topic in force in the financial year (latest FromFinancialYear on or before it), or Nothing.</summary>
+    Function GetTaxSectionRef(topicKey As String, financialYear As Integer) As TaxReference
     ''' <summary>The cfg.Setting RateVerificationRequired. True when the setting is missing, so the safe answer is the default.</summary>
     Function IsVerificationRequired() As Boolean
     ''' <summary>The labour welfare rule of a state in force on the date, or Nothing when there is none.</summary>

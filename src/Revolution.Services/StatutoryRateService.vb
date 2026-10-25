@@ -138,6 +138,33 @@ Public NotInheritable Class StatutoryRateService
         Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Ok(rows)
     End Function
 
+    Public Function GetTaxFormNo(purposeKey As String, financialYear As Integer) As OperationResult(Of String) Implements IStatutoryRateService.GetTaxFormNo
+        RequireKey(purposeKey)
+        Return CheckReference(_repository.GetTaxForm(purposeKey, financialYear), $"form number for {purposeKey}", financialYear)
+    End Function
+
+    Public Function GetTaxSectionRef(topicKey As String, financialYear As Integer) As OperationResult(Of String) Implements IStatutoryRateService.GetTaxSectionRef
+        RequireKey(topicKey)
+        Return CheckReference(_repository.GetTaxSectionRef(topicKey, financialYear), $"section reference for {topicKey}", financialYear)
+    End Function
+
+    Private Shared Sub RequireKey(key As String)
+        If String.IsNullOrWhiteSpace(key) Then
+            Throw New ArgumentException("A purpose or topic key is needed.", NameOf(key))
+        End If
+    End Sub
+
+    Private Function CheckReference(row As TaxReference, label As String, financialYear As Integer) As OperationResult(Of String)
+        Dim year = FinancialYearCalendar.Label(financialYear)
+        If row Is Nothing OrElse String.IsNullOrWhiteSpace(row.Value) Then
+            Return OperationResult(Of String).Fail($"No {label} is set for financial year {year}. Ask the CA to add one.")
+        End If
+        If _repository.IsVerificationRequired() AndAlso Not row.Verified Then
+            Return OperationResult(Of String).Fail($"The {label} for financial year {year} has not been verified by the CA.")
+        End If
+        Return OperationResult(Of String).Ok(row.Value)
+    End Function
+
     Private Function Check(Of T As Class)(row As T, verified As Boolean?, label As String, asOf As Date, effectiveFrom As Date?) As OperationResult(Of T)
         If row Is Nothing Then
             Return OperationResult(Of T).Fail($"No {label} is set for {Format(asOf)}. Ask the CA to add one.")
