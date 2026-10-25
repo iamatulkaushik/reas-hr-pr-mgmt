@@ -68,6 +68,22 @@ Friend NotInheritable Class FakeStatutoryRateRepository
         Return Tds
     End Function
 
+    Public Property RuleValue As TdsRuleValue
+
+    Public Function GetTdsRuleValue(valueKey As String, financialYear As Integer) As TdsRuleValue Implements IStatutoryRateRepository.GetTdsRuleValue
+        LastKey = valueKey
+        LastFinancialYear = financialYear
+        Return RuleValue
+    End Function
+
+    Public Property EmployerNps As TdsEmployerNps
+
+    Public Function GetTdsEmployerNps(financialYear As Integer, regime As TdsRegime) As TdsEmployerNps Implements IStatutoryRateRepository.GetTdsEmployerNps
+        LastFinancialYear = financialYear
+        LastRegime = regime
+        Return EmployerNps
+    End Function
+
     Public Property TaxForm As TaxReference
     Public Property TaxSectionRef As TaxReference
     Public Property LastKey As String

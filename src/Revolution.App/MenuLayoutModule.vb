@@ -25,12 +25,17 @@ Public NotInheritable Class MenuLayoutModule
     Private Const DesignationScreen As String = "masters.designation"
     Private Const DailyAttendanceScreen As String = "attendance.daily"
     Private Const MonthCloseScreen As String = "attendance.monthclose"
+    Private Const ShiftScreen As String = "attendance.roster.shifts"
+    Private Const HolidayScreen As String = "attendance.roster.holidays"
+    Private Const WeeklyOffScreen As String = "attendance.roster.weeklyoff"
+    Private Const ShiftAssignScreen As String = "attendance.roster.assign"
     Private Const EcrScreen As String = "payroll.export.ecr"
     Private Const EsicScreen As String = "payroll.export.esic"
     Private Const BankScreen As String = "payroll.export.bank"
 
     Private ReadOnly _screens As Dictionary(Of String, ShellItem)
     Private ReadOnly _items As New List(Of ShellItem)()
+    Private ReadOnly _placedScreens As New HashSet(Of String)(StringComparer.Ordinal)
 
     ''' <param name="sources">The feature modules whose screens may be placed in the menu.</param>
     Public Sub New(sources As IEnumerable(Of IShellModule))
@@ -40,6 +45,7 @@ Public NotInheritable Class MenuLayoutModule
         AddEmployee()
         AddAttendance()
         AddPayroll()
+        RejectScreensWithoutPosition()
     End Sub
 
     Public ReadOnly Property Items As IReadOnlyList(Of ShellItem) Implements IShellModule.Items
@@ -52,12 +58,13 @@ Public NotInheritable Class MenuLayoutModule
         AddPlanned("master.company.basic", CompanyGroup, "Basic", ModuleKey.Masters, Nothing, 100)
         AddPlanned("master.company.statutory", CompanyGroup, "Statutory / Banking", ModuleKey.Masters, Nothing, 110)
         AddScreen("master.company.units", UnitsGroup, "Units", ModuleKey.Masters, Nothing, 120, FactoryScreen)
-        AddPlanned("master.company.shifts", UnitsGroup, "Shifts", ModuleKey.Masters, Nothing, 130)
+        ' Shifts and Holidays sit under Master as agreed but belong to the Attendance module, so they follow its permission and plan feature.
+        AddScreen("master.company.shifts", UnitsGroup, "Shifts", ModuleKey.Attendance, PlanFeature.Attendance, 130, ShiftScreen)
         AddPlanned("master.company.shut", CompanyGroup, "Shut", ModuleKey.Masters, Nothing, 140)
         AddScreen("master.department", MasterGroup, "Department", ModuleKey.Masters, Nothing, 150, DepartmentScreen)
         AddScreen("master.designation", MasterGroup, "Designation", ModuleKey.Masters, Nothing, 160, DesignationScreen)
         AddPlanned("master.dailywages", MasterGroup, "Daily Wages", ModuleKey.Masters, Nothing, 170)
-        AddPlanned("master.holidays", MasterGroup, "Holidays", ModuleKey.Masters, Nothing, 180)
+        AddScreen("master.holidays", MasterGroup, "Holidays", ModuleKey.Attendance, PlanFeature.Attendance, 180, HolidayScreen)
     End Sub
 
     Private Sub AddEmployee()
@@ -83,6 +90,9 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("attendance.update", AttendanceGroup, "Update", ModuleKey.Attendance, feature, 330, DailyAttendanceScreen)
         ' Not in the agreed list, kept because payroll needs the month lock.
         AddScreen("attendance.monthclose", AttendanceGroup, "Month close", ModuleKey.Attendance, feature, 340, MonthCloseScreen)
+        ' Not in the agreed list either: the screens exist and the roster needs them (weekly off days, and who works which shift).
+        AddScreen("attendance.weeklyoff", AttendanceGroup, "Weekly off", ModuleKey.Attendance, feature, 350, WeeklyOffScreen)
+        AddScreen("attendance.shiftassign", AttendanceGroup, "Shift assignment", ModuleKey.Attendance, feature, 360, ShiftAssignScreen)
     End Sub
 
     ''' <summary>
@@ -95,6 +105,17 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("payroll.export.bank", ExportGroup, "Bank file", ModuleKey.Payroll, PlanFeature.BankFiles, 420, BankScreen)
     End Sub
 
+    ''' <summary>
+    ''' Every screen a feature module offers must have a menu position, so a finished screen cannot be left out of the dashboard menu.
+    ''' A missing position is a programming error found at start-up, like a duplicate key.
+    ''' </summary>
+    Private Sub RejectScreensWithoutPosition()
+        Dim unplaced = _screens.Keys.Where(Function(key) Not _placedScreens.Contains(key)).ToList()
+        If unplaced.Count > 0 Then
+            Throw New InvalidOperationException("These screens have no menu position in MenuLayoutModule: " & String.Join(", ", unplaced))
+        End If
+    End Sub
+
     ''' <summary>A position with a screen. When the module that offers the screen is not registered the position is shown as planned.</summary>
     Private Sub AddScreen(key As String, group As String, title As String, moduleKey As ModuleKey, feature As PlanFeature?,
                        sortOrder As Integer, screenKey As String)
@@ -102,6 +123,7 @@ Public NotInheritable Class MenuLayoutModule
         Dim source As ShellItem = Nothing
         If _screens.TryGetValue(screenKey, source) Then
             _items.Add(New ShellItem(entry, source.OpenScreen))
+            _placedScreens.Add(screenKey)
         Else
             _items.Add(ShellItem.Planned(entry))
         End If

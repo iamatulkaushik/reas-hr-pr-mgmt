@@ -1,6 +1,6 @@
 # ADR 0005: Crystal Reports on .NET 10
 
-Status: **open. Spike started, not yet valid (see review below).** Owner: Brave runs the spike, Sigma reviews.
+Status: **open. ReportStudio proposed as the replacement for Crystal (see 2026-10-25 below); the Owner decides after a Windows spike.** Owner: Brave runs the spike, Sigma reviews.
 
 Question: does the current SAP Crystal Reports runtime for .NET run inside a net10.0-windows WinForms app?
 
@@ -26,3 +26,26 @@ Brave: please do not change the project shape (target, packages) without Sigma's
 
 ## Update 2026-10-24
 Atul (Owner) is looking for a current, up-to-date alternative to Crystal Reports before the redistribution terms are chased. Decision pending. Until then: no new Crystal-specific work, and the report data procedures (`rpt.*`) stay as they are, because any report tool reads the same procedures. Brave's report code should stay behind the existing reporting interfaces so the tool can change.
+
+## Proposal 2026-10-25: ReportStudio instead of Crystal (Sigma, for the Owner's decision)
+Atul supplied ReportStudio (a stand-alone C# report designer, viewer and exporter; `.rsr` JSON layouts; PDF, Excel and Word output) as the alternative.
+
+**What was checked.** Its Core engine (model, expressions, layout, sample data) compiles on .NET 10 and its 14 engine tests pass. Export, viewer and designer were not built (no package source in the review environment). Its own notes say it was never compiled on Windows. So this is a proposal, not a verdict.
+
+**Why it fits.** The data path already decided in ADR 0012 is "the app runs the `rpt` procedure on its own tenant-safe connection and hands the report tool the rows". ReportStudio's engine takes pre-loaded rows, so the same path works and tenant isolation (SESSION_CONTEXT and row-level security) stays in our Data layer. It has no licence fee and no redistribution question, which is what ADR 0013 and ADR 0018 were still waiting on for Crystal. It has bands, groups, aggregates, page numbers, and PDF, Excel and Word export. It is a separate C# library; VB.NET calls it as any assembly.
+
+**Conditions (the change list sent to its developer, `docs/reportstudio-change-request-for-developer.md`).**
+1. Build on net10.0 and net10.0-windows, 0 warnings, tests in CI.
+2. A `Host` data source: no query and no connection string in a layout when used by the HRMS. A layout names fields only. This keeps ADR 0001 (stored procedures only) and guard 1 (no SQL outside `database/migrations`).
+3. Database drivers move out of Core into an optional project.
+4. Page numbers restart per group (one payslip per employee).
+5. Headless `ToPdf` and Excel output for bulk payslips and e-mail.
+6. Indian number format, dd-MM-yyyy dates, amount in words, a field schema in the layout, Segoe UI, embedded fonts, sample payslip and certificate reports.
+
+**Spike (replaces the Crystal spike; Brave, on a Windows machine, Sigma reviews).** Pass when: the solution builds with 0 warnings; one payslip layout runs from rows given by a test host; it previews, prints and exports to PDF; a bulk run of 50 payslips gives 50 PDFs with page numbers restarting; a Form 130 style certificate lays out on one page; the layout file holds no query or connection string. Record the verdict, the version and how it ships here.
+
+**If it passes.** ReportStudio is the report tool. Then Sigma updates `README.md`, `CLAUDE.md`, `docs/PLAN.md` (stack line, Phase 0 gate and risks), ADR 0001, `docs/phase5-plan-sigma.md` and `docs/reports-payroll-data.md`; `Revolution.ReportViewer` (net481, Crystal COM) is removed from the solution and the CI note above is dropped. The `rpt.*` procedures do not change. Brave wraps it in `Revolution.Reports` behind the existing reporting interfaces.
+
+**If it fails.** The question reopens: Crystal in the .NET Framework 4.8 helper (the fallback above) once the Owner has the redistribution terms in writing, or another tool.
+
+**Until the Owner decides.** No new Crystal-specific work, and no ReportStudio code in the main solution. Nothing in this proposal changes ADR 0001, `CLAUDE.md` or the plan yet.

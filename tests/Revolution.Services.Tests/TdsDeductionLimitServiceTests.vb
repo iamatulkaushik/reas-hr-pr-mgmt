@@ -33,10 +33,17 @@ Public Class TdsDeductionLimitServiceTests
     End Sub
 
     <Fact>
-    Public Sub GetTdsDeductionLimits_Fails_WhenThereAreNoRows()
-        Dim result = New StatutoryRateService(RepoWith()).GetTdsDeductionLimits(AsOf, TdsRegime.New)
+    Public Sub GetTdsDeductionLimits_Fails_WhenThereAreNoRows_ForTheOldRegime()
+        Dim result = New StatutoryRateService(RepoWith()).GetTdsDeductionLimits(AsOf, TdsRegime.Old)
         Assert.False(result.Succeeded)
         Assert.NotEqual(String.Empty, result.Message)
+    End Sub
+
+    <Fact>
+    Public Sub GetTdsDeductionLimits_ReturnsAnEmptyList_WhenThereAreNoRows_ForTheNewRegime()
+        Dim result = New StatutoryRateService(RepoWith()).GetTdsDeductionLimits(AsOf, TdsRegime.New)
+        Assert.True(result.Succeeded)
+        Assert.Empty(result.Value)
     End Sub
 
     <Fact>

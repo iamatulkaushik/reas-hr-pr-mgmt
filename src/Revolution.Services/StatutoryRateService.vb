@@ -57,6 +57,10 @@ Public NotInheritable Class StatutoryRateService
         Dim label = $"TDS deduction limits for {If(regime = TdsRegime.Old, "the old", "the new")} regime, financial year {FinancialYearCalendar.Label(year)}"
         Dim rows = _repository.GetTdsDeductionLimits(year, regime)
         If rows Is Nothing OrElse rows.Count = 0 Then
+            If regime = TdsRegime.New Then
+                ' The new regime allows no deductions, so an empty list is the answer (CR 0018): the calculator allows nothing, never "unlimited".
+                Return OperationResult(Of IReadOnlyList(Of TdsDeductionLimit)).Ok(New List(Of TdsDeductionLimit)())
+            End If
             Return OperationResult(Of IReadOnlyList(Of TdsDeductionLimit)).Fail($"No {label} are set. Ask the CA to add them.")
         End If
         If _repository.IsVerificationRequired() Then
@@ -136,6 +140,33 @@ Public NotInheritable Class StatutoryRateService
             Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Fail($"The minimum wage from {Format(rows.Min(Function(row) row.EffectiveFrom))} has not been fully verified by the CA.")
         End If
         Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Ok(rows)
+    End Function
+
+    Public Function GetTdsRuleValue(valueKey As String, asOf As Date) As OperationResult(Of Decimal) Implements IStatutoryRateService.GetTdsRuleValue
+        RequireKey(valueKey)
+        Dim year = FinancialYearCalendar.StartYear(asOf)
+        Dim label = $"tax rule value {valueKey.Trim()} for financial year {FinancialYearCalendar.Label(year)}"
+        Dim row = _repository.GetTdsRuleValue(valueKey.Trim(), year)
+        If row Is Nothing Then
+            Return OperationResult(Of Decimal).Fail($"No {label} is set. Ask the CA to add it.")
+        End If
+        If _repository.IsVerificationRequired() AndAlso Not row.Verified Then
+            Return OperationResult(Of Decimal).Fail($"The {label} has not been verified by the CA.")
+        End If
+        Return OperationResult(Of Decimal).Ok(row.Amount)
+    End Function
+
+    Public Function GetTdsEmployerNps(asOf As Date, regime As TdsRegime) As OperationResult(Of Decimal) Implements IStatutoryRateService.GetTdsEmployerNps
+        Dim year = FinancialYearCalendar.StartYear(asOf)
+        Dim label = $"employer NPS percent for {If(regime = TdsRegime.Old, "the old", "the new")} regime, financial year {FinancialYearCalendar.Label(year)}"
+        Dim row = _repository.GetTdsEmployerNps(year, regime)
+        If row Is Nothing Then
+            Return OperationResult(Of Decimal).Fail($"No {label} is set. Ask the CA to add it.")
+        End If
+        If _repository.IsVerificationRequired() AndAlso Not row.Verified Then
+            Return OperationResult(Of Decimal).Fail($"The {label} has not been verified by the CA.")
+        End If
+        Return OperationResult(Of Decimal).Ok(row.PctOfBasicDa)
     End Function
 
     Public Function GetTaxFormNo(purposeKey As String, financialYear As Integer) As OperationResult(Of String) Implements IStatutoryRateService.GetTaxFormNo

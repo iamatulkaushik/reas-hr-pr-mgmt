@@ -14,8 +14,9 @@ Public Interface IStatutoryRateService
     ''' <summary>The income tax rule for the financial year the date falls in. Fails when missing, without slabs, or not signed off.</summary>
     Function GetTdsRule(asOf As Date, regime As TdsRegime, ageBand As TdsAgeBand) As OperationResult(Of TdsRule)
     ''' <summary>
-    ''' The deduction limits for the financial year the date falls in and the regime. Fails when there are none or, while verification is required,
-    ''' when any row is not signed off. A section that is not in the list is not allowed (treat as zero).
+    ''' The deduction limits for the financial year the date falls in and the regime. Fails when there are none (old regime) or, while verification is
+    ''' required, when any row is not signed off. The new regime allows no deductions, so no rows is a valid empty list there. A section that is not in
+    ''' the list is not allowed (treat as zero), never unlimited.
     ''' </summary>
     Function GetTdsDeductionLimits(asOf As Date, regime As TdsRegime) As OperationResult(Of IReadOnlyList(Of TdsDeductionLimit))
     ''' <summary>
@@ -23,6 +24,17 @@ Public Interface IStatutoryRateService
     ''' required, when any row is not signed off. A city that is not listed gets the percentage of the "*" row.
     ''' </summary>
     Function GetHraMetroList(asOf As Date) As OperationResult(Of HraMetroList)
+    ''' <summary>
+    ''' A single tax rule number by key (HRA_RENT_SHARE_PCT, LANDLORD_PAN_RENT) in force in the financial year the date falls in: a percent or a rupee amount, as
+    ''' the key says. Fails when there is no row or, while verification is required, the row is not signed off. Never typed in code.
+    ''' </summary>
+    Function GetTdsRuleValue(valueKey As String, asOf As Date) As OperationResult(Of Decimal)
+    ''' <summary>
+    ''' The percent of basic plus DA that an employer's NPS contribution may be exempt from TDS (section 80CCD(2)) in the financial year the date falls in
+    ''' and the regime, for example 14. Fails when there is no row or, while verification is required, the row is not signed off. The payroll module works
+    ''' out the rupee cap from the percent.
+    ''' </summary>
+    Function GetTdsEmployerNps(asOf As Date, regime As TdsRegime) As OperationResult(Of Decimal)
     ''' <summary>
     ''' The number of the form used for a purpose (DECLARATION, SALARY_CERT, SALARY_RETURN, PREV_EMPLOYER) in a financial year, given as its start year
     ''' (2026 means 2026-27). Fails when there is no row or, while verification is required, the row is not signed off. Never typed in screens.

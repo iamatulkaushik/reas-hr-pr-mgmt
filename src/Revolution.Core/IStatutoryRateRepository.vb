@@ -15,6 +15,10 @@ Public Interface IStatutoryRateRepository
     Function GetTdsDeductionLimits(financialYear As Integer, regime As TdsRegime) As IReadOnlyList(Of TdsDeductionLimit)
     ''' <summary>The HRA city rows in force on the date (all rows of the latest list on or before it), or an empty list.</summary>
     Function GetHraCities(asOf As Date) As IReadOnlyList(Of HraCity)
+    ''' <summary>The rule value row for the key in force in the financial year (latest FromFinancialYear on or before it), or Nothing.</summary>
+    Function GetTdsRuleValue(valueKey As String, financialYear As Integer) As TdsRuleValue
+    ''' <summary>The employer NPS percent row for the financial year (start year) and regime, or Nothing.</summary>
+    Function GetTdsEmployerNps(financialYear As Integer, regime As TdsRegime) As TdsEmployerNps
     ''' <summary>The form row for the purpose in force in the financial year (latest FromFinancialYear on or before it), or Nothing.</summary>
     Function GetTaxForm(purposeKey As String, financialYear As Integer) As TaxReference
     ''' <summary>The section reference row for the topic in force in the financial year (latest FromFinancialYear on or before it), or Nothing.</summary>

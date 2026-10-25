@@ -235,6 +235,36 @@ Public NotInheritable Class SqlStatutoryRateRepository
         End Using
     End Function
 
+    Public Function GetTdsRuleValue(valueKey As String, financialYear As Integer) As TdsRuleValue Implements IStatutoryRateRepository.GetTdsRuleValue
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TdsRuleValue_Get")
+                cmd.Parameters.Add("@ValueKey", SqlDbType.NVarChar, 40).Value = valueKey
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                    Return New TdsRuleValue(valueKey, CInt(r.GetInt16(r.GetOrdinal("FromFinancialYear"))), r.GetDecimal(r.GetOrdinal("Amount")), Text(r, "Note"),
+                                            r.GetBoolean(r.GetOrdinal("Verified")), If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef"))
+                End Using
+            End Using
+        End Using
+    End Function
+
+    Public Function GetTdsEmployerNps(financialYear As Integer, regime As TdsRegime) As TdsEmployerNps Implements IStatutoryRateRepository.GetTdsEmployerNps
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TdsEmployerNps_Get")
+                cmd.Parameters.Add("@FinancialYear", SqlDbType.SmallInt).Value = CShort(financialYear)
+                cmd.Parameters.Add("@RegimeID", SqlDbType.TinyInt).Value = CByte(regime)
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                    Return New TdsEmployerNps(financialYear, regime, r.GetDecimal(r.GetOrdinal("PctOfBasicDa")), Text(r, "Note"), r.GetBoolean(r.GetOrdinal("Verified")),
+                                              If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef"))
+                End Using
+            End Using
+        End Using
+    End Function
+
     Public Function GetTaxForm(purposeKey As String, financialYear As Integer) As TaxReference Implements IStatutoryRateRepository.GetTaxForm
         Using conn = _factory.Open()
             Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_TaxForm_Get")
