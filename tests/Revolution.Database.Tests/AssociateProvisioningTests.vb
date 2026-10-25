@@ -5,6 +5,7 @@ Imports Xunit
 ''' ADR 0013 in a real database: an Associate links to companies, the app can create a company and an Owner login only through the
 ''' two Associate procedures, and those procedures check the caller in the database. Needs HRMS_TEST_CONNECTION (see Db).
 ''' </summary>
+<Collection("Associate provisioning")>
 Public Class AssociateProvisioningTests
     Implements IClassFixture(Of SeedFixture)
 
@@ -18,8 +19,10 @@ Public Class AssociateProvisioningTests
         Return Guid.NewGuid().ToString("N").Substring(0, 8)
     End Function
 
+    ''' <summary>Migration 0027: the trial allows one unlicensed Associate, so the Associates of earlier tests are deactivated first.</summary>
     Private Shared Function CreateAssociate(tag As String) As Integer
         Using admin = Db.Open()
+            Db.Execute(admin, "UPDATE sec.[User] SET IsActive = 0 WHERE RoleID = 3 AND IsActive = 1 AND UserName LIKE 'assoc[_]%'")
             Return CInt(Db.Proc(admin, "sec.usp_User_Create", ("@UserName", "assoc_" & tag), ("@CompanyID", CType(Nothing, Object)),
                                 ("@RoleID", CByte(3)), ("@PasswordHash", New Byte(31) {}), ("@PasswordSalt", New Byte(15) {}),
                                 ("@Iterations", 1), ("@MustChangePassword", False))(0))

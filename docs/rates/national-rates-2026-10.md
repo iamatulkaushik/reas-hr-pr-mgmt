@@ -51,3 +51,6 @@ UPDATE stat.EpfRate SET Verified = 1, VerifiedOn = '<yyyy-mm-dd>', SourceRef = S
 -- same for stat.EsiRate (2019-07-01), stat.WageRule (2025-11-21), stat.TdsParam (FinancialYear 2026, RegimeID 1 and 2)
 ```
 Until then, for development only, a Developer can set the `RateVerificationRequired` setting to 0 in the test database. Never in a pilot or production database.
+
+## Sign-off status (updated 2026-10-24)
+CA Vijay Tyagi signed all rows of the verification pack on 24-10-2026. Migration 0411 sets `Verified = 1` for the rows in parts A to F (EPF, ESI, wage rule, TDS FY 2026 both regimes, Haryana labour welfare, Haryana minimum wage). The record is in `docs/ca-signoff/ca-signoff-record-2026-10-24.md`. The open questions in part G are not covered and nothing for them is loaded.

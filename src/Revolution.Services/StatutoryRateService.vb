@@ -122,6 +122,22 @@ Public NotInheritable Class StatutoryRateService
         End Select
     End Function
 
+    Public Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As OperationResult(Of LabourWelfareRule) Implements IStatutoryRateService.GetLabourWelfareRule
+        Dim rule = _repository.GetLabourWelfareRule(stateId, asOf)
+        Return Check(rule, rule?.Verified, "labour welfare rule", asOf, rule?.EffectiveFrom)
+    End Function
+
+    Public Function GetMinimumWages(stateId As Integer, asOf As Date) As OperationResult(Of IReadOnlyList(Of MinimumWageRate)) Implements IStatutoryRateService.GetMinimumWages
+        Dim rows = _repository.GetMinimumWages(stateId, asOf)
+        If rows Is Nothing OrElse rows.Count = 0 Then
+            Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Fail($"No minimum wage is set for {Format(asOf)}. Ask the CA to add one.")
+        End If
+        If _repository.IsVerificationRequired() AndAlso rows.Any(Function(row) Not row.Verified) Then
+            Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Fail($"The minimum wage from {Format(rows.Min(Function(row) row.EffectiveFrom))} has not been fully verified by the CA.")
+        End If
+        Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Ok(rows)
+    End Function
+
     Private Function Check(Of T As Class)(row As T, verified As Boolean?, label As String, asOf As Date, effectiveFrom As Date?) As OperationResult(Of T)
         If row Is Nothing Then
             Return OperationResult(Of T).Fail($"No {label} is set for {Format(asOf)}. Ask the CA to add one.")

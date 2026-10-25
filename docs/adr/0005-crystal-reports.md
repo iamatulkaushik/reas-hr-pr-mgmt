@@ -23,3 +23,6 @@ Brave: please do not change the project shape (target, packages) without Sigma's
 
 ## CI note (Sigma, 2026-10-14, approved by owner)
 `Revolution.ReportViewer` (net481, Crystal COM references, SAP install path) cannot build on the `windows-latest` runner. CI skips it: `.github/workflows/ci.yml` builds and tests every other project one by one. It stays in `Revolution.slnx`, so build it locally where Crystal is installed. Revisit when the spike gives a verdict (a build without COM references could return to CI).
+
+## Update 2026-10-24
+Atul (Owner) is looking for a current, up-to-date alternative to Crystal Reports before the redistribution terms are chased. Decision pending. Until then: no new Crystal-specific work, and the report data procedures (`rpt.*`) stay as they are, because any report tool reads the same procedures. Brave's report code should stay behind the existing reporting interfaces so the tool can change.

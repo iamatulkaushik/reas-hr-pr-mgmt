@@ -7,6 +7,7 @@ Imports Revolution.Core
 ''' </summary>
 Public NotInheritable Class EmployeeExportReleaser
     Implements IExportIdReleaser
+    Implements IPayslipIdReleaser
 
     Private ReadOnly _export As Revolution.Modules.Employees.EmployeeExportService
 
@@ -17,6 +18,16 @@ Public NotInheritable Class EmployeeExportReleaser
 
     Public Function Release(kind As PayrollFileKind, employeeIds As IReadOnlyCollection(Of Integer)) As OperationResult(Of IReadOnlyDictionary(Of Integer, ReleasedIds)) Implements IExportIdReleaser.Release
         Dim revealed As OperationResult(Of IReadOnlyDictionary(Of Integer, Revolution.Modules.Employees.ExportIds)) = _export.RevealForExport(ToExportKind(kind), employeeIds)
+        If Not revealed.Succeeded Then Return OperationResult(Of IReadOnlyDictionary(Of Integer, ReleasedIds)).Fail(revealed.Message)
+        Dim released As New Dictionary(Of Integer, ReleasedIds)()
+        For Each pair As KeyValuePair(Of Integer, Revolution.Modules.Employees.ExportIds) In revealed.Value
+            released(pair.Key) = New ReleasedIds With {.Uan = pair.Value.Uan, .EsiIp = pair.Value.EsiIp, .AccountNumber = pair.Value.AccountNumber}
+        Next
+        Return OperationResult(Of IReadOnlyDictionary(Of Integer, ReleasedIds)).Ok(released)
+    End Function
+
+    Public Function ReleaseForPayslips(employeeIds As IReadOnlyCollection(Of Integer)) As OperationResult(Of IReadOnlyDictionary(Of Integer, ReleasedIds)) Implements IPayslipIdReleaser.ReleaseForPayslips
+        Dim revealed As OperationResult(Of IReadOnlyDictionary(Of Integer, Revolution.Modules.Employees.ExportIds)) = _export.RevealForExport(Revolution.Modules.Employees.ExportKind.Payslip, employeeIds)
         If Not revealed.Succeeded Then Return OperationResult(Of IReadOnlyDictionary(Of Integer, ReleasedIds)).Fail(revealed.Message)
         Dim released As New Dictionary(Of Integer, ReleasedIds)()
         For Each pair As KeyValuePair(Of Integer, Revolution.Modules.Employees.ExportIds) In revealed.Value

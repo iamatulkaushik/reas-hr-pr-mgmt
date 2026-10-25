@@ -74,6 +74,23 @@ Public Class EmployeeExportServiceTests
     End Sub
 
     <Fact>
+    Public Sub Payslip_ReleasesAllThreeIds_AndLogsFirst()
+        Dim r = _service.RevealForExport(ExportKind.Payslip, Ids(101))
+        Assert.True(r.Succeeded)
+        Assert.Equal("100123456789", r.Value(101).Uan)
+        Assert.Equal("1234567890", r.Value(101).EsiIp)
+        Assert.Equal("111122223333", r.Value(101).AccountNumber)
+        Assert.Equal($"{UserId}:Payslip print:UAN,ESIIP,BANKACCOUNT:101", _repo.BatchLogs.Single())
+    End Sub
+
+    <Fact>
+    Public Sub Payslip_NeedsExportOnPayroll()
+        _perms.Allowed.Remove(ModuleKey.Payroll)
+        Assert.False(_service.RevealForExport(ExportKind.Payslip, Ids(101)).Succeeded)
+        Assert.Empty(_repo.BatchLogs)
+    End Sub
+
+    <Fact>
     Public Sub EmployeeWithoutAnId_GetsEmptyValues()
         Dim r = _service.RevealForExport(ExportKind.Ecr, Ids(555))
         Assert.True(r.Succeeded)

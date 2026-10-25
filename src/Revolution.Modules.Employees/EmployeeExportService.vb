@@ -3,8 +3,8 @@ Imports Microsoft.Data.SqlClient
 Imports Revolution.Core
 
 ''' <summary>
-''' Bulk id release for statutory and bank file exports (ADR 0019). Export permission on Statutory (ECR, ESIC) or on Payroll
-''' (bank file) is enough; no Reveal grant is needed. The batch log is written first, one row per employee. If it fails,
+''' Bulk id release for statutory and bank file exports and for payslips with full ids (ADR 0019). Export permission on Statutory (ECR, ESIC) or on Payroll
+''' (bank file, payslip) is enough; no Reveal grant is needed. The batch log is written first, one row per employee. If it fails,
 ''' nothing is decrypted. Only the ids the file needs are released. Plain values are not logged, cached or written anywhere.
 ''' The caller (the Payroll file service) checks that the run is approved or locked and writes the one audit entry per export.
 ''' </summary>
@@ -38,7 +38,7 @@ Public NotInheritable Class EmployeeExportService
     ''' <summary>Releases the plain ids for the employees of one export. Returns one entry per employee id given.</summary>
     Public Function RevealForExport(kind As ExportKind, employeeIds As IReadOnlyCollection(Of Integer)) As OperationResult(Of IReadOnlyDictionary(Of Integer, ExportIds))
         If Not [Enum].IsDefined(GetType(ExportKind), kind) Then Throw New ArgumentOutOfRangeException(NameOf(kind))
-        If Not _permissions.IsAllowed(If(kind = ExportKind.BankFile, ModuleKey.Payroll, ModuleKey.Statutory), PermissionAction.Export) Then
+        If Not _permissions.IsAllowed(If(kind = ExportKind.BankFile OrElse kind = ExportKind.Payslip, ModuleKey.Payroll, ModuleKey.Statutory), PermissionAction.Export) Then
             Return OperationResult(Of IReadOnlyDictionary(Of Integer, ExportIds)).Fail(NotAllowed)
         End If
         Dim problem As String = CheckIds(employeeIds)
@@ -81,6 +81,11 @@ Public NotInheritable Class EmployeeExportService
                     Dim revealed = _identifiers.DecryptForExport(employeeId, IdField.Uan Or IdField.EsiIp, companyId)
                     ids.Uan = revealed.Uan
                     ids.EsiIp = revealed.EsiIp
+                Case ExportKind.Payslip
+                    Dim payslipIds = _identifiers.DecryptForExport(employeeId, IdField.Uan Or IdField.EsiIp, companyId)
+                    ids.Uan = payslipIds.Uan
+                    ids.EsiIp = payslipIds.EsiIp
+                    ids.AccountNumber = _bank.DecryptAccountForExport(employeeId, companyId)
                 Case Else
                     ids.AccountNumber = _bank.DecryptAccountForExport(employeeId, companyId)
             End Select
@@ -95,6 +100,8 @@ Public NotInheritable Class EmployeeExportService
                 Return "ECR export"
             Case ExportKind.Esic
                 Return "ESIC export"
+            Case ExportKind.Payslip
+                Return "Payslip print"
             Case Else
                 Return "Bank file"
         End Select
@@ -106,6 +113,8 @@ Public NotInheritable Class EmployeeExportService
                 Return "UAN"
             Case ExportKind.Esic
                 Return "UAN,ESIIP"
+            Case ExportKind.Payslip
+                Return "UAN,ESIIP,BANKACCOUNT"
             Case Else
                 Return "BANKACCOUNT"
         End Select

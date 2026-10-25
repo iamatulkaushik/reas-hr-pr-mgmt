@@ -245,6 +245,56 @@ Public NotInheritable Class SqlStatutoryRateRepository
         End Using
     End Function
 
+    Public Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As LabourWelfareRule Implements IStatutoryRateRepository.GetLabourWelfareRule
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_LabourWelfareRule_Get")
+                cmd.Parameters.Add("@StateID", SqlDbType.TinyInt).Value = CByte(stateId)
+                cmd.Parameters.Add("@AsOf", SqlDbType.Date).Value = asOf.Date
+                Using r = cmd.ExecuteReader()
+                    If Not r.Read() Then Return Nothing
+                    Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                    Return New LabourWelfareRule(stateId, r.GetDateTime(r.GetOrdinal("EffectiveFrom")), r.GetDecimal(r.GetOrdinal("EmployeePct")),
+                                                 r.GetDecimal(r.GetOrdinal("EmployeeAmount")), r.GetDecimal(r.GetOrdinal("EmployerMultiple")),
+                                                 r.GetDecimal(r.GetOrdinal("EmployerAmount")), CType(r.GetByte(r.GetOrdinal("FrequencyID")), LwfFrequency),
+                                                 r.GetDecimal(r.GetOrdinal("WageCutoff")), ParseMonths(Text(r, "DueMonths")),
+                                                 r.GetBoolean(r.GetOrdinal("Verified")),
+                                                 If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef"))
+                End Using
+            End Using
+        End Using
+    End Function
+
+    Public Function GetMinimumWages(stateId As Integer, asOf As Date) As IReadOnlyList(Of MinimumWageRate) Implements IStatutoryRateRepository.GetMinimumWages
+        Dim rows As New List(Of MinimumWageRate)()
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "stat.usp_MinimumWage_List")
+                cmd.Parameters.Add("@StateID", SqlDbType.TinyInt).Value = CByte(stateId)
+                cmd.Parameters.Add("@AsOf", SqlDbType.Date).Value = asOf.Date
+                Using r = cmd.ExecuteReader()
+                    While r.Read()
+                        Dim verifiedOn = r.GetOrdinal("VerifiedOn")
+                        rows.Add(New MinimumWageRate(stateId, r.GetDateTime(r.GetOrdinal("EffectiveFrom")), CInt(r.GetByte(r.GetOrdinal("ZoneNo"))),
+                                                     CType(r.GetByte(r.GetOrdinal("SkillID")), WageSkill), CType(r.GetByte(r.GetOrdinal("UnitID")), WageUnit),
+                                                     r.GetDecimal(r.GetOrdinal("Amount")), r.GetBoolean(r.GetOrdinal("Verified")),
+                                                     If(r.IsDBNull(verifiedOn), CType(Nothing, Date?), r.GetDateTime(verifiedOn)), Text(r, "SourceRef")))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return rows
+    End Function
+
+    Private Shared Function ParseMonths(csv As String) As IReadOnlyList(Of Integer)
+        Dim months As New List(Of Integer)()
+        For Each token In csv.Split(","c)
+            Dim month As Integer
+            If Integer.TryParse(token.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, month) AndAlso month >= 1 AndAlso month <= 12 Then
+                months.Add(month)
+            End If
+        Next
+        Return months
+    End Function
+
     Private Shared Function Text(r As SqlDataReader, column As String) As String
         Dim i = r.GetOrdinal(column)
         Return If(r.IsDBNull(i), String.Empty, r.GetString(i))

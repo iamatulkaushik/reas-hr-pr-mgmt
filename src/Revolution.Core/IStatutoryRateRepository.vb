@@ -17,4 +17,8 @@ Public Interface IStatutoryRateRepository
     Function GetHraCities(asOf As Date) As IReadOnlyList(Of HraCity)
     ''' <summary>The cfg.Setting RateVerificationRequired. True when the setting is missing, so the safe answer is the default.</summary>
     Function IsVerificationRequired() As Boolean
+    ''' <summary>The labour welfare rule of a state in force on the date, or Nothing when there is none.</summary>
+    Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As LabourWelfareRule
+    ''' <summary>The minimum wage rows of a state in force on the date (all rows of the latest effective date), or an empty list.</summary>
+    Function GetMinimumWages(stateId As Integer, asOf As Date) As IReadOnlyList(Of MinimumWageRate)
 End Interface

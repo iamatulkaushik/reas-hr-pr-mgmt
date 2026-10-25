@@ -70,6 +70,7 @@ Friend NotInheritable Class FakePayEntitlements
     Implements IEntitlementService
 
     Public PayrollEnabled As Boolean = True
+    Public ReadOnly Disabled As New HashSet(Of PlanFeature)()
 
     Public ReadOnly Property CurrentPlan As PlanTier Implements IEntitlementService.CurrentPlan
         Get
@@ -78,6 +79,7 @@ Friend NotInheritable Class FakePayEntitlements
     End Property
 
     Public Function IsEnabled(feature As PlanFeature) As Boolean Implements IEntitlementService.IsEnabled
+        If Disabled.Contains(feature) Then Return False
         Return feature <> PlanFeature.BasicPayroll OrElse PayrollEnabled
     End Function
 End Class

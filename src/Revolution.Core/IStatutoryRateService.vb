@@ -23,4 +23,11 @@ Public Interface IStatutoryRateService
     ''' required, when any row is not signed off. A city that is not listed gets the percentage of the "*" row.
     ''' </summary>
     Function GetHraMetroList(asOf As Date) As OperationResult(Of HraMetroList)
+    ''' <summary>The labour welfare fund rule of the state in force on the date. Fails when there is none or the CA has not signed it off; never returns a default.</summary>
+    Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As OperationResult(Of LabourWelfareRule)
+    ''' <summary>
+    ''' The minimum wage rows of the state in force on the date (all zones and skills, per day and per month). Fails when there are none or, while
+    ''' verification is required, when any row is not signed off. Payroll treats a wage below the minimum as a warning, not a stop.
+    ''' </summary>
+    Function GetMinimumWages(stateId As Integer, asOf As Date) As OperationResult(Of IReadOnlyList(Of MinimumWageRate))
 End Interface

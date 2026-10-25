@@ -140,7 +140,7 @@ Public NotInheritable Class SqlSalaryRepository
                 End Using
             End Using
         Catch ex As SqlException When PayrollErrorMap.Translate(ex.Number, ex.Message) IsNot Nothing
-            Throw New PayrollRuleException(PayrollErrorMap.Translate(ex.Number, ex.Message), ex)
+            Throw New PayrollRuleException(PayrollErrorMap.Translate(ex.Number, ex.Message), ex.Number, ex)
         End Try
     End Sub
 
@@ -153,7 +153,7 @@ Public NotInheritable Class SqlSalaryRepository
                 End Using
             End Using
         Catch ex As SqlException When PayrollErrorMap.Translate(ex.Number, ex.Message) IsNot Nothing
-            Throw New PayrollRuleException(PayrollErrorMap.Translate(ex.Number, ex.Message), ex)
+            Throw New PayrollRuleException(PayrollErrorMap.Translate(ex.Number, ex.Message), ex.Number, ex)
         End Try
     End Function
 End Class

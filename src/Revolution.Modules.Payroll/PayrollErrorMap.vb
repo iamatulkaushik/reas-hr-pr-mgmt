@@ -10,10 +10,13 @@ Public NotInheritable Class PayrollErrorMap
     Private Const ComponentCodeKey As String = "UQ_SalaryComponent_Code"
     Private Const ComponentKindCheck As String = "CK_SalaryComponent_Kind"
     Private Const SalaryEmployeeKey As String = "FK_EmployeeSalary_Employee"
+    Private Const LoanEmployeeKey As String = "FK_Loan_Employee"
+    Private Const LoanTypeKey As String = "FK_Loan_Type"
+    Private Const LoanTypeNameKey As String = "UQ_LoanType_Name"
 
     Private Shared ReadOnly RuleNumbers As ISet(Of Integer) = New HashSet(Of Integer) From {
         50301, 50302, 50303, 50304,
-        50311, 50313, 50315, 50316, 50318, 50319, 50329,
+        50311, 50312, 50313, 50314, 50315, 50316, 50317, 50318, 50319, 50329,
         50321, 50322, 50323, 50324, 50325, 50326, 50327, 50328}
 
     Private Sub New()
@@ -23,11 +26,14 @@ Public NotInheritable Class PayrollErrorMap
     Public Shared Function Translate(number As Integer, text As String) As String
         If number = SqlConstraintConflict Then
             If Mentions(text, ComponentKindCheck) Then Return "A component cannot be both basic and DA."
-            If Mentions(text, SalaryEmployeeKey) Then Return "Employee not found."
+            If Mentions(text, SalaryEmployeeKey) OrElse Mentions(text, LoanEmployeeKey) Then Return "Employee not found."
+            If Mentions(text, LoanTypeKey) Then Return "Loan type not found."
             Return Nothing
         End If
         If number = SqlUniqueConstraint OrElse number = SqlUniqueIndex Then
-            Return If(Mentions(text, ComponentCodeKey), "A component with this code already exists.", Nothing)
+            If Mentions(text, ComponentCodeKey) Then Return "A component with this code already exists."
+            If Mentions(text, LoanTypeNameKey) Then Return "A loan type with this name already exists."
+            Return Nothing
         End If
         If RuleNumbers.Contains(number) AndAlso Not String.IsNullOrWhiteSpace(text) Then
             Return text

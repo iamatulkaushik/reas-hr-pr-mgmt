@@ -91,4 +91,19 @@ Friend NotInheritable Class FakeStatutoryRateRepository
         Next
         Return New PtRule(27, New Date(2025, 4, 1), PtFrequency.Monthly, 2, verified, "test", slabs)
     End Function
+
+    Public Property Lwf As LabourWelfareRule
+    Public Property MinimumWages As IReadOnlyList(Of MinimumWageRate) = New List(Of MinimumWageRate)()
+
+    Public Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As LabourWelfareRule Implements IStatutoryRateRepository.GetLabourWelfareRule
+        LastAsOf = asOf
+        LastStateId = stateId
+        Return Lwf
+    End Function
+
+    Public Function GetMinimumWages(stateId As Integer, asOf As Date) As IReadOnlyList(Of MinimumWageRate) Implements IStatutoryRateRepository.GetMinimumWages
+        LastAsOf = asOf
+        LastStateId = stateId
+        Return MinimumWages
+    End Function
 End Class

@@ -8,6 +8,9 @@ Public Class PayrollErrorMapTests
     <InlineData(50303)>
     <InlineData(50304)>
     <InlineData(50311)>
+    <InlineData(50312)>
+    <InlineData(50314)>
+    <InlineData(50317)>
     <InlineData(50313)>
     <InlineData(50315)>
     <InlineData(50316)>
@@ -47,6 +50,13 @@ Public Class PayrollErrorMapTests
     <Fact>
     Public Sub UnknownEmployee_IsMapped()
         Assert.Equal("Employee not found.", PayrollErrorMap.Translate(547, "conflicted with the FOREIGN KEY constraint ""FK_EmployeeSalary_Employee"""))
+    End Sub
+
+    <Fact>
+    Public Sub LoanConstraints_AreMapped()
+        Assert.Equal("Employee not found.", PayrollErrorMap.Translate(547, "conflicted with the FOREIGN KEY constraint ""FK_Loan_Employee"""))
+        Assert.Equal("Loan type not found.", PayrollErrorMap.Translate(547, "conflicted with the FOREIGN KEY constraint ""FK_Loan_Type"""))
+        Assert.Equal("A loan type with this name already exists.", PayrollErrorMap.Translate(2627, "Violation of UNIQUE KEY constraint 'UQ_LoanType_Name'."))
     End Sub
 
     <Fact>

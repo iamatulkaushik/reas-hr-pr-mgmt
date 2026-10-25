@@ -91,3 +91,15 @@ Status: **accepted** on 2026-10-15 with the business answers recorded under "Dec
 - **Speed.** A running session re-reads its licence at most every 5 minutes, so a revoke reaches a signed-in user within about 5 minutes, and at once on the next sign-in or company change.
 - **Honest limit.** Revoke is enforced by the app, like expiry. The company and user caps stay enforced by the database. Someone with direct write access to the installation's database could clear the flag; the app login has EXECUTE only and `sa` is disabled (ADR 0004), so that takes the client's own database administrator.
 - Not covered: a revoked Associate can still sign in and view and print. That is deliberate, so nobody is locked out of their own payroll data.
+
+## Decisions confirmed (2026-10-24, Atul, Developer and Owner)
+- **Signing key custody.** Atul alone holds the signing key. The one backup is in his private cloud storage, reachable only by him. No Associate ever holds it. This closes the "to confirm" point above. Note: the key file is password-protected (12+ characters) by `keygen`, so the password is part of the key. Keep the password somewhere separate from the cloud copy; losing the password is the same as losing the key.
+- **Lost key.** Not expected, because a copy is always kept. If both the file and the password were lost, the answer stays as in decision 6: a new build with a new public key and every licence re-issued.
+- **Trial limit.** The trial's "one Associate" limit is to be enforced in the database (not built yet; Sigma next).
+- **Crystal Reports.** On hold: Atul is looking for a current alternative. ADR 0005 stays open and nothing in the licence design changes.
+
+## Build status, trial limit (2026-10-24)
+- **Written, not run on SQL Server:** migration 0027. `cfg.usp_Licence_RequireTrialRoom` refuses a new Associate (error 50055) while any active Associate has no current licence row; `sec.usp_User_Create` calls it for RoleID 3 inside its transaction under an exclusive application lock (50056 if the lock cannot be taken). A revoked licence is still a current row, so a revoked Associate is not on the trial and does not block.
+- **Effect for the Developer:** create the first Associate, import a licence for them, then create the next. Existing Associates are untouched; deactivating an Associate frees the place.
+- **Tests:** `TrialAssociateLimitTests` (needs SQL Server). `AssociateProvisioningTests` now deactivates earlier test Associates before it creates one, and both classes share one xunit collection so they never run in parallel.
+- The matrix and unit tests are not affected. The trial's other limits (28 days, Copper limits, read-only after) stay in the app as before.

@@ -130,3 +130,46 @@ ECR, ESI upload and SBI bank file builders need the official format files (Owner
 ### Next in this lane
 Payroll run service (reads attendance, salary, policy, rates, installments; calls wage builder, EPF, ESI, PT, net pay; saves lines; submit, approve, lock), loan service, payslip data service.
 
+## Increment 8 (2026-10-24): payroll run service
+- Migration 0311: `pay.usp_RunInput_List` (read only, two result sets). One row per employee working in the period with statutory flags, professional tax state (factory state, when PT applies), attendance counted inside the employee's working window (join date to exit date), unmarked days, shift hours, carried-in shortfall from the latest Locked or Paid run, and the salary lines in force on the period end. Loan installments come from `pay.usp_LoanInstallment_ListOpen`.
+- New in `Revolution.Modules.Payroll`: `PayrollRunService`, `IPayrollRunRepository`, `SqlPayrollRunRepository`, `PayrollRunCalculator`, `PayCycle`, `RunPeriod`, `RunEmployeeFacts`, `RunRates`, `RunLineResult`, `EarningAmount`, `PayrollRunHeader`, `PayrollRunEventItem`, `EmployeeInstallment`. `PayrollServices.Runs` exposes the service. `PayrollRuleException` now carries the database error number.
+- Calculator order: wage builder, EPF (members), ESI (members), professional tax (employees it applies to, by gender and gross), then net pay with the EMI cap. TotalDeductions is gross less net pay, so a line always ties out. Any missing salary, unmarked day, missing shift (when overtime is marked), paid days above the period, or professional tax slab gap fails that employee with the employee code. Nothing is saved unless every employee passes.
+- Service: create regular run (period from the pay cycle), process, submit, approve, return to draft, lock, apply loan recoveries, reopen, mark paid, plus reads. Permissions: Create for a new run, Edit for process, submit, return, lock and paid, Approve for approval when the plan needs it (else Edit), Reopen for reopening. Audit names `PayrollRun.*`, no amounts.
+- Approval: plans that need approval submit (Processed to Submitted, approval request with a summary of at most 500 characters), then approve once the request is approved (the database refuses the submitter, 50329). A checksum mismatch (50315) cancels the approval and returns the run to Draft. Other plans approve a Processed run directly.
+- Lock writes the loan recoveries after the status change. If that save fails the run stays Locked and says so. `ApplyLoanRecoveries` retries, and recoveries already applied (50328) count as done. Reopen changes the status first, then reverses the recoveries, because `pay.usp_Recovery_ReverseRun` needs Draft or Processed.
+- Error map fix: 50312, 50314 and 50317 were missing and are now mapped.
+- Tests: 177 cases in the touched test files, 177 passed (throwaway runner). `SqlSalaryRepository` and `SqlPayrollRunRepository` type-check against stubs of SqlClient and `Revolution.Data` (warnings as errors). `PayrollModule` is not compiled here (needs Employees). Not run: migrations 0302, 0310, 0311 on SQL Server.
+
+### More assumptions for the CA and the Owner
+15. Salary in force is the one on the period end date. A revision inside the period does not split the month.
+16. Rates are read for the period end date (`RunPeriod.RateDate`). If a rate changes inside the period, see `phase5-split-month-proposal-brave.md`.
+17. ESI contribution-period stay is not tracked: an employee above the ceiling is not charged. Other deductions have no source yet and are 0.
+18. An employee with any day unmarked inside the working window blocks the run. A joiner or leaver is paid for the days from join date or up to exit date only.
+19. Carried-in shortfall is read from the latest Locked or Paid run before this period. Runs are expected in order.
+20. The ESI daily-wage exemption compares monthly salary over the period days (monthly employee) or the divisor (daily wage) with the row value.
+
+### Next in this lane
+Loan service (sanction, schedule, cancel, list), payslip data service, then screens' view models. Phase 6 TDS after Sigma's rate contract is read.
+
+## Increment 9 (2026-10-24): payslip data
+- `PayslipService.GetPayslips(runId, employeeId, includeFullIds)` returns one `Payslip` per employee: the data row (`PayslipRow`, from `rpt.usp_Payslip_Get`), the ids to print (`PayslipIds`), the net pay in words (`RupeeWords`, Indian grouping) and `IsDraft` (run below Approved, the report prints a DRAFT mark). Needs the BasicPayroll feature and View on Payroll.
+- Ids are masked by default (`XXXXXXXX` and the last four). Full ids need `includeFullIds`, an Approved, Locked or Paid run, and Export on Payroll. The Employees module checks the permission, writes the batch reveal log first, then decrypts. The repository never reads a ciphertext column.
+- Employees module: new `ExportKind.Payslip` (permission Export on Payroll, reason `Payslip print`, fields `UAN,ESIIP,BANKACCOUNT`). `EmployeeExportReleaser` also implements `IPayslipIdReleaser`.
+- One audit entry per print job: `Payslip.Print`, run, number of payslips, whether full ids were printed. No id and no amount.
+- Plain ids exist only in the returned objects and in the helper's DataSet file. The caller deletes the file after printing (reports doc, ADR 0019 rule 4 reads "no temporary files": the Owner's payslip ids need an exception for the helper file, for Sigma and the Owner to confirm).
+- Tests: 213 cases in the touched Payroll test files, 213 passed. `SqlPayslipRepository` type-checks against the SqlClient stubs. The Employees module edits and `EmployeeExportReleaser` are not compiled here (SqlClient and Employees project). Two tests added to `EmployeeExportServiceTests`.
+
+### For Sigma and the Owner
+ADR 0019 lists three kinds of export. This adds a fourth, the payslip, under the same rules except rule 4. CR needed: payslip print with full ids, Export on Payroll, approved run or later, helper DataSet file deleted after printing.
+
+## Increment 10 (2026-10-24): loan service
+- New in `Revolution.Modules.Payroll`: `LoanService`, `ILoanRepository`, `SqlLoanRepository`, `LoanValidator`, and the types `LoanTypeItem`, `LoanSummary`, `LoanInstallmentView`, `LoanStatus`. `PayrollServices.Loans` exposes it. No new migration: it uses 0306 and 0308.
+- Rules: plan feature `Loans`. View reads. Create adds a loan type, previews a schedule and sanctions. Edit changes a loan type and cancels a loan. A loan copies the type's method and rate at sanction. The schedule comes from `LoanScheduleCalculator` and the database checks that the principal parts add up (50322). Principal is whole rupees above zero. Installments are within the type's maximum. First due month is a real YYYYMM and not before the sanction month. An inactive type cannot be used.
+- Cancel works only when nothing has been recovered (50323, shown as the database text). EMI recovery stays in the payroll run (lock writes it, reopen reverses it).
+- Audit: `LoanType.Add`, `LoanType.Edit`, `Loan.Sanction`, `Loan.Cancel`. No amount in the text.
+- Error map: `FK_Loan_Employee` (Employee not found), `FK_Loan_Type` (Loan type not found), `UQ_LoanType_Name` (a loan type with this name already exists).
+- Payslip service now needs the `Payslips` plan feature (was `BasicPayroll` by mistake).
+- Tests: 251 cases in the touched Payroll test files, 251 passed. `SqlLoanRepository` type-checks against the SqlClient stubs. Not run: migrations on SQL Server.
+
+### Next in this lane
+Phase 6 TDS (calculator, declarations, Form 16 and Form 24Q data) from Sigma's rate contract. Phase 7 full and final and arrears.

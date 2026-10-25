@@ -8,4 +8,7 @@ Public Enum ExportKind
 
     ''' <summary>Bank file: account number. Needs Export on Payroll.</summary>
     BankFile = 3
+
+    ''' <summary>Payslip print with full ids: UAN, ESI IP number and account number. Needs Export on Payroll. Only for an approved or later run (the caller checks).</summary>
+    Payslip = 4
 End Enum
