@@ -2,7 +2,7 @@ Imports Revolution.Core
 Imports Revolution.Modules.Payroll
 Imports Xunit
 
-Friend NotInheritable Class FakeRunRepository
+Friend NotInheritable Class FakeFileRunRepository
     Implements IPayrollFileRepository
 
     Public Run As PayrollFileRun
@@ -39,7 +39,7 @@ End Class
 
 Public Class PayrollFileSourceTests
 
-    Private ReadOnly _repository As New FakeRunRepository()
+    Private ReadOnly _repository As New FakeFileRunRepository()
     Private ReadOnly _releaser As New FakeIdReleaser()
 
     Public Sub New()

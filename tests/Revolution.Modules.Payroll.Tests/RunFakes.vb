@@ -169,6 +169,14 @@ Friend NotInheritable Class FakeRates
     Public Function GetHraMetroList(asOf As Date) As OperationResult(Of HraMetroList) Implements IStatutoryRateService.GetHraMetroList
         Return OperationResult(Of HraMetroList).Fail("Not used in these tests.")
     End Function
+
+    Public Function GetLabourWelfareRule(stateId As Integer, asOf As Date) As OperationResult(Of LabourWelfareRule) Implements IStatutoryRateService.GetLabourWelfareRule
+        Return OperationResult(Of LabourWelfareRule).Fail("Not used in these tests.")
+    End Function
+
+    Public Function GetMinimumWages(stateId As Integer, asOf As Date) As OperationResult(Of IReadOnlyList(Of MinimumWageRate)) Implements IStatutoryRateService.GetMinimumWages
+        Return OperationResult(Of IReadOnlyList(Of MinimumWageRate)).Fail("Not used in these tests.")
+    End Function
 End Class
 
 Friend NotInheritable Class FakeApprovals
