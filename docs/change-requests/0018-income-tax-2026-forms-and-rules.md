@@ -47,4 +47,7 @@ Section codes stay as the engine keys; the 2025 number is in `Note` (123, 124, 1
 4. Form 138 due dates and FVU / return file version for TY 2026-27.
 5. Form 130 Part A: import layout from TRACES under the new rules.
 
+## Added 2026-10-25: two more numbers need a stat home
+`HraExemptionCalculator` takes the rent share of salary (10 percent by the rule) as a parameter, and the landlord PAN check needs the yearly rent threshold (1,00,000). Neither is in a table. Proposed: two rows in a small `stat.TdsRuleValue (FinancialYear, ValueKey, Amount, Verified, VerifiedOn, SourceRef)`, keys `HRA_RENT_SHARE_PCT` and `LANDLORD_PAN_RENT`, with the CA signing them like the others. Until then the caller passes the values from a Brave-owned constant in the service layer, flagged in code.
+
 ## Sigma's decision and date

@@ -8,8 +8,8 @@ Both regimes as options per employee. TDS spread equally over the remaining mont
 ## Order of work (each step ends with a zip)
 | # | Step | Lane | Needs |
 |---|---|---|---|
-| 1 | `TdsCalculator` (pure, no database) | Payroll module | Nothing: rules come in as `TdsRule` |
-| 2 | `HraExemptionCalculator` | Payroll module | `HraMetroCity` rows (CR 0018) |
+| 1 | `TdsCalculator` (pure, no database). **Done 2026-10-25**, 25 tests | Payroll module | Nothing: rules come in as `TdsRule` |
+| 2 | `HraExemptionCalculator`. **Done 2026-10-25**, 14 tests | Payroll module | `HraMetroList` from Sigma; rent share and PAN threshold need a stat home (CR 0018 addendum) |
 | 3 | Declaration tables and procs, migrations 0312 onward | Payroll database | None |
 | 4 | `TdsDeclarationService`, `TdsProjectionService` | Payroll module | 1 to 3 |
 | 5 | Hook into the payroll run line: monthly TDS amount | Payroll run service | 4 |
@@ -34,3 +34,6 @@ Full and final tax and arrears (Phase 7). Perquisite valuation tables beyond wha
 
 ## Open before step 6
 CA answers to CR 0018 questions 1, 4 and 5. A sample Part A file from TRACES. A sample FVU validation report, or the version of the file format to follow.
+
+## Build note
+Tests run through the throwaway runner on the .NET 10 SDK (10.0.113), warnings as errors, xunit stand-in. Every project, the CI workflow and the SDK already target .NET 10; nothing needed changing. A real xunit run needs Windows CI.
