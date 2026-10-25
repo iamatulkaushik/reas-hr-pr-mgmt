@@ -6,9 +6,9 @@ Imports Xunit
 Public Class LabourWelfareRuleServiceTests
     Private Shared ReadOnly AsOf As New Date(2026, 10, 1)
 
-    ''' <summary>Haryana from April 2019: 0.2 percent of wages, at most 25, employer twice the employee share.</summary>
+    ''' <summary>Haryana from 1 January 2026: 0.2 percent of wages, at most 35 (employer at most 70), employer twice the employee share.</summary>
     Private Shared Function Haryana(verified As Boolean) As LabourWelfareRule
-        Return New LabourWelfareRule(6, New Date(2019, 4, 1), 0.2D, 25D, 2D, 0D, LwfFrequency.Monthly, 0D, New List(Of Integer)(),
+        Return New LabourWelfareRule(6, New Date(2026, 1, 1), 0.2D, 35D, 2D, 0D, LwfFrequency.Monthly, 0D, New List(Of Integer)(),
                                      verified, If(verified, New Date(2026, 10, 24), CType(Nothing, Date?)), "test")
     End Function
 
@@ -41,10 +41,10 @@ Public Class LabourWelfareRuleServiceTests
 
     <Theory>
     <InlineData(10000, 20, 40)>
-    <InlineData(12500, 25, 50)>
-    <InlineData(20000, 25, 50)>
+    <InlineData(17500, 35, 70)>
+    <InlineData(20000, 35, 70)>
     <InlineData(0, 0, 0)>
-    Public Sub Contribution_IsTwoTenthsPercent_CappedAt25_EmployerTwice(wage As Integer, employee As Integer, employer As Integer)
+    Public Sub Contribution_IsTwoTenthsPercent_CappedAt35_EmployerTwice(wage As Integer, employee As Integer, employer As Integer)
         Dim rule = Haryana(True)
         Assert.Equal(CDec(employee), rule.EmployeeContribution(CDec(wage)))
         Assert.Equal(CDec(employer), rule.EmployerContribution(CDec(wage)))
@@ -52,7 +52,7 @@ Public Class LabourWelfareRuleServiceTests
 
     <Fact>
     Public Sub Contribution_IsZeroAboveTheWageCutoff()
-        Dim rule As New LabourWelfareRule(6, New Date(2019, 4, 1), 0.2D, 25D, 2D, 0D, LwfFrequency.Monthly, 15000D, New List(Of Integer)(), True, Nothing, "test")
+        Dim rule As New LabourWelfareRule(6, New Date(2026, 1, 1), 0.2D, 35D, 2D, 0D, LwfFrequency.Monthly, 15000D, New List(Of Integer)(), True, Nothing, "test")
         Assert.Equal(0D, rule.EmployeeContribution(15001D))
         Assert.Equal(0D, rule.EmployerContribution(15001D))
         Assert.Equal(30D, rule.EmployeeContribution(15000D))

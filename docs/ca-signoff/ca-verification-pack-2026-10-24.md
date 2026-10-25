@@ -44,7 +44,9 @@ Source in the rows: Finance Act 2025 rates, "unchanged by Budget 2026". From 1 A
 ## E. Haryana labour welfare fund (`stat.LabourWelfareRule`, state 6)
 | Check | Effective from | Employee | Employer | Frequency and due months | Wage cutoff | Source |
 |---|---|---|---|---|---|---|
-| [ ] | 01-04-2019 | 0.2% of wages, at most 25 a month | twice the employee amount | monthly, all months (the board page's reading; **CA to confirm**) | none | Haryana Labour Welfare Board page, Punjab Labour Welfare Fund Act 1965 s.9-A (`docs/sources/haryana-lwf.md`) |
+| [ ] | 01-01-2026 | 0.2% of wages, at most Rs 35 a month | twice the employee amount, at most Rs 70 | monthly, all months (**CA to confirm** the due date) | none | Haryana Labour Welfare Board Notification No. HLWB/REV/2026/3436 dated 08-05-2026; ceiling confirmed by the CA (final reply) |
+
+The ceiling is indexed to the consumer price index every 1 January, so a new row is loaded each January.
 
 ## F. Haryana minimum wages (`stat.MinimumWage`, state 6, zone 1)
 Effective 01-04-2026, Gazette Extraordinary No. 51-2026/Ext., Notification 2/25/26-2 Lab (`docs/sources/haryana-minimum-wage-2026-04-09.pdf`).
