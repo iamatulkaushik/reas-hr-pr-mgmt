@@ -1,6 +1,6 @@
 # ADR 0005: Crystal Reports on .NET 10
 
-Status: **open. ReportStudio proposed as the replacement for Crystal (see 2026-10-25 below); the Owner decides after a Windows spike.** Owner: Brave runs the spike, Sigma reviews.
+Status: **open. ReportStudio proposed as the replacement for Crystal; updated drop checked and staged in reports/ReportStudio on 2026-10-25 (see below); it joins the solution only after the Windows spike passes.** Owner: Brave runs the spike, Sigma reviews.
 
 Question: does the current SAP Crystal Reports runtime for .NET run inside a net10.0-windows WinForms app?
 
@@ -49,3 +49,22 @@ Atul supplied ReportStudio (a stand-alone C# report designer, viewer and exporte
 **If it fails.** The question reopens: Crystal in the .NET Framework 4.8 helper (the fallback above) once the Owner has the redistribution terms in writing, or another tool.
 
 **Until the Owner decides.** No new Crystal-specific work, and no ReportStudio code in the main solution. Nothing in this proposal changes ADR 0001, `CLAUDE.md` or the plan yet.
+
+## Update drop checked 2026-10-25 (Sigma)
+Atul supplied an updated ReportStudio. Checked against the six must-haves of `docs/reportstudio-change-request-for-developer.md`.
+
+| Must have | Result |
+|---|---|
+| 1. net10.0 and net10.0-windows, warnings as errors, CI | Targets and CI file are in place. Core builds on .NET 10 here with warnings as errors. The rest is not built (Windows only). |
+| 2. Host data source | Done: `DbProvider.Host`; the engine refuses to run a Host report without rows; sample layouts are Host reports with a field schema (22 and 15 fields). |
+| 3. Database code out of Core | Done: `ReportStudio.Data` holds the drivers; Core has none (a test checks it); UI and Export do not reference it. |
+| 4. Safe files | Done: a Host report never saves a query or connection string (tested); `UntrustedFileGuard` warns before running a file with its own query. |
+| 5. Page numbers per group | Done and tested: each employee's page is "Page 1 of 1". |
+| 6. Headless output | Present: `ReportRunner.ToPdf`, `ToExcel`, `Render`; also `ViewerControl.RowProvider` and `HostOnly`. Not built here. |
+
+Also delivered from the should-haves: Indian grouping and dd-MM-yyyy, amount in words, payslip and Form 16 style sample layouts, golden-file tests, fonts shipped beside the app.
+
+**Verified here:** 58 engine and sample tests pass (Linux, .NET 10, a stand-in for xunit because NuGet is not reachable). **Not verified:** Export (PDFsharp, OpenXML, GDI), UI, Designer, Viewer and Data build; the golden-image tests.
+
+**Required before it joins the solution:** see `docs/reportstudio-required-changes.md`. **Decision for now:** the source is staged in `reports/ReportStudio` (its own solution, outside `src/` and `tests/`, not in `Revolution.slnx`, no HRMS project references it). Brave runs the Windows spike from there. If it passes, Sigma adds `Revolution.Reports` (Brave) and the wiring.
+

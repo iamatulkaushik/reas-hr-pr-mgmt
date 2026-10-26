@@ -4,6 +4,7 @@
 |---|---|
 | Revolution.Core, Revolution.Data, Revolution.Services, Revolution.UI.Common | **Sigma** |
 | database/migrations, Directory.Build.props, Revolution.slnx, CI, docs/adr | **Sigma** |
+| reports/ReportStudio (report engine, viewer, designer; vendored, see ADR 0005) | **Sigma**, changes go to its developer as a numbered request |
 | Feature modules (employees, attendance, payroll, statutory, reports, biometric agent, assets) | **Brave** |
 | Tests | whoever writes the code under test |
 

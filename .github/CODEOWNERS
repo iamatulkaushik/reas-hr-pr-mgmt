@@ -13,6 +13,7 @@
 /docs/adr/                   @SIGMA-GITHUB
 /.github/                    @SIGMA-GITHUB
 /scripts/                    @SIGMA-GITHUB
+/reports/ReportStudio/       @SIGMA-GITHUB
 
 # Brave owns the feature modules (created from Phase 3 onward).
 /src/Revolution.Modules.*/   @BRAVE-GITHUB
