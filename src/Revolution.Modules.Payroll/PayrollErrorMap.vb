@@ -1,7 +1,7 @@
 ''' <summary>
 ''' Decides which database errors from the pay procedures are business rules. Error 50002 (no company in session) and 50330 (no user in
 ''' session) are faults in the session, not user mistakes, so they are not mapped and surface as technical errors.
-''' Mapped numbers keep the text the procedure threw. Lane 0300 uses 50301 to 50304 (salary), 50311 to 50319 and 50329 (run), 50321 to 50328 (loans), 50340 to 50345 (TDS declarations).
+''' Mapped numbers keep the text the procedure threw. Lane 0300 uses 50301 to 50304 (salary), 50311 to 50319 and 50329 (run), 50321 to 50328 (loans), 50340 to 50345 (TDS declarations), 50350 to 50353 (leave) and 50354 to 50359 (F&F).
 ''' </summary>
 Public NotInheritable Class PayrollErrorMap
     Private Const SqlConstraintConflict As Integer = 547
@@ -13,12 +13,17 @@ Public NotInheritable Class PayrollErrorMap
     Private Const LoanEmployeeKey As String = "FK_Loan_Employee"
     Private Const LoanTypeKey As String = "FK_Loan_Type"
     Private Const LoanTypeNameKey As String = "UQ_LoanType_Name"
+    Private Const LeaveTypeCodeKey As String = "UQ_LeaveType_Code"
+    Private Const LeaveEmployeeKey As String = "FK_LeaveLedger_Employee"
+    Private Const LeaveTypeKey As String = "FK_LeaveLedger_Type"
+    Private Const FnfSeparationKey As String = "UQ_FnfSettlement_Separation"
 
     Private Shared ReadOnly RuleNumbers As ISet(Of Integer) = New HashSet(Of Integer) From {
         50301, 50302, 50303, 50304,
         50311, 50312, 50313, 50314, 50315, 50316, 50317, 50318, 50319, 50329,
         50321, 50322, 50323, 50324, 50325, 50326, 50327, 50328,
-        50340, 50341, 50342, 50343, 50344, 50345}
+        50340, 50341, 50342, 50343, 50344, 50345,
+        50350, 50351, 50352, 50353, 50354, 50355, 50356, 50357, 50358, 50359}
 
     Private Sub New()
     End Sub
@@ -29,11 +34,15 @@ Public NotInheritable Class PayrollErrorMap
             If Mentions(text, ComponentKindCheck) Then Return "A component cannot be both basic and DA."
             If Mentions(text, SalaryEmployeeKey) OrElse Mentions(text, LoanEmployeeKey) Then Return "Employee not found."
             If Mentions(text, LoanTypeKey) Then Return "Loan type not found."
+            If Mentions(text, LeaveEmployeeKey) Then Return "Employee not found."
+            If Mentions(text, LeaveTypeKey) Then Return "Leave type not found."
             Return Nothing
         End If
         If number = SqlUniqueConstraint OrElse number = SqlUniqueIndex Then
             If Mentions(text, ComponentCodeKey) Then Return "A component with this code already exists."
             If Mentions(text, LoanTypeNameKey) Then Return "A loan type with this name already exists."
+            If Mentions(text, LeaveTypeCodeKey) Then Return "A leave type with this code already exists."
+            If Mentions(text, FnfSeparationKey) Then Return "A settlement already exists for this separation."
             Return Nothing
         End If
         If RuleNumbers.Contains(number) AndAlso Not String.IsNullOrWhiteSpace(text) Then

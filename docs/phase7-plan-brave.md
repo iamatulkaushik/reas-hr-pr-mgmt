@@ -11,9 +11,9 @@ Gratuity from the rule table, paid in F&F. Notice pay recovery in F&F. Leave typ
 | 1 | `GratuityCalculator`. **Done 2026-10-26**, 15 tests | Rule row (`GetGratuityRule`) |
 | 2 | `NoticePayCalculator`. **Done 2026-10-27**, 8 tests | Decisions A and B |
 | 3 | `BonusCalculator`. **Done 2026-10-27**, 10 tests | Rule row 0407, decision C |
-| 4 | `LeaveEncashmentCalculator` and `FnfDueWindow`. **Done 2026-10-27**, 8 tests. Leave ledger tables and procs **done 2026-10-27** (4b, migrations 0317 to 0319, not run on SQL Server); repository and service still to do (4c) | Decision D |
-| 5 | F&F tables, procs and service: components, status Open to Paid, maker-checker | 1 to 4 |
-| 6 | F&F run integration: last month to the exit date, loan closure, final TDS | Phase 6 steps 5 and 6 |
+| 4 | `LeaveEncashmentCalculator` and `FnfDueWindow`. **Done 2026-10-27**, 8 tests. Leave ledger tables and procs **done 2026-10-27** (4b, migrations 0317 to 0319, not run on SQL Server); `LeaveService`, `SqlLeaveRepository` **done 2026-10-27** (4c), 12 tests | Decision D |
+| 5 | F&F tables, procs and service: components, status Open to Paid, maker-checker. Tables and procs (0320 to 0322, not run on SQL Server) and `FnfCalculator`, `FnfTransition` **done 2026-10-27**, 10 tests; `FnfService`, `SqlFnfRepository` **done 2026-10-27**, 13 tests (step 5b). Not wired into `PayrollServices` and `PayrollModule` yet, to avoid merge clashes with unpushed Phase 6 work | 1 to 4 |
+| 6 | F&F run integration: last month to the exit date, loan closure, final TDS | Phase 6 steps 5 and 6. `FnfAssembler` and `FnfAssemblyInput` **done 2026-10-27** (6a), 6 tests; gathering the facts from the database and the final TDS true-up still to do (6b) |
 | 7 | Arrears: off-cycle run (RunNo 2 and up), difference per month, ECR arrear file (8 fields) | Decisions E to G |
 
 ## Gratuity (step 1)
@@ -33,7 +33,8 @@ I. **Final month.** F&F is settled in the month after exit, from the 1st to the 
 1. Employer-paid notice pay when the employer ends service early. Not built.
 2. Arrears tax relief (old section 89) and which month's rates apply to arrear contributions (F, G).
 3. Leave accrual rule (days per days worked, adult and adolescent). Needs a change request to Sigma for the Core class and a 04xx migration. Encashment and carry-forward caps are now columns on `pay.LeaveType`, set by the Owner.
-4a. The leave service needs a plan feature in Core (change request to Sigma).
+4a. No change request needed for a leave plan feature: leave is gated by the existing `PlanFeature.FullAndFinal`.
+4b. The F&F procs update `mst.EmployeeSeparation.FnFStatusID` from the `pay` lane. Sigma to review.
 5. Bonus percentage at exit: the Owner picks inside the rule's range, default is the minimum.
 
 ## Not in this phase

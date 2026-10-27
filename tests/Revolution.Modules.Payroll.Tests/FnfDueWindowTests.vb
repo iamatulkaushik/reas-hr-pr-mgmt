@@ -18,10 +18,10 @@ Public Class FnfDueWindowTests
 
     <Fact>
     Public Sub IsInWindow_EdgesIncluded()
-        Dim exit As New Date(2026, 10, 14)
-        Assert.True(FnfDueWindow.IsInWindow(exit, New Date(2026, 11, 1)))
-        Assert.True(FnfDueWindow.IsInWindow(exit, New Date(2026, 11, 7)))
-        Assert.False(FnfDueWindow.IsInWindow(exit, New Date(2026, 10, 31)))
-        Assert.False(FnfDueWindow.IsInWindow(exit, New Date(2026, 11, 8)))
+        Dim exitDate As New Date(2026, 10, 14)
+        Assert.True(FnfDueWindow.IsInWindow(exitDate, New Date(2026, 11, 1)))
+        Assert.True(FnfDueWindow.IsInWindow(exitDate, New Date(2026, 11, 7)))
+        Assert.False(FnfDueWindow.IsInWindow(exitDate, New Date(2026, 10, 31)))
+        Assert.False(FnfDueWindow.IsInWindow(exitDate, New Date(2026, 11, 8)))
     End Sub
 End Class
