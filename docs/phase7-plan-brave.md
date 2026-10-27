@@ -9,9 +9,9 @@ Gratuity from the rule table, paid in F&F. Notice pay recovery in F&F. Leave typ
 | # | Step | Needs |
 |---|---|---|
 | 1 | `GratuityCalculator`. **Done 2026-10-26**, 15 tests | Rule row (`GetGratuityRule`) |
-| 2 | Notice pay recovery calculator | Decisions A and B |
-| 3 | Bonus calculator (pro rata at exit) | Rule row 0407, decision C |
-| 4 | Leave encashment calculator | Decision D: no leave balance exists yet |
+| 2 | `NoticePayCalculator`. **Done 2026-10-27**, 8 tests | Decisions A and B |
+| 3 | `BonusCalculator`. **Done 2026-10-27**, 10 tests | Rule row 0407, decision C |
+| 4 | `LeaveEncashmentCalculator` and `FnfDueWindow`. **Done 2026-10-27**, 8 tests. Leave ledger tables and procs **done 2026-10-27** (4b, migrations 0317 to 0319, not run on SQL Server); repository and service still to do (4c) | Decision D |
 | 5 | F&F tables, procs and service: components, status Open to Paid, maker-checker | 1 to 4 |
 | 6 | F&F run integration: last month to the exit date, loan closure, final TDS | Phase 6 steps 5 and 6 |
 | 7 | Arrears: off-cycle run (RunNo 2 and up), difference per month, ECR arrear file (8 fields) | Decisions E to G |
@@ -19,16 +19,22 @@ Gratuity from the rule table, paid in F&F. Notice pay recovery in F&F. Leave typ
 ## Gratuity (step 1)
 Days of wages for each counted year from the rule row (days, month divisor, minimum years, part-year limit, cap). Service runs from joining to the end of the exit date. Whole years decide eligibility. A part year counts as a full year for the amount when it is more than the limit (six months and a day yes, exactly six months no). A death or disablement waives the minimum years. The caller says which heads make the last wage (Basic plus DA) and whether the employee is fixed term. Rounded once, nearest rupee, then capped. Not decided in code: whether apprentices, trainees and casual staff are covered. The F&F service will treat them as not covered unless the Owner says otherwise (decision H).
 
-## Decisions needed
-A. **Notice pay.** Days of notice come from where: the offer letter per employee, or one company rule? Recovery is notice days short times the daily wage (monthly wage divided by 26 for a monthly employee, the daily rate for a daily wager)? Does the employer also pay notice pay when it ends the service early?
-B. **Which wage** for notice pay and leave encashment: Basic plus DA, or gross?
-C. **Bonus at exit.** Paid in F&F for the part year worked if the employee meets the minimum days in the rule, on the same wage ceiling as the yearly bonus? Or only at the yearly run?
-D. **Leave.** The Owner said leave balance is not built after F&F but is needed before it. Please confirm the order: a minimal leave ledger (type, accrued days, taken days, balance, carried forward) first, or F&F with leave encashment entered by hand for now?
-E. **Arrears trigger.** A back-dated pay revision, an attendance correction after a lock, or both? Who may raise them?
-F. **Arrears tax.** Paid in the month of the arrear run and taxed with that month's salary, with no relief under the old section 89, or does the CA want relief worked out?
-G. **Arrears and EPF, ESI, PT.** Contributions on arrear wages at the rates of the month the arrear belongs to (as the ECR arrear file expects) or of the month paid?
-H. **Who gets gratuity.** Permanent and fixed term only, with contract, casual, apprentice and trainee not covered?
-I. **Final month.** Salary to the exit date on calendar days (as regular staff are prorated), and does a pending TDS shortfall or excess settle in the F&F month?
+## Decisions (Owner, 2026-10-27)
+A. **Notice pay.** Notice days come from the separation record (NoticePeriodDays, per employee). Served days run from the notice date to the last working day, the last day marked as resigned. Wage is gross. Recovery is short days times the daily wage.
+B. **Wage.** Gross. Applied to leave encashment as well until the Owner says otherwise.
+C. **Bonus at exit.** Paid in F&F.
+D. **Leave.** A minimal leave ledger first: type, accrued days, taken days, balance, carried forward.
+E. **Arrears.** An option on the deduction side. The Owner decides in payments whether to apply it.
+F, G. **Arrears tax and contributions.** Not answered yet.
+H. **Gratuity coverage.** Yes: permanent and fixed term only. Contract, casual, apprentice and trainee not covered.
+I. **Final month.** F&F is settled in the month after exit, from the 1st to the 7th (`FnfDueWindow`). Salary to the exit date still on calendar days.
+
+## Still open
+1. Employer-paid notice pay when the employer ends service early. Not built.
+2. Arrears tax relief (old section 89) and which month's rates apply to arrear contributions (F, G).
+3. Leave accrual rule (days per days worked, adult and adolescent). Needs a change request to Sigma for the Core class and a 04xx migration. Encashment and carry-forward caps are now columns on `pay.LeaveType`, set by the Owner.
+4a. The leave service needs a plan feature in Core (change request to Sigma).
+5. Bonus percentage at exit: the Owner picks inside the rule's range, default is the minimum.
 
 ## Not in this phase
 Leave module screens. Biometric and RFID (last phase). Official return file layouts (Phase 6, waiting for the CA).
