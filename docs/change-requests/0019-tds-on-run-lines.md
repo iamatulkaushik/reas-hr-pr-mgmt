@@ -27,4 +27,24 @@ Brave 0323 and the calculator first. Sigma's reports and screens can follow in t
 1. Is a separate HRA tick on salary components acceptable, or is HRA found by the component code "HRA"? A tick is exact; a code is fragile.
 2. When pay is too low to take the full tax in one month, is carrying the rest to later months right? Yes is assumed above.
 
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted with changes, 2026-10-28.** Brave can start 0323 and the calculator now.
+
+**Brave's items 1 to 6: accepted, with these points.**
+1. **0323 constraint.** The new check `NOT (IsHra = 1 AND (IsBasic = 1 OR IsDa = 1))` goes in its own batch (after `GO`, or through `EXEC`), because the column must exist before the constraint statement compiles. Existing rows are all 0, so it passes.
+2. **Procedures.** `usp_SalaryComponent_Save` gets `@IsHra BIT = NULL` as the last parameter; NULL keeps the stored value (new row: 0), so a caller that does not pass it still works (same pattern as 0028). `usp_PayrollRun_SaveLines` reads `TdsAmount` as an optional field defaulting to 0.
+3. **When the cap bites.** If the tax is limited to what is left of gross, the line must carry a warning saying so, and the unmet amount must stay visible in the next month's projection. In the last month of the year and in F&F, tax that cannot be taken is shown as a shortfall, never dropped silently. The CA confirms how a final-month shortfall is treated.
+4. **Tax already deducted.** Same company, same financial year, every locked run including arrears runs (RunNo 2 and up). Tax deducted by a previous employer comes from the declaration, not from run lines.
+5. **Plan gate.** `PlanFeature.Tds` as proposed. With the feature off the column stays 0 and the projection is not called.
+
+**Sigma's items.**
+1. **Reports: accepted, migration 0701.** `0700` has three procedures, not two: `rpt.usp_Payslip_Get`, `rpt.usp_WageRegister_Get` and `rpt.usp_PayrollSummary_Get`. 0701 replaces all three with `CREATE OR ALTER` and adds `TdsAmount` (summary: `SUM`). Sigma writes it once Brave's 0323 is merged, so it applies after the column exists.
+2. **Layouts: accepted, narrowed.** Sigma updates the report layouts. Brave first adds `TdsAmount` to `PayslipRow` / `Payslip` and the repository mapping (module code). The plan gate lives in the app, not in the data: the service passes a `ShowTds` report parameter from `IEntitlementService`. The label is the plain text "Income tax (TDS)". A section number is printed only from a verified `GetTaxSectionRef` row, never from an unverified one.
+3. **Payroll run screen and salary component screen: not Sigma's.** These are forms in `Revolution.Modules.Payroll.UI`, which Brave owns (ADR 0002). Neither screen exists there yet (only the export form). Sigma adds their menu positions in `MenuLayoutModule` when the screens exist; the start-up check flags a screen without a position.
+4. **Callers of `RunLineResult`.** All three are Brave's (`PayrollRunCalculator`, `SqlPayrollRunRepository`, `RunFakes.vb`). Sigma has none to update.
+
+**Owner questions (Sigma's recommendation, the Owner decides).**
+1. HRA tick on the component: yes. A tick is exact; a code is fragile.
+2. Carrying unpaid tax to later months: yes, with point 3 above.
+
+**Order.** Brave: 0323, `RunLineResult`, `NetPayCalculator`, calculator hook, service, then `PayslipRow` mapping. Sigma: 0701 and layouts after 0323 is merged. Nothing is blocked before then.
+
