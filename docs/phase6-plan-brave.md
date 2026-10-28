@@ -12,7 +12,7 @@ Both regimes as options per employee. TDS spread equally over the remaining mont
 | 2 | `HraExemptionCalculator`. **Done 2026-10-25**, 14 tests | Payroll module | `HraMetroList` from Sigma; rent share and PAN threshold need a stat home (CR 0018 addendum) |
 | 3 | Declaration tables and procs, migrations 0312 to 0314. **Written 2026-10-25, not run** (no SQL Server here; Windows CI runs the isolation test) | Payroll database | None |
 | 4 | `TdsDeclarationService`, `TdsProjectionService`, `SqlTdsRepository`, wiring in `PayrollServices` and `PayrollModule`. **Done 2026-10-25**, 78 new tests; the SQL repository and wiring are not compiled here (SqlClient) | Payroll module | 1 to 3 |
-| 5 | Hook into the payroll run line: monthly TDS amount | Payroll run service | 4 |
+| 5 | Hook into the payroll run line: monthly TDS amount | Payroll run service | 4. Change request 0019 written 2026-10-27, waiting for Sigma |
 | 6 | Form 130 data, Form 138 data, FVU-ready file | Payroll module | CA answers 4 and 5 of CR 0018 |
 
 ## Calculator rules (step 1)

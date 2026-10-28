@@ -13,7 +13,7 @@ Gratuity from the rule table, paid in F&F. Notice pay recovery in F&F. Leave typ
 | 3 | `BonusCalculator`. **Done 2026-10-27**, 10 tests | Rule row 0407, decision C |
 | 4 | `LeaveEncashmentCalculator` and `FnfDueWindow`. **Done 2026-10-27**, 8 tests. Leave ledger tables and procs **done 2026-10-27** (4b, migrations 0317 to 0319, not run on SQL Server); `LeaveService`, `SqlLeaveRepository` **done 2026-10-27** (4c), 12 tests | Decision D |
 | 5 | F&F tables, procs and service: components, status Open to Paid, maker-checker. Tables and procs (0320 to 0322, not run on SQL Server) and `FnfCalculator`, `FnfTransition` **done 2026-10-27**, 10 tests; `FnfService`, `SqlFnfRepository` **done 2026-10-27**, 13 tests (step 5b). Not wired into `PayrollServices` and `PayrollModule` yet, to avoid merge clashes with unpushed Phase 6 work | 1 to 4 |
-| 6 | F&F run integration: last month to the exit date, loan closure, final TDS | Phase 6 steps 5 and 6. `FnfAssembler` and `FnfAssemblyInput` **done 2026-10-27** (6a), 6 tests; gathering the facts from the database and the final TDS true-up still to do (6b) |
+| 6 | F&F run integration: last month to the exit date, loan closure, final TDS | Phase 6 steps 5 and 6. `FnfAssembler` and `FnfAssemblyInput` **done 2026-10-27** (6a), 6 tests; `FnfTdsTrueUp` (exit-month projection and shortfall or refund) **done 2026-10-27** (6b), 8 tests; gathering the facts from the database still to do (6c). Needs Phase 6 step 5 (change request 0019): run lines do not store TDS yet, so tax already deducted cannot be read |
 | 7 | Arrears: off-cycle run (RunNo 2 and up), difference per month, ECR arrear file (8 fields) | Decisions E to G |
 
 ## Gratuity (step 1)
