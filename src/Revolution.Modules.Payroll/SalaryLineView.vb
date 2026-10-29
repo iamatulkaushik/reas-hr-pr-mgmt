@@ -1,6 +1,7 @@
 ''' <summary>One line of a salary in force, with the component's flags.</summary>
 Public NotInheritable Class SalaryLineView
-    Public Sub New(componentId As Integer, code As String, name As String, isBasic As Boolean, isDa As Boolean, isOtBase As Boolean, amount As Decimal)
+    Public Sub New(componentId As Integer, code As String, name As String, isBasic As Boolean, isDa As Boolean, isOtBase As Boolean, amount As Decimal, Optional isHra As Boolean = False)
+        Me.IsHra = isHra
         Me.ComponentId = componentId
         Me.Code = code
         Me.Name = name
@@ -16,6 +17,8 @@ Public NotInheritable Class SalaryLineView
     Public ReadOnly Property IsBasic As Boolean
     Public ReadOnly Property IsDa As Boolean
     Public ReadOnly Property IsOtBase As Boolean
+    ''' <summary>House rent allowance head (CR 0019). Income tax reads HRA received from it.</summary>
+    Public ReadOnly Property IsHra As Boolean
     Public ReadOnly Property Amount As Decimal
 
     ''' <summary>The shape the wage builder takes.</summary>

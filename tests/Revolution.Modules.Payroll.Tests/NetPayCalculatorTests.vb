@@ -74,4 +74,59 @@ Public Class NetPayCalculatorTests
     Public Sub NegativeAmount_Throws()
         Assert.Throws(Of ArgumentOutOfRangeException)(Function() NetPayCalculator.Calculate(-1D, 0D, 0D, 0D, 0D, 25D))
     End Sub
+
+    <Fact>
+    Public Sub Tds_IsTakenInFull_WhenPayCoversIt()
+        Dim r As NetPayResult = NetPayCalculator.Calculate(20000D, 2000D, 0D, 0D, 0D, 25D, 1000D)
+        Assert.Equal(1000D, r.TdsTaken)
+        Assert.Equal(0D, r.TdsShortfall)
+        Assert.Equal(17000D, r.NetPay)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_IsTakenBeforeEmi_AndEmiCapUsesPayAfterTax()
+        Dim r As NetPayResult = NetPayCalculator.Calculate(20000D, 2000D, 0D, 0D, 3000D, 25D, 2000D)
+        Assert.Equal(2000D, r.TdsTaken)
+        Assert.Equal(3000D, r.EmiRecovered)
+        Assert.Equal(13000D, r.NetPay)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_IsLimitedToWhatIsLeft_AndTheRestIsAShortfall()
+        Dim r As NetPayResult = NetPayCalculator.Calculate(10000D, 2000D, 500D, 0D, 3000D, 25D, 9000D)
+        Assert.Equal(7500D, r.TdsTaken)
+        Assert.Equal(1500D, r.TdsShortfall)
+        Assert.Equal(0D, r.NetPay)
+        Assert.Equal(0D, r.EmiRecovered)
+        Assert.Equal(3000D, r.EmiDeferred)
+        Assert.Equal(0D, r.CarryForwardOut)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_CarriedInShortfallComesFirst()
+        Dim r As NetPayResult = NetPayCalculator.Calculate(10000D, 1000D, 0D, 8500D, 0D, 25D, 1000D)
+        Assert.Equal(500D, r.TdsTaken)
+        Assert.Equal(500D, r.TdsShortfall)
+        Assert.Equal(0D, r.NetPay)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_NeverCausesACarryForwardByItself()
+        Dim r As NetPayResult = NetPayCalculator.Calculate(5000D, 1000D, 0D, 0D, 0D, 25D, 50000D)
+        Assert.Equal(4000D, r.TdsTaken)
+        Assert.Equal(0D, r.CarryForwardOut)
+    End Sub
+
+    <Fact>
+    Public Sub NoTds_SameAsBefore()
+        Dim r As NetPayResult = NetPayCalculator.Calculate(20000D, 2000D, 0D, 0D, 3000D, 25D)
+        Assert.Equal(0D, r.TdsTaken)
+        Assert.Equal(0D, r.TdsShortfall)
+        Assert.Equal(15000D, r.NetPay)
+    End Sub
+
+    <Fact>
+    Public Sub NegativeTds_Throws()
+        Assert.Throws(Of ArgumentOutOfRangeException)(Function() NetPayCalculator.Calculate(1000D, 0D, 0D, 0D, 0D, 25D, -1D))
+    End Sub
 End Class

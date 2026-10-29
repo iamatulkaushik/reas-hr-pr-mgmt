@@ -168,4 +168,44 @@ Public Class PayrollRunCalculatorTests
         Dim l As RunLineResult = Run(f).Value
         Assert.Equal(0D, l.ProfessionalTax)
     End Sub
+
+    <Fact>
+    Public Sub Tds_IsTakenAndInTotalDeductions()
+        Dim seen As Decimal = 0D
+        Dim hook As Func(Of WageBreakdown, OperationResult(Of Decimal)) = Function(w)
+                                                                               seen = w.GrossEarnings
+                                                                               Return OperationResult(Of Decimal).Ok(1000D)
+                                                                           End Function
+        Dim l As RunLineResult = PayrollRunCalculator.Calculate(RunTestData.Facts(), RunTestData.October(), RunTestData.Policy(), RunTestData.Rates(), hook).Value
+        Assert.Equal(16000D, seen)
+        Assert.Equal(1000D, l.TdsAmount)
+        Assert.Equal(0D, l.TdsShortfall)
+        Assert.Equal(2730D, l.TotalDeductions)
+        Assert.Equal(13270D, l.NetPay)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_MoreThanPayCanCover_IsLimitedAndReportedAsShortfall()
+        Dim hook As Func(Of WageBreakdown, OperationResult(Of Decimal)) = Function(w) OperationResult(Of Decimal).Ok(20000D)
+        Dim l As RunLineResult = PayrollRunCalculator.Calculate(RunTestData.Facts(), RunTestData.October(), RunTestData.Policy(), RunTestData.Rates(), hook).Value
+        Assert.Equal(14270D, l.TdsAmount)
+        Assert.Equal(5730D, l.TdsShortfall)
+        Assert.Equal(0D, l.NetPay)
+        Assert.Equal(16000D, l.TotalDeductions)
+    End Sub
+
+    <Fact>
+    Public Sub Tds_FailedProjection_FailsTheEmployeeWithTheirCode()
+        Dim hook As Func(Of WageBreakdown, OperationResult(Of Decimal)) = Function(w) OperationResult(Of Decimal).Fail("no tax slab for the year.")
+        Dim r As OperationResult(Of RunLineResult) = PayrollRunCalculator.Calculate(RunTestData.Facts(), RunTestData.October(), RunTestData.Policy(), RunTestData.Rates(), hook)
+        Assert.False(r.Succeeded)
+        Assert.True(r.Message.EndsWith("no tax slab for the year.", StringComparison.Ordinal))
+    End Sub
+
+    <Fact>
+    Public Sub NoTdsHook_TaxIsZero()
+        Dim l As RunLineResult = Run(RunTestData.Facts()).Value
+        Assert.Equal(0D, l.TdsAmount)
+        Assert.Equal(0D, l.TdsShortfall)
+    End Sub
 End Class

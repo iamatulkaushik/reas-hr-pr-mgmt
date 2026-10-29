@@ -62,7 +62,8 @@ Public NotInheritable Class SqlPayrollRunRepository
                                                     Money(reader, "Edli"), Money(reader, "EpfAdmin"), Money(reader, "EsiEmployee"), Money(reader, "EsiEmployer"),
                                                     Money(reader, "ProfessionalTax"), Money(reader, "LoanEmi"), Money(reader, "LoanEmiDeferred"),
                                                     Money(reader, "OtherDeductions"), Money(reader, "CarryForwardIn"), Money(reader, "CarryForwardOut"),
-                                                    Money(reader, "TotalDeductions"), Money(reader, "NetPay"), Nothing))
+                                                    Money(reader, "TotalDeductions"), Money(reader, "NetPay"), Nothing,
+                                                    Money(reader, "TdsAmount")))
                     End While
                 End Using
             End Using
@@ -116,7 +117,8 @@ Public NotInheritable Class SqlPayrollRunRepository
                                                                         reader.GetBoolean(reader.GetOrdinal("IsBasic")),
                                                                         reader.GetBoolean(reader.GetOrdinal("IsDa")),
                                                                         reader.GetBoolean(reader.GetOrdinal("IsOtBase")),
-                                                                        reader.GetDecimal(reader.GetOrdinal("Amount"))))
+                                                                        reader.GetDecimal(reader.GetOrdinal("Amount")),
+                                                                        reader.GetBoolean(reader.GetOrdinal("IsHra"))))
                         End While
                     End If
                     For Each r As EmployeeRow In rows
@@ -137,7 +139,7 @@ Public NotInheritable Class SqlPayrollRunRepository
             .EmployeeID = l.EmployeeId, .FactoryID = l.FactoryId, .PaidDays = l.PaidDays, .OvertimeHours = l.OvertimeHours, .OvertimeAmount = l.OvertimeAmount,
             .GrossEarnings = l.GrossEarnings, .EpfWage = l.EpfWage, .EsiWage = l.EsiWage, .EpfEmployee = l.EpfEmployee, .EpfEmployerEpf = l.EpfEmployerEpf,
             .EpfEmployerEps = l.EpfEmployerEps, .Edli = l.Edli, .EpfAdmin = l.EpfAdmin, .EsiEmployee = l.EsiEmployee, .EsiEmployer = l.EsiEmployer,
-            .ProfessionalTax = l.ProfessionalTax, .LoanEmi = l.LoanEmi, .LoanEmiDeferred = l.LoanEmiDeferred, .OtherDeductions = l.OtherDeductions,
+            .ProfessionalTax = l.ProfessionalTax, .TdsAmount = l.TdsAmount, .LoanEmi = l.LoanEmi, .LoanEmiDeferred = l.LoanEmiDeferred, .OtherDeductions = l.OtherDeductions,
             .CarryForwardIn = l.CarryForwardIn, .CarryForwardOut = l.CarryForwardOut, .TotalDeductions = l.TotalDeductions, .NetPay = l.NetPay}).ToList())
         Dim earningsJson As String = JsonSerializer.Serialize(lines.SelectMany(Function(l) l.Earnings.Select(Function(e) New With {
             .EmployeeID = l.EmployeeId, .ComponentID = e.ComponentId, .Amount = e.Amount})).ToList())

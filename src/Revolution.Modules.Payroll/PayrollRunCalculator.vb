@@ -13,7 +13,11 @@ Public NotInheritable Class PayrollRunCalculator
     Private Sub New()
     End Sub
 
-    Public Shared Function Calculate(facts As RunEmployeeFacts, period As RunPeriod, policy As PolicySettings, rates As RunRates) As OperationResult(Of RunLineResult)
+    ''' <summary>
+    ''' tdsForGross is called once the wage is built and gives the income tax due this month, or a failure that fails the employee. Nothing means no tax (plan without TDS).
+    ''' </summary>
+    Public Shared Function Calculate(facts As RunEmployeeFacts, period As RunPeriod, policy As PolicySettings, rates As RunRates,
+                                     Optional tdsForGross As Func(Of WageBreakdown, OperationResult(Of Decimal)) = Nothing) As OperationResult(Of RunLineResult)
         If facts Is Nothing Then Throw New ArgumentNullException(NameOf(facts))
         If period Is Nothing Then Throw New ArgumentNullException(NameOf(period))
         If policy Is Nothing Then Throw New ArgumentNullException(NameOf(policy))
@@ -50,9 +54,16 @@ Public NotInheritable Class PayrollRunCalculator
             professionalTax = pt.Value
         End If
 
+        Dim tdsDue As Decimal = 0D
+        If tdsForGross IsNot Nothing Then
+            Dim tax As OperationResult(Of Decimal) = tdsForGross(wage)
+            If Not tax.Succeeded Then Return Fail(facts, tax.Message)
+            tdsDue = tax.Value
+        End If
+
         Dim statutory As Decimal = epf.EmployeeShare + esi.EmployeeShare + professionalTax
         Dim scheduledEmi As Decimal = LoanRecoveryAllocator.ScheduledEmi(facts.Installments, period.MonthKey)
-        Dim net As NetPayResult = NetPayCalculator.Calculate(wage.GrossEarnings, statutory, facts.OtherDeductions, facts.CarryForwardIn, scheduledEmi, policy.EmiCapPct)
+        Dim net As NetPayResult = NetPayCalculator.Calculate(wage.GrossEarnings, statutory, facts.OtherDeductions, facts.CarryForwardIn, scheduledEmi, policy.EmiCapPct, tdsDue)
 
         Dim componentByCode As New Dictionary(Of String, Integer)(StringComparer.Ordinal)
         For Each l As SalaryLineView In facts.Salary
@@ -63,7 +74,8 @@ Public NotInheritable Class PayrollRunCalculator
         Dim result As New RunLineResult(facts.EmployeeId, facts.FactoryId, facts.PaidDays, facts.OvertimeHours, wage.OvertimeAmount, wage.GrossEarnings,
                                         wage.EpfWage, wage.EsiWage, epf.EmployeeShare, epf.EmployerEpf, epf.EmployerEps, epf.Edli, epf.Admin,
                                         esi.EmployeeShare, esi.EmployerShare, professionalTax, net.EmiRecovered, net.EmiDeferred, facts.OtherDeductions,
-                                        facts.CarryForwardIn, net.CarryForwardOut, wage.GrossEarnings - net.NetPay, net.NetPay, earnings)
+                                        facts.CarryForwardIn, net.CarryForwardOut, wage.GrossEarnings - net.NetPay, net.NetPay, earnings,
+                                        net.TdsTaken, net.TdsShortfall)
         Return OperationResult(Of RunLineResult).Ok(result)
     End Function
 

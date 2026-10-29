@@ -5,7 +5,9 @@ Public NotInheritable Class RunLineResult
                    epfEmployerEps As Decimal, edli As Decimal, epfAdmin As Decimal, esiEmployee As Decimal, esiEmployer As Decimal,
                    professionalTax As Decimal, loanEmi As Decimal, loanEmiDeferred As Decimal, otherDeductions As Decimal,
                    carryForwardIn As Decimal, carryForwardOut As Decimal, totalDeductions As Decimal, netPay As Decimal,
-                   earnings As IReadOnlyList(Of EarningAmount))
+                   earnings As IReadOnlyList(Of EarningAmount), Optional tdsAmount As Decimal = 0D, Optional tdsShortfall As Decimal = 0D)
+        Me.TdsAmount = tdsAmount
+        Me.TdsShortfall = tdsShortfall
         Me.EmployeeId = employeeId
         Me.FactoryId = factoryId
         Me.PaidDays = paidDays
@@ -48,6 +50,10 @@ Public NotInheritable Class RunLineResult
     Public ReadOnly Property EsiEmployee As Decimal
     Public ReadOnly Property EsiEmployer As Decimal
     Public ReadOnly Property ProfessionalTax As Decimal
+    ''' <summary>Income tax deducted from this pay (CR 0019). Zero when the plan has no TDS feature.</summary>
+    Public ReadOnly Property TdsAmount As Decimal
+    ''' <summary>Tax due that pay could not cover. Shown as a warning on the line; not stored, so it is zero when the line is read back.</summary>
+    Public ReadOnly Property TdsShortfall As Decimal
     ''' <summary>EMI taken from this pay.</summary>
     Public ReadOnly Property LoanEmi As Decimal
     ''' <summary>Scheduled EMI not taken (cap or short pay). It is scheduled again in the next run.</summary>
@@ -55,7 +61,7 @@ Public NotInheritable Class RunLineResult
     Public ReadOnly Property OtherDeductions As Decimal
     Public ReadOnly Property CarryForwardIn As Decimal
     Public ReadOnly Property CarryForwardOut As Decimal
-    ''' <summary>Gross less net pay: statutory, other deductions, carried-in shortfall and EMI taken.</summary>
+    ''' <summary>Gross less net pay: statutory, income tax, other deductions, carried-in shortfall and EMI taken.</summary>
     Public ReadOnly Property TotalDeductions As Decimal
     Public ReadOnly Property NetPay As Decimal
     Public ReadOnly Property Earnings As IReadOnlyList(Of EarningAmount)

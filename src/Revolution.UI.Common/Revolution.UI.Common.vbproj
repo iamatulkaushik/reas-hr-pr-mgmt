@@ -10,4 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Icons\Infinitude.ttf" LogicalName="Revolution.UI.Common.Infinitude.ttf" />
+  </ItemGroup>
 </Project>

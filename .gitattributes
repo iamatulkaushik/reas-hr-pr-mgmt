@@ -9,3 +9,4 @@
 *.yml text eol=lf
 *.md text eol=lf
 CODEOWNERS text eol=lf
+*.ttf binary

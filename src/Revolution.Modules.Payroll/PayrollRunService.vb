@@ -25,9 +25,13 @@ Public NotInheritable Class PayrollRunService
     Private ReadOnly _entitlements As IEntitlementService
     Private ReadOnly _audit As IAuditService
     Private ReadOnly _session As ISessionContext
+    Private ReadOnly _tax As IRunTaxSource
+    Private ReadOnly _projection As TdsProjectionService
+    Private _tdsWarnings As IReadOnlyList(Of String) = New List(Of String)()
 
     Public Sub New(runs As IPayrollRunRepository, salary As ISalaryRepository, rates As IStatutoryRateService, approvals As IApprovalService,
-                   permissions As IPermissionService, entitlements As IEntitlementService, audit As IAuditService, session As ISessionContext)
+                   permissions As IPermissionService, entitlements As IEntitlementService, audit As IAuditService, session As ISessionContext,
+                   Optional tax As IRunTaxSource = Nothing, Optional projection As TdsProjectionService = Nothing)
         If runs Is Nothing Then Throw New ArgumentNullException(NameOf(runs))
         If salary Is Nothing Then Throw New ArgumentNullException(NameOf(salary))
         If rates Is Nothing Then Throw New ArgumentNullException(NameOf(rates))
@@ -44,7 +48,16 @@ Public NotInheritable Class PayrollRunService
         _entitlements = entitlements
         _audit = audit
         _session = session
+        _tax = tax
+        _projection = projection
     End Sub
+
+    ''' <summary>Employees whose tax pay could not cover in the last Process call, by code. Not stored: read it right after Process.</summary>
+    Public ReadOnly Property TdsWarnings As IReadOnlyList(Of String)
+        Get
+            Return _tdsWarnings
+        End Get
+    End Property
 
     Public Function GetRun(runId As Integer) As OperationResult(Of PayrollRunHeader)
         Dim allowed As OperationResult = CheckAccess(PermissionAction.View)
@@ -101,13 +114,17 @@ Public NotInheritable Class PayrollRunService
         Dim rates As OperationResult(Of RunRates) = LoadRates(period, facts)
         If Not rates.Succeeded Then Return OperationResult(Of Integer).Fail(rates.Message)
 
+        Dim taxFacts As IReadOnlyDictionary(Of Integer, EmployeeTaxFacts) = LoadTaxFacts(runId, period, facts)
         Dim lines As New List(Of RunLineResult)()
         Dim failures As New List(Of String)()
+        Dim warnings As New List(Of String)()
         For Each f As RunEmployeeFacts In facts
-            Dim r As OperationResult(Of RunLineResult) = PayrollRunCalculator.Calculate(f, period, policy, rates.Value)
+            Dim r As OperationResult(Of RunLineResult) = PayrollRunCalculator.Calculate(f, period, policy, rates.Value, TaxHook(f, period, taxFacts))
             If r.Succeeded Then lines.Add(r.Value) Else failures.Add(r.Message)
+            If r.Succeeded AndAlso r.Value.TdsShortfall > 0D Then warnings.Add(f.EmpCode)
         Next
         If failures.Count > 0 Then Return OperationResult(Of Integer).Fail(Summarise(failures))
+        _tdsWarnings = warnings
 
         Try
             _runs.ReplaceLines(runId, lines, CurrentUserId())
@@ -117,6 +134,21 @@ Public NotInheritable Class PayrollRunService
         Dim logged As OperationResult = Log("Process", runId, $"{lines.Count.ToString(CultureInfo.InvariantCulture)} employees.")
         If Not logged.Succeeded Then Return OperationResult(Of Integer).Fail(logged.Message)
         Return OperationResult(Of Integer).Ok(lines.Count)
+    End Function
+
+    ''' <summary>Tax facts for the whole run, or Nothing when the plan has no TDS feature or no tax source is set up.</summary>
+    Private Function LoadTaxFacts(runId As Integer, period As RunPeriod, facts As IReadOnlyList(Of RunEmployeeFacts)) As IReadOnlyDictionary(Of Integer, EmployeeTaxFacts)
+        If _tax Is Nothing OrElse _projection Is Nothing OrElse Not _entitlements.IsEnabled(PlanFeature.Tds) Then Return Nothing
+        Return _tax.Load(runId, FinancialYearCalendar.StartYear(period.PeriodTo), facts.Select(Function(f) f.EmployeeId).ToList())
+    End Function
+
+    Private Function TaxHook(f As RunEmployeeFacts, period As RunPeriod, taxFacts As IReadOnlyDictionary(Of Integer, EmployeeTaxFacts)) As Func(Of WageBreakdown, OperationResult(Of Decimal))
+        If taxFacts Is Nothing Then Return Nothing
+        Return Function(wage)
+                   Dim mine As EmployeeTaxFacts = Nothing
+                   If Not taxFacts.TryGetValue(f.EmployeeId, mine) Then Return OperationResult(Of Decimal).Fail("No tax facts were found.")
+                   Return RunTdsPlanner.Plan(period, wage, f.Salary, mine, AddressOf _projection.Project)
+               End Function
     End Function
 
     ''' <summary>Sends a processed run for approval. Only for plans that need a second person; other plans approve directly.</summary>
