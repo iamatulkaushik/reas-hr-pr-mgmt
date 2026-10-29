@@ -182,4 +182,20 @@ Public Class PayslipServiceTests
         _audit.Fail = True
         Assert.False(_service.GetPayslips(5, Nothing, False).Succeeded)
     End Sub
+
+    <Fact>
+    Public Sub ShowTds_FollowsThePlan()
+        _repo.Rows.Add(Row(101, PayrollRunStatus.Approved))
+        Assert.True(_service.GetPayslips(5, Nothing, False).Value(0).ShowTds)
+        _plan.Disabled.Add(PlanFeature.Tds)
+        Assert.False(_service.GetPayslips(5, Nothing, False).Value(0).ShowTds)
+    End Sub
+
+    <Fact>
+    Public Sub TdsAmount_TravelsOnTheRow()
+        Dim r As PayslipRow = Row(101, PayrollRunStatus.Approved)
+        r.TdsAmount = 1000D
+        _repo.Rows.Add(r)
+        Assert.Equal(1000D, _service.GetPayslips(5, Nothing, False).Value(0).Row.TdsAmount)
+    End Sub
 End Class

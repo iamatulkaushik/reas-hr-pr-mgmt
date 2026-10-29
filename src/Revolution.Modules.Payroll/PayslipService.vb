@@ -48,6 +48,7 @@ Public NotInheritable Class PayslipService
 
         Dim status As PayrollRunStatus = rows(0).RunStatus
         Dim isDraft As Boolean = status < PayrollRunStatus.Approved
+        Dim showTds As Boolean = _entitlements.IsEnabled(PlanFeature.Tds)
         Dim released As IReadOnlyDictionary(Of Integer, ReleasedIds) = Nothing
         If includeFullIds Then
             If isDraft Then Return Fail("Full ids can be printed only for an approved run.")
@@ -65,7 +66,7 @@ Public NotInheritable Class PayslipService
             Else
                 ids = New PayslipIds(IdMask.Last4(row.UanLast4), IdMask.Last4(row.EsiIpLast4), IdMask.Last4(row.AccountLast4), True)
             End If
-            slips.Add(New Payslip(row, ids, RupeeWords.Convert(Decimal.Round(row.NetPay, 0, MidpointRounding.AwayFromZero)), isDraft))
+            slips.Add(New Payslip(row, ids, RupeeWords.Convert(Decimal.Round(row.NetPay, 0, MidpointRounding.AwayFromZero)), isDraft, showTds))
         Next
 
         Dim logged As OperationResult = _audit.Record(New AuditEntry(ModuleKey.Payroll, "Payslip.Print", "PayrollRun", runId.ToString(CultureInfo.InvariantCulture),

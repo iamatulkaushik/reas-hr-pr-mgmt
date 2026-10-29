@@ -37,6 +37,7 @@ Public NotInheritable Class SalaryValidator
         If String.IsNullOrWhiteSpace(component.Name) Then Return OperationResult.Fail("Component name is required.")
         If component.Name.Trim().Length > MaxNameLength Then Return OperationResult.Fail("Component name is too long (100 characters at most).")
         If component.IsBasic AndAlso component.IsDa Then Return OperationResult.Fail("A component cannot be both basic and DA.")
+        If component.IsHra AndAlso (component.IsBasic OrElse component.IsDa) Then Return OperationResult.Fail("A house rent allowance component cannot be basic or DA.")
         If component.SortOrder < 0 OrElse component.SortOrder > Short.MaxValue Then Return OperationResult.Fail("Sort order is not valid.")
         If component.ComponentId.HasValue AndAlso component.ComponentId.Value <= 0 Then Return OperationResult.Fail("Component is not valid.")
         Return OperationResult.Ok()

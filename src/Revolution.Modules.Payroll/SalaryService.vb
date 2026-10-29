@@ -64,7 +64,7 @@ Public NotInheritable Class SalaryService
         Dim check As OperationResult = SalaryValidator.ValidateComponent(component)
         If Not check.Succeeded Then Return OperationResult(Of Integer).Fail(check.Message)
         Dim cleaned As New SalaryComponentItem(component.ComponentId, component.Code.Trim(), component.Name.Trim(), component.IsBasic,
-                                               component.IsDa, component.IsOtBase, component.SortOrder, component.IsActive)
+                                               component.IsDa, component.IsOtBase, component.SortOrder, component.IsActive, component.IsHra)
         Dim id As Integer
         Try
             id = _repository.SaveComponent(cleaned)

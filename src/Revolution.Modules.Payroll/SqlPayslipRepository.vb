@@ -48,6 +48,14 @@ Public NotInheritable Class SqlPayslipRepository
         Return rows
     End Function
 
+    ''' <summary>Reads a money column when the procedure returns it, otherwise 0. Lets the mapping ship before rpt.usp_Payslip_Get (migration 0701) returns TdsAmount.</summary>
+    Private Shared Function OptionalDecimal(reader As SqlDataReader, column As String) As Decimal
+        For index As Integer = 0 To reader.FieldCount - 1
+            If String.Equals(reader.GetName(index), column, StringComparison.OrdinalIgnoreCase) Then Return If(reader.IsDBNull(index), 0D, reader.GetDecimal(index))
+        Next
+        Return 0D
+    End Function
+
     Private Shared Function ReadRow(reader As SqlDataReader) As PayslipRow
         Return New PayslipRow With {
             .RunId = reader.GetInt32(reader.GetOrdinal("RunID")),
@@ -80,6 +88,7 @@ Public NotInheritable Class SqlPayslipRepository
             .EpfEmployee = reader.GetDecimal(reader.GetOrdinal("EpfEmployee")),
             .EsiEmployee = reader.GetDecimal(reader.GetOrdinal("EsiEmployee")),
             .ProfessionalTax = reader.GetDecimal(reader.GetOrdinal("ProfessionalTax")),
+            .TdsAmount = OptionalDecimal(reader, "TdsAmount"),
             .LoanEmi = reader.GetDecimal(reader.GetOrdinal("LoanEmi")),
             .OtherDeductions = reader.GetDecimal(reader.GetOrdinal("OtherDeductions")),
             .CarryForwardIn = reader.GetDecimal(reader.GetOrdinal("CarryForwardIn")),

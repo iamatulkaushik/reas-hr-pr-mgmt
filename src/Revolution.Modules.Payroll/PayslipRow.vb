@@ -33,6 +33,8 @@ Public NotInheritable Class PayslipRow
     Public Property EpfEmployee As Decimal
     Public Property EsiEmployee As Decimal
     Public Property ProfessionalTax As Decimal
+    ''' <summary>Income tax deducted (CR 0019). Zero when the plan has no TDS feature or the report procedure does not return it yet.</summary>
+    Public Property TdsAmount As Decimal
     Public Property LoanEmi As Decimal
     Public Property OtherDeductions As Decimal
     Public Property CarryForwardIn As Decimal

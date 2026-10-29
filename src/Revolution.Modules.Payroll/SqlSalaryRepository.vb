@@ -61,7 +61,8 @@ Public NotInheritable Class SqlSalaryRepository
                                                           reader.GetBoolean(reader.GetOrdinal("IsDa")),
                                                           reader.GetBoolean(reader.GetOrdinal("IsOtBase")),
                                                           CInt(reader.GetInt16(reader.GetOrdinal("SortOrder"))),
-                                                          reader.GetBoolean(reader.GetOrdinal("IsActive"))))
+                                                          reader.GetBoolean(reader.GetOrdinal("IsActive")),
+                                                          reader.GetBoolean(reader.GetOrdinal("IsHra"))))
                     End While
                 End Using
             End Using
@@ -80,6 +81,7 @@ Public NotInheritable Class SqlSalaryRepository
                                     cmd.Parameters.Add("@IsOtBase", SqlDbType.Bit).Value = component.IsOtBase
                                     cmd.Parameters.Add("@SortOrder", SqlDbType.SmallInt).Value = CShort(component.SortOrder)
                                     cmd.Parameters.Add("@IsActive", SqlDbType.Bit).Value = component.IsActive
+                                    cmd.Parameters.Add("@IsHra", SqlDbType.Bit).Value = component.IsHra
                                 End Sub)
     End Function
 
