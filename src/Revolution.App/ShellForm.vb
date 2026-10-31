@@ -48,7 +48,7 @@ Public Class ShellForm
     Private Sub RebuildMenu()
         _menu.Items.Clear()
         _menu.Items.Add(BuildFileMenu())
-        For Each groupMenu In ShellMenuBuilder.Build(_modules, _services.Permissions, _services.Entitlements, AddressOf OnOpenItem)
+        For Each groupMenu In ShellMenuBuilder.Build(_modules, _services.Permissions, _services.Entitlements, AddressOf OnOpenItem, AddressOf MenuIconMap.IconFor, DeviceDpi)
             _menu.Items.Add(groupMenu)
         Next
         Dim user = _services.Session.Current
@@ -99,12 +99,12 @@ Public Class ShellForm
 
     Private Function BuildFileMenu() As ToolStripMenuItem
         Dim fileMenu As New ToolStripMenuItem("&File")
-        Dim selectItem As New ToolStripMenuItem("Select &Company...") With {.Enabled = CanSwitchCompany()}
+        Dim selectItem As New ToolStripMenuItem("Select &Company...") With {.Enabled = CanSwitchCompany(), .Image = ShellMenuBuilder.MenuImage(AppIcon.CompanySwitch, DeviceDpi)}
         AddHandler selectItem.Click, AddressOf OnSwitchCompany
-        Dim yearItem As New ToolStripMenuItem("&Financial Year...") With {.Enabled = False, .ToolTipText = "Planned: not available yet."}
-        Dim signOutItem As New ToolStripMenuItem("&Sign Out")
+        Dim yearItem As New ToolStripMenuItem("&Financial Year...") With {.Enabled = False, .ToolTipText = "Planned: not available yet.", .Image = ShellMenuBuilder.MenuImage(AppIcon.Calendar, DeviceDpi)}
+        Dim signOutItem As New ToolStripMenuItem("&Sign Out") With {.Image = ShellMenuBuilder.MenuImage(AppIcon.Logout, DeviceDpi)}
         AddHandler signOutItem.Click, AddressOf OnSignOut
-        Dim exitItem As New ToolStripMenuItem("E&xit")
+        Dim exitItem As New ToolStripMenuItem("E&xit") With {.Image = ShellMenuBuilder.MenuImage(AppIcon.[Exit], DeviceDpi)}
         AddHandler exitItem.Click, Sub(sender As Object, args As EventArgs) Close()
         fileMenu.DropDownItems.AddRange(New ToolStripItem() {selectItem, yearItem, signOutItem, New ToolStripSeparator(), exitItem})
         Return fileMenu

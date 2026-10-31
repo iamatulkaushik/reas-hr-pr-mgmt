@@ -48,3 +48,4 @@ Brave 0323 and the calculator first. Sigma's reports and screens can follow in t
 
 **Order.** Brave: 0323, `RunLineResult`, `NetPayCalculator`, calculator hook, service, then `PayslipRow` mapping. Sigma: 0701 and layouts after 0323 is merged. Nothing is blocked before then.
 
+**Status 2026-10-29 (Sigma).** Reports: `0701_rpt_payroll_tds.sql` written (the three 0700 procedures plus `TdsAmount`; summary is a `SUM`), and `docs/reports-payroll-data.md` updated with the column and the `ShowTds` rule. Guards pass. Applies after 0323, which is merged. Layouts: the repo has no production payslip or wage register layout yet. The ReportStudio sample payslip already has an "Income Tax (TDS)" line. The production layouts are written once the Owner decides ADR 0005 (Crystal or ReportStudio); the rule for them is `ShowTds` true shows the line, label "Income tax (TDS)".

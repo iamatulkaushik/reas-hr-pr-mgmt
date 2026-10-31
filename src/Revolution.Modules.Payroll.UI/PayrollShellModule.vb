@@ -1,7 +1,7 @@
 Imports System.Windows.Forms
 Imports Revolution.Modules.Payroll
 
-''' <summary>The Payroll module's menu items for the shell (ADR 0016): the three statutory and bank file exports (ADR 0019).</summary>
+''' <summary>The Payroll module's menu items for the shell (ADR 0016): the three statutory and bank file exports (ADR 0019) and the full and final screen.</summary>
 Public NotInheritable Class PayrollShellModule
     Implements IShellModule
 
@@ -9,6 +9,7 @@ Public NotInheritable Class PayrollShellModule
     Private Const EcrSort As Integer = 400
     Private Const EsicSort As Integer = 410
     Private Const BankSort As Integer = 420
+    Private Const FnfSort As Integer = 500
 
     Private ReadOnly _items As IReadOnlyList(Of ShellItem)
 
@@ -21,7 +22,9 @@ Public NotInheritable Class PayrollShellModule
             New ShellItem(New MenuEntry("payroll.export.esic", PayrollGroup, "ESIC upload sheet", ModuleKey.Statutory, PlanFeature.EpfEsi, EsicSort),
                           Function() CType(New PayrollExportForm(services, PayrollFileKind.Esic, CanExport(permissions, ModuleKey.Statutory)), Form)),
             New ShellItem(New MenuEntry("payroll.export.bank", PayrollGroup, "Bank file", ModuleKey.Payroll, PlanFeature.BankFiles, BankSort),
-                          Function() CType(New PayrollExportForm(services, PayrollFileKind.BankFile, CanExport(permissions, ModuleKey.Payroll)), Form))}
+                          Function() CType(New PayrollExportForm(services, PayrollFileKind.BankFile, CanExport(permissions, ModuleKey.Payroll)), Form)),
+            New ShellItem(New MenuEntry("payroll.fnf", PayrollGroup, "Full and final", ModuleKey.Payroll, PlanFeature.FullAndFinal, FnfSort),
+                          Function() CType(New FnfForm(services), Form))}
     End Sub
 
     ''' <summary>Only enables or disables the button. The service checks Export again.</summary>

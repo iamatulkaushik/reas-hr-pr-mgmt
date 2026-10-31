@@ -154,3 +154,9 @@ Members that share a codepoint do so on purpose. An item not listed here has no 
 ## No icon (decided)
 
 The font has no glyph for these, so they show text only: AuditTrail, Diagnostics, Attachment, Camera, Eye, EyeOff, Passport, Shift, HalfDay, Overtime, WeeklyOff, Earnings, ProfessionalTax, Loan, Emi, Deductions, Tds, Form16, Form24Q, TaxRegime, Arrears, FullAndFinal, Ecr, Challan, Rfid, PunchIn, PunchOut, AssetAssign, Expense, Claim.
+
+## Brand
+
+| AppIcon | Codepoint |
+|---|---|
+| AppLogo | U+E003 |

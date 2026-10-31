@@ -39,6 +39,11 @@ Public NotInheritable Class IconProvider
         Return GetBitmap(icon, Math.Max(1, CInt(Math.Round(sizeDip * deviceDpi / 96.0, MidpointRounding.AwayFromZero))), color)
     End Function
 
+    ''' <summary>The codepoint of the icon font that draws the icon, for screens that list the icons (the Icon and menu map).</summary>
+    Public Shared Function GlyphCode(icon As AppIcon) As Integer
+        Return AscW(IconMap.GlyphFor(icon))
+    End Function
+
     Private Shared Function Render(icon As AppIcon, sizePx As Integer, color As Color) As Bitmap
         Dim glyph As String = IconMap.GlyphFor(icon)
         Dim bmp As New Bitmap(sizePx, sizePx)

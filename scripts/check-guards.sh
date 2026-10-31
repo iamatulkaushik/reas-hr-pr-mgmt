@@ -76,5 +76,15 @@ badtran=$(awk '
 ' database/migrations/*.sql 2>/dev/null | sort)
 [ -n "$badtran" ] && err "Procedure opens a transaction without SET XACT_ABORT ON: $(echo $badtran)"
 
+# 9. Icons come only from the icon font through IconProvider (ADR 0020): no picture files in the source (the exe icon is the one exception),
+# no icon codepoints outside Icons/, and only BaseForm sets a form icon.
+pics=$(find src tests tools -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.ico' -o -iname '*.svg' \) \
+  -not -path '*/bin/*' -not -path '*/obj/*' -not -path 'src/Revolution.App/Revolution.ico' 2>/dev/null)
+[ -n "$pics" ] && err "Picture file(s) in the source. Icons come from the icon font (ADR 0020): $(echo $pics)"
+glyphs=$(grep -rnE --include='*.vb' 'ChrW\(&H|Infinitude' src 2>/dev/null | grep -v 'src/Revolution.UI.Common/Icons/' | tr -d '\r')
+[ -n "$glyphs" ] && err "Icon codepoint or font name outside Icons/. Use IconProvider.GetBitmap(AppIcon.X, ...): $glyphs"
+formicon=$(grep -rnE --include='*.vb' '(^|[^A-Za-z.])(Me\.)?Icon[[:space:]]*=[^=]' src 2>/dev/null | grep -v 'src/Revolution.UI.Common/BaseForm.vb' | grep -v 'Revolution.ReportViewer' | tr -d '\r')
+[ -n "$formicon" ] && err "A form sets its own icon. BaseForm sets it for every form (ADR 0020): $formicon"
+
 [ "$fail" -eq 0 ] && echo "All guards passed."
 exit "$fail"

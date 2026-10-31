@@ -24,7 +24,7 @@ Friend Module IconMap
         {AppIcon.Device, &H14A}, {AppIcon.Sync, &H170}, {AppIcon.AgentOnline, &H1C1}, {AppIcon.AgentOffline, &H1C2},
         {AppIcon.Asset, &H1C4}, {AppIcon.Receipt, &H1B5}, {AppIcon.Database, &HF0}, {AppIcon.Backup, &HF0},
         {AppIcon.Restore, &HF0}, {AppIcon.Preview, &HF0}, {AppIcon.Update, &H106}, {AppIcon.About, &HE8},
-        {AppIcon.Pdf, &H1CE}
+        {AppIcon.Pdf, &H1CE}, {AppIcon.AppLogo, &HE003}
     }
 
     ''' <summary>The glyph for an icon. Throws if the icon has no mapping, so a new enum member cannot ship without one.</summary>

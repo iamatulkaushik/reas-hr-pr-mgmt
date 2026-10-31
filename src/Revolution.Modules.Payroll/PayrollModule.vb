@@ -19,8 +19,10 @@ Public NotInheritable Class PayrollModule
                                           New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection)
         Dim loans As New LoanService(New SqlLoanRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim tds As New TdsDeclarationService(tdsRepository, host.Crypto, host.Permissions, host.Entitlements, host.Audit, host.Session)
-        Dim leave As New LeaveService(New SqlLeaveRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session)
-        Dim fnf As New FnfService(New SqlFnfRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session)
+        Dim leaveRepository As New SqlLeaveRepository(host.Factory)
+        Dim leave As New LeaveService(leaveRepository, host.Permissions, host.Entitlements, host.Audit, host.Session)
+        Dim fnf As New FnfService(New SqlFnfRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session,
+                                  New SqlFnfFactsSource(host.Factory), host.Rates, leaveRepository, New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection)
         Dim repository As New SqlPayrollFileRepository(host.Factory)
         Dim releaser As New EmployeeExportReleaser(export)
         Dim source As New PayrollFileSource(repository, releaser)

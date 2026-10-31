@@ -108,4 +108,6 @@ Public Enum AppIcon
     Update
     About
     Pdf
+    ' Brand
+    AppLogo
 End Enum

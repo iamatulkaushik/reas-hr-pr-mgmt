@@ -26,6 +26,7 @@ Public MustInherit Class BaseForm
         AutoScaleDimensions = New SizeF(96.0F, 96.0F)
         StartPosition = FormStartPosition.CenterParent
         Text = title
+        ApplyWindowIcon()
         _errors.ContainerControl = Me
         _errors.BlinkStyle = ErrorBlinkStyle.NeverBlink
         BuildHeader(title, subtitle)
@@ -182,6 +183,15 @@ Public MustInherit Class BaseForm
             _errors.Dispose()
         End If
         MyBase.Dispose(disposing)
+    End Sub
+
+    ''' <summary>Gives the form the application icon (ADR 0020). A form that cannot get it keeps the default icon: a missing icon must never stop a screen opening.</summary>
+    Private Sub ApplyWindowIcon()
+        Try
+            Icon = AppWindowIcon.WindowIcon
+        Catch ex As Exception
+            Debug.WriteLine("The application icon could not be built: " & ex.Message)
+        End Try
     End Sub
 
     Private Sub BuildHeader(title As String, subtitle As String)

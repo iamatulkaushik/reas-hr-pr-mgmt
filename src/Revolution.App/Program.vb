@@ -56,9 +56,11 @@ Public Module Program
             New EmployeesShellModule(employees, services.Permissions),
             New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions),
             New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions)}
+        Dim layout As New MenuLayoutModule(sources)
         Return New List(Of IShellModule) From {
-            New MenuLayoutModule(sources),
-            New LicenceShellModule(services.LicenceAdmin)}
+            layout,
+            New LicenceShellModule(services.LicenceAdmin),
+            New IconMapShellModule(Function() layout.Items, Function() sources.SelectMany(Function(m) m.Items).ToList(), services.Permissions)}
     End Function
 
     ''' <summary>Login, then the company picker for a user who works on several companies. False when the user cancels.</summary>

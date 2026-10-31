@@ -17,6 +17,7 @@ Public NotInheritable Class MenuLayoutModule
     Private Const AttendanceGroup As String = "Attendance"
     Private Const InsertAttendanceGroup As String = "Attendance|Insert"
     Private Const ExportGroup As String = "Payroll|Export"
+    Private Const PayrollGroup As String = "Payroll"
 
     ' Entry keys of the screens the feature modules offer.
     Private Const EmployeeScreen As String = "masters.employee"
@@ -32,6 +33,7 @@ Public NotInheritable Class MenuLayoutModule
     Private Const EcrScreen As String = "payroll.export.ecr"
     Private Const EsicScreen As String = "payroll.export.esic"
     Private Const BankScreen As String = "payroll.export.bank"
+    Private Const FnfScreen As String = "payroll.fnf"
 
     Private ReadOnly _screens As Dictionary(Of String, ShellItem)
     Private ReadOnly _items As New List(Of ShellItem)()
@@ -103,6 +105,7 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("payroll.export.ecr", ExportGroup, "EPF ECR file", ModuleKey.Statutory, PlanFeature.EpfEsi, 400, EcrScreen)
         AddScreen("payroll.export.esic", ExportGroup, "ESIC upload file", ModuleKey.Statutory, PlanFeature.EpfEsi, 410, EsicScreen)
         AddScreen("payroll.export.bank", ExportGroup, "Bank file", ModuleKey.Payroll, PlanFeature.BankFiles, 420, BankScreen)
+        AddScreen("payroll.fnf", PayrollGroup, "Full and final", ModuleKey.Payroll, PlanFeature.FullAndFinal, 500, FnfScreen)
     End Sub
 
     ''' <summary>

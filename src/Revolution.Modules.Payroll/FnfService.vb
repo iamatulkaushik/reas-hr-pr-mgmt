@@ -14,9 +14,15 @@ Public NotInheritable Class FnfService
     Private ReadOnly _entitlements As IEntitlementService
     Private ReadOnly _audit As IAuditService
     Private ReadOnly _session As ISessionContext
+    Private ReadOnly _source As IFnfFactsSource
+    Private ReadOnly _rates As IStatutoryRateService
+    Private ReadOnly _leave As ILeaveRepository
+    Private ReadOnly _tax As IRunTaxSource
+    Private ReadOnly _projection As TdsProjectionService
 
     Public Sub New(repository As IFnfRepository, permissions As IPermissionService, entitlements As IEntitlementService,
-                   audit As IAuditService, session As ISessionContext)
+                   audit As IAuditService, session As ISessionContext, Optional source As IFnfFactsSource = Nothing, Optional rates As IStatutoryRateService = Nothing,
+                   Optional leave As ILeaveRepository = Nothing, Optional tax As IRunTaxSource = Nothing, Optional projection As TdsProjectionService = Nothing)
         If repository Is Nothing Then Throw New ArgumentNullException(NameOf(repository))
         If permissions Is Nothing Then Throw New ArgumentNullException(NameOf(permissions))
         If entitlements Is Nothing Then Throw New ArgumentNullException(NameOf(entitlements))
@@ -27,6 +33,11 @@ Public NotInheritable Class FnfService
         _entitlements = entitlements
         _audit = audit
         _session = session
+        _source = source
+        _rates = rates
+        _leave = leave
+        _tax = tax
+        _projection = projection
     End Sub
 
     ''' <summary>The settlement for a separation. Succeeds with Nothing when none is saved yet.</summary>
@@ -35,6 +46,105 @@ Public NotInheritable Class FnfService
         If Not allowed.Succeeded Then Return OperationResult(Of FnfSettlementView).Fail(allowed.Message)
         If separationId <= 0 Then Return OperationResult(Of FnfSettlementView).Fail("Pick a separation.")
         Return OperationResult(Of FnfSettlementView).Ok(_repository.Get(separationId))
+    End Function
+
+    ''' <summary>
+    ''' Works out the settlement for a separation from the database facts, the bonus and gratuity rule rows, the leave ledger and the final tax true-up. Nothing is saved: the screen shows
+    ''' the lines, the Owner may change them, then SaveLines stores them. Leave out of it anything the plan or the facts do not support; the plan's notes say what and why.
+    ''' </summary>
+    Public Function Prepare(separationId As Integer, options As FnfPrepareOptions) As OperationResult(Of FnfPlan)
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.View)
+        If Not allowed.Succeeded Then Return OperationResult(Of FnfPlan).Fail(allowed.Message)
+        If separationId <= 0 Then Return OperationResult(Of FnfPlan).Fail("Pick a separation.")
+        If _source Is Nothing OrElse _rates Is Nothing Then Return OperationResult(Of FnfPlan).Fail("Full and final facts are not set up.")
+        Dim src As FnfSourceFacts = _source.Load(separationId)
+        If src Is Nothing Then Return OperationResult(Of FnfPlan).Fail("Separation not found.")
+        Dim choices As FnfPrepareOptions = If(options, New FnfPrepareOptions())
+        Dim extra As New List(Of String)()
+        Dim tds As OperationResult(Of Decimal) = TdsTrueUp(src, extra)
+        If Not tds.Succeeded Then Return OperationResult(Of FnfPlan).Fail(tds.Message)
+        Dim planned As OperationResult(Of FnfPlan) = FnfPlanner.Plan(BuildFacts(src, choices, tds.Value, extra))
+        If Not planned.Succeeded Then Return planned
+        Return OperationResult(Of FnfPlan).Ok(New FnfPlan(planned.Value.Lines, planned.Value.Totals, planned.Value.DueWindow, extra.Concat(planned.Value.Notes).ToList()))
+    End Function
+
+    Private Function BuildFacts(src As FnfSourceFacts, choices As FnfPrepareOptions, tdsAdjustment As Decimal, notes As List(Of String)) As FnfFacts
+        Dim facts As New FnfFacts With {
+            .EmployeeId = src.EmployeeId, .JoinDate = src.JoinDate, .LastWorkingDay = src.LastWorkingDay,
+            .DailyWageGross = If(src.DailyWageDivisor > 0D, src.MonthlyGross / src.DailyWageDivisor, 0D),
+            .NoticeApplies = src.ReasonId = 1, .NoticeDate = src.NoticeDate, .NoticePeriodDays = src.NoticePeriodDays,
+            .GratuityCovered = src.EmploymentTypeId = 1 OrElse src.EmploymentTypeId = 3, .IsFixedTerm = src.EmploymentTypeId = 3,
+            .WaiveGratuityMinimum = src.ReasonId = 3 OrElse src.ReasonId = 4, .GratuityWage = src.MonthlyBasicPlusDa,
+            .LoanOutstanding = src.LoanOutstanding, .TdsAdjustment = tdsAdjustment, .ArrearsRecovery = choices.ArrearsRecovery}
+        Dim gratuity As OperationResult(Of GratuityRule) = _rates.GetGratuityRule(src.LastWorkingDay)
+        If gratuity.Succeeded Then facts.GratuityRule = gratuity.Value
+        ApplyBonus(facts, src, choices)
+        ApplyLastSalary(facts, src, choices, notes)
+        ApplyLeave(facts, src.EmployeeId)
+        Return facts
+    End Function
+
+    Private Sub ApplyBonus(facts As FnfFacts, src As FnfSourceFacts, choices As FnfPrepareOptions)
+        Dim rule As OperationResult(Of BonusRule) = _rates.GetBonusRule(src.LastWorkingDay)
+        If Not rule.Succeeded Then Return
+        Dim wages As New List(Of Decimal)(src.BonusMonths.Select(Function(m) m.BasicPlusDa))
+        Dim days As Decimal = src.BonusMonths.Sum(Function(m) m.PaidDays)
+        If src.FinalRunId.HasValue Then
+            wages.Add(src.FinalBasicPlusDa)
+            days += src.FinalPaidDays
+        End If
+        facts.BonusRule = rule.Value
+        facts.BonusLastMonthlyWage = src.MonthlyBasicPlusDa
+        facts.BonusMonthlyWages = wages
+        facts.BonusDaysWorked = CInt(Math.Floor(days))
+        facts.BonusPct = If(choices.BonusPct, rule.Value.MinPct)
+    End Sub
+
+    Private Shared Sub ApplyLastSalary(facts As FnfFacts, src As FnfSourceFacts, choices As FnfPrepareOptions, notes As List(Of String))
+        If choices.LastSalaryOverride.HasValue Then
+            facts.LastSalaryNet = choices.LastSalaryOverride.Value
+        ElseIf src.FinalRunId.HasValue Then
+            facts.LastSalaryNet = src.FinalNetPay
+        Else
+            notes.Add("No run covers the exit date, so the last salary is zero. Enter it by hand.")
+        End If
+    End Sub
+
+    ''' <summary>Encashable leave types only: each balance cut to its own limit, then added up. The planner gets the total with no further limit.</summary>
+    Private Sub ApplyLeave(facts As FnfFacts, employeeId As Integer)
+        If _leave Is Nothing Then Return
+        Dim encashable As List(Of LeaveBalanceRow) = _leave.ListBalances(employeeId).Where(Function(b) b.IsEncashable AndAlso b.BalanceDays > 0D).ToList()
+        facts.LeaveEncashable = _leave.ListBalances(employeeId).Any(Function(b) b.IsEncashable)
+        facts.LeaveBalanceDays = encashable.Sum(Function(b) If(b.MaxEncashDays.HasValue, Math.Min(b.BalanceDays, b.MaxEncashDays.Value), b.BalanceDays))
+        facts.LeaveMaxEncashDays = 0D
+    End Sub
+
+    ''' <summary>Final tax true-up: the year's tax on pay actually earned, less tax already deducted including the final run's. Skipped, with a note, when tax is off or no run covers the exit date.</summary>
+    Private Function TdsTrueUp(src As FnfSourceFacts, notes As List(Of String)) As OperationResult(Of Decimal)
+        If _tax Is Nothing OrElse _projection Is Nothing OrElse Not _entitlements.IsEnabled(PlanFeature.Tds) Then Return OperationResult(Of Decimal).Ok(0D)
+        If Not src.FinalRunId.HasValue Then
+            notes.Add("Income tax true-up skipped: no run covers the exit date.")
+            Return OperationResult(Of Decimal).Ok(0D)
+        End If
+        Dim financialYear As Integer = If(src.FinalMonthKey Mod 100 >= 4, src.FinalMonthKey \ 100, src.FinalMonthKey \ 100 - 1)
+        Dim loaded As IReadOnlyDictionary(Of Integer, EmployeeTaxFacts) = _tax.Load(src.FinalRunId.Value, financialYear, New List(Of Integer) From {src.EmployeeId})
+        Dim mine As EmployeeTaxFacts = Nothing
+        If Not loaded.TryGetValue(src.EmployeeId, mine) Then Return OperationResult(Of Decimal).Fail("No tax facts were found.")
+        Dim earned As New Dictionary(Of Integer, TdsMonthFacts)()
+        For Each month As TdsMonthFacts In mine.LockedMonths
+            earned(month.MonthKey) = month
+        Next
+        Dim final As New TdsMonthFacts(src.FinalMonthKey, src.FinalBasicPlusDa, src.FinalHra, src.FinalGross)
+        earned(src.FinalMonthKey) = If(earned.ContainsKey(src.FinalMonthKey), SumMonths(earned(src.FinalMonthKey), final), final)
+        Dim input As New TdsProjectionInput(src.EmployeeId, financialYear, mine.DateOfBirth, src.FinalMonthKey, FnfTdsTrueUp.MonthsForExit(financialYear, src.FinalMonthKey, earned),
+                                            mine.TaxDeductedBefore + src.FinalTdsAmount, mine.Declaration)
+        Dim projected As OperationResult(Of TdsProjectionResult) = _projection.Project(input)
+        If Not projected.Succeeded Then Return OperationResult(Of Decimal).Fail(projected.Message)
+        Return OperationResult(Of Decimal).Ok(FnfTdsTrueUp.Adjustment(projected.Value))
+    End Function
+
+    Private Shared Function SumMonths(a As TdsMonthFacts, b As TdsMonthFacts) As TdsMonthFacts
+        Return New TdsMonthFacts(a.MonthKey, a.BasicPlusDa + b.BasicPlusDa, a.HraReceived + b.HraReceived, a.TaxableSalary + b.TaxableSalary)
     End Function
 
     ''' <summary>Totals for lines the screen has not saved yet.</summary>

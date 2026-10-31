@@ -132,6 +132,8 @@ Friend NotInheritable Class FakeRates
     Implements IStatutoryRateService
 
     Public EpfFailure As String
+    Public GratuityRuleToReturn As GratuityRule
+    Public BonusRuleToReturn As BonusRule
 
     Public Function GetEpfRate(asOf As Date) As OperationResult(Of EpfRate) Implements IStatutoryRateService.GetEpfRate
         If EpfFailure IsNot Nothing Then Return OperationResult(Of EpfRate).Fail(EpfFailure)
@@ -151,10 +153,12 @@ Friend NotInheritable Class FakeRates
     End Function
 
     Public Function GetGratuityRule(asOf As Date) As OperationResult(Of GratuityRule) Implements IStatutoryRateService.GetGratuityRule
+        If GratuityRuleToReturn IsNot Nothing Then Return OperationResult(Of GratuityRule).Ok(GratuityRuleToReturn)
         Return OperationResult(Of GratuityRule).Fail("Not used in these tests.")
     End Function
 
     Public Function GetBonusRule(asOf As Date) As OperationResult(Of BonusRule) Implements IStatutoryRateService.GetBonusRule
+        If BonusRuleToReturn IsNot Nothing Then Return OperationResult(Of BonusRule).Ok(BonusRuleToReturn)
         Return OperationResult(Of BonusRule).Fail("Not used in these tests.")
     End Function
 
