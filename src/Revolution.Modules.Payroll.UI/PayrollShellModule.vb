@@ -10,6 +10,11 @@ Public NotInheritable Class PayrollShellModule
     Private Const EsicSort As Integer = 410
     Private Const BankSort As Integer = 420
     Private Const FnfSort As Integer = 500
+    Private Const RunSort As Integer = 480
+    Private Const PayslipSort As Integer = 490
+    Private Const LeaveSort As Integer = 510
+    Private Const LoanSort As Integer = 470
+    Private Const TdsSort As Integer = 460
 
     Private ReadOnly _items As IReadOnlyList(Of ShellItem)
 
@@ -23,6 +28,16 @@ Public NotInheritable Class PayrollShellModule
                           Function() CType(New PayrollExportForm(services, PayrollFileKind.Esic, CanExport(permissions, ModuleKey.Statutory)), Form)),
             New ShellItem(New MenuEntry("payroll.export.bank", PayrollGroup, "Bank file", ModuleKey.Payroll, PlanFeature.BankFiles, BankSort),
                           Function() CType(New PayrollExportForm(services, PayrollFileKind.BankFile, CanExport(permissions, ModuleKey.Payroll)), Form)),
+            New ShellItem(New MenuEntry("payroll.tds", PayrollGroup, "Income tax declaration", ModuleKey.Payroll, PlanFeature.Tds, TdsSort),
+                          Function() CType(New TdsDeclarationForm(services), Form)),
+            New ShellItem(New MenuEntry("payroll.loans", PayrollGroup, "Loans", ModuleKey.Payroll, PlanFeature.Loans, LoanSort),
+                          Function() CType(New LoansForm(services), Form)),
+            New ShellItem(New MenuEntry("payroll.run", PayrollGroup, "Payroll run", ModuleKey.Payroll, PlanFeature.BasicPayroll, RunSort),
+                          Function() CType(New PayrollRunForm(services), Form)),
+            New ShellItem(New MenuEntry("payroll.payslips", PayrollGroup, "Payslips", ModuleKey.Payroll, PlanFeature.Payslips, PayslipSort),
+                          Function() CType(New PayslipListForm(services), Form)),
+            New ShellItem(New MenuEntry("payroll.leave", PayrollGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, LeaveSort),
+                          Function() CType(New LeaveLedgerForm(services), Form)),
             New ShellItem(New MenuEntry("payroll.fnf", PayrollGroup, "Full and final", ModuleKey.Payroll, PlanFeature.FullAndFinal, FnfSort),
                           Function() CType(New FnfForm(services), Form))}
     End Sub

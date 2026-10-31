@@ -34,6 +34,11 @@ Public NotInheritable Class MenuLayoutModule
     Private Const EsicScreen As String = "payroll.export.esic"
     Private Const BankScreen As String = "payroll.export.bank"
     Private Const FnfScreen As String = "payroll.fnf"
+    Private Const RunScreen As String = "payroll.run"
+    Private Const PayslipScreen As String = "payroll.payslips"
+    Private Const LeaveScreen As String = "payroll.leave"
+    Private Const TdsScreen As String = "payroll.tds"
+    Private Const LoansScreen As String = "payroll.loans"
 
     Private ReadOnly _screens As Dictionary(Of String, ShellItem)
     Private ReadOnly _items As New List(Of ShellItem)()
@@ -105,6 +110,11 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("payroll.export.ecr", ExportGroup, "EPF ECR file", ModuleKey.Statutory, PlanFeature.EpfEsi, 400, EcrScreen)
         AddScreen("payroll.export.esic", ExportGroup, "ESIC upload file", ModuleKey.Statutory, PlanFeature.EpfEsi, 410, EsicScreen)
         AddScreen("payroll.export.bank", ExportGroup, "Bank file", ModuleKey.Payroll, PlanFeature.BankFiles, 420, BankScreen)
+        AddScreen("payroll.tds", PayrollGroup, "Income tax declaration", ModuleKey.Payroll, PlanFeature.Tds, 460, TdsScreen)
+        AddScreen("payroll.loans", PayrollGroup, "Loans", ModuleKey.Payroll, PlanFeature.Loans, 470, LoansScreen)
+        AddScreen("payroll.run", PayrollGroup, "Payroll run", ModuleKey.Payroll, PlanFeature.BasicPayroll, 480, RunScreen)
+        AddScreen("payroll.payslips", PayrollGroup, "Payslips", ModuleKey.Payroll, PlanFeature.Payslips, 490, PayslipScreen)
+        AddScreen("payroll.leave", PayrollGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, 510, LeaveScreen)
         AddScreen("payroll.fnf", PayrollGroup, "Full and final", ModuleKey.Payroll, PlanFeature.FullAndFinal, 500, FnfScreen)
     End Sub
 
