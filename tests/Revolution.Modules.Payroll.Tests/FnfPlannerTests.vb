@@ -9,7 +9,7 @@ Imports Xunit
 Public Class FnfPlannerTests
     Private Shared Function Facts() As FnfFacts
         Return New FnfFacts With {
-            .EmployeeId = 101, .JoinDate = New Date(2015, 4, 1), .LastWorkingDay = New Date(2025, 3, 31), .LastSalaryNet = 25000D, .DailyWageGross = 1000D,
+            .EmployeeId = 101, .JoinDate = New Date(2015, 4, 1), .LastWorkingDay = New Date(2025, 3, 31), .DailyWageGross = 1000D,
             .NoticeApplies = True, .NoticeDate = New Date(2025, 3, 21), .NoticePeriodDays = 30,
             .GratuityCovered = True, .GratuityWage = 30000D, .GratuityRule = New GratuityRule(New Date(2020, 4, 1), 5, 1, 15D, 26D, 6, 2000000D, True, Nothing, "test"),
             .BonusRule = New BonusRule(New Date(2020, 4, 1), 21000D, 7000D, 8.33D, 20D, 30, True, Nothing, "test"),
@@ -26,10 +26,10 @@ Public Class FnfPlannerTests
         Dim r = FnfPlanner.Plan(Facts())
         Assert.True(r.Succeeded)
         Dim plan As FnfPlan = r.Value
-        Assert.Equal(6, plan.Lines.Count)
-        Assert.Equal(217074D, plan.Totals.Earnings)
+        Assert.Equal(5, plan.Lines.Count)
+        Assert.Equal(192074D, plan.Totals.Earnings)
         Assert.Equal(24000D, plan.Totals.Deductions)
-        Assert.Equal(193074D, plan.Totals.Net)
+        Assert.Equal(168074D, plan.Totals.Net)
         Assert.Equal(0, plan.Notes.Count)
         Assert.Equal(173077D, plan.Lines.Single(Function(l) l.Kind = FnfComponentKind.Gratuity).Amount)
         Assert.Equal(6997D, plan.Lines.Single(Function(l) l.Kind = FnfComponentKind.Bonus).Amount)
@@ -101,7 +101,7 @@ Public Class FnfPlannerTests
         f.GratuityRule = Nothing
         Dim plan As FnfPlan = FnfPlanner.Plan(f).Value
         Assert.Equal(2, plan.Notes.Count)
-        Assert.Equal(4, plan.Lines.Count)
+        Assert.Equal(3, plan.Lines.Count)
     End Sub
 
     <Fact>
@@ -117,7 +117,7 @@ Public Class FnfPlannerTests
         f.TdsAdjustment = -1500D
         f.ArrearsRecovery = 400D
         Dim plan As FnfPlan = FnfPlanner.Plan(f).Value
-        Assert.Equal(218574D, plan.Totals.Earnings)
+        Assert.Equal(193574D, plan.Totals.Earnings)
         Assert.Equal(24400D, plan.Totals.Deductions)
     End Sub
 

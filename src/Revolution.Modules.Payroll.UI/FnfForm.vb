@@ -22,8 +22,7 @@ Friend NotInheritable Class FnfForm
     Private ReadOnly _ruleBonus As New CheckBox()
     Private ReadOnly _bonusPct As New NumericUpDown()
     Private ReadOnly _arrears As New NumericUpDown()
-    Private ReadOnly _overrideSalary As New CheckBox()
-    Private ReadOnly _lastSalary As New NumericUpDown()
+    Private ReadOnly _employerEnded As New CheckBox()
     Private ReadOnly _grid As New DataGridView()
     Private ReadOnly _notes As New ListBox()
     Private ReadOnly _prepare As New Button()
@@ -60,20 +59,16 @@ Friend NotInheritable Class FnfForm
         _bonusPct.Maximum = 100D
         _bonusPct.Enabled = False
         _arrears.Maximum = MaxMoney
-        _overrideSalary.Text = "Type the last salary by hand"
-        _overrideSalary.AutoSize = True
-        _lastSalary.Maximum = MaxMoney
-        _lastSalary.Enabled = False
+        _employerEnded.Text = "Employer ended the service (notice pay is paid to the employee)"
+        _employerEnded.AutoSize = True
         AddHandler _ruleBonus.CheckedChanged, Sub(sender As Object, e As EventArgs) _bonusPct.Enabled = Not _ruleBonus.Checked
-        AddHandler _overrideSalary.CheckedChanged, Sub(sender As Object, e As EventArgs) _lastSalary.Enabled = _overrideSalary.Checked
 
         Dim layout As TableLayoutPanel = CreateFormLayout()
         AddField(layout, "Separation id", _separation)
         AddField(layout, "Bonus", _ruleBonus)
         AddField(layout, "Bonus percentage (when not the minimum)", _bonusPct)
         AddField(layout, "Arrears to recover (rupees, Owner's option)", _arrears)
-        AddField(layout, "Last salary", _overrideSalary)
-        AddField(layout, "Last salary amount (rupees)", _lastSalary)
+        AddField(layout, "Notice pay", _employerEnded)
 
         Dim bar As FlowLayoutPanel = CreateButtonBar()
         _exit.Text = "Exit"
@@ -122,7 +117,7 @@ Friend NotInheritable Class FnfForm
         Return New FnfPrepareOptions With {
             .BonusPct = If(_ruleBonus.Checked, CType(Nothing, Decimal?), _bonusPct.Value),
             .ArrearsRecovery = _arrears.Value,
-            .LastSalaryOverride = If(_overrideSalary.Checked, _lastSalary.Value, CType(Nothing, Decimal?))}
+            .EmployerEndedService = _employerEnded.Checked}
     End Function
 
     Private Sub DoPrepare()

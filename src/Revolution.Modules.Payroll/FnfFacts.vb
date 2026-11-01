@@ -9,14 +9,13 @@ Public NotInheritable Class FnfFacts
     Public Property JoinDate As Date
     Public Property LastWorkingDay As Date
 
-    ''' <summary>Net pay for the final month up to the exit date (calendar days), from the run that covers it or typed.</summary>
-    Public Property LastSalaryNet As Decimal
-
     ''' <summary>Gross wage for one day: gross divided by the pay-cycle divisor for a monthly employee, the daily rate for a daily wager.</summary>
     Public Property DailyWageGross As Decimal
 
     ''' <summary>True when the employee resigned. Notice pay is recovered only then.</summary>
     Public Property NoticeApplies As Boolean
+    ''' <summary>True when the employer ended the service (Owner's choice). The employer then owes pay for the notice days it did not give, and nothing is recovered.</summary>
+    Public Property EmployerEndedService As Boolean
     Public Property NoticeDate As Date?
     Public Property NoticePeriodDays As Integer
 

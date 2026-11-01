@@ -72,14 +72,14 @@ Public NotInheritable Class FnfService
         Dim facts As New FnfFacts With {
             .EmployeeId = src.EmployeeId, .JoinDate = src.JoinDate, .LastWorkingDay = src.LastWorkingDay,
             .DailyWageGross = If(src.DailyWageDivisor > 0D, src.MonthlyGross / src.DailyWageDivisor, 0D),
-            .NoticeApplies = src.ReasonId = 1, .NoticeDate = src.NoticeDate, .NoticePeriodDays = src.NoticePeriodDays,
+            .NoticeApplies = src.ReasonId = 1 AndAlso Not choices.EmployerEndedService, .EmployerEndedService = choices.EmployerEndedService, .NoticeDate = src.NoticeDate, .NoticePeriodDays = src.NoticePeriodDays,
             .GratuityCovered = src.EmploymentTypeId = 1 OrElse src.EmploymentTypeId = 3, .IsFixedTerm = src.EmploymentTypeId = 3,
             .WaiveGratuityMinimum = src.ReasonId = 3 OrElse src.ReasonId = 4, .GratuityWage = src.MonthlyBasicPlusDa,
             .LoanOutstanding = src.LoanOutstanding, .TdsAdjustment = tdsAdjustment, .ArrearsRecovery = choices.ArrearsRecovery}
         Dim gratuity As OperationResult(Of GratuityRule) = _rates.GetGratuityRule(src.LastWorkingDay)
         If gratuity.Succeeded Then facts.GratuityRule = gratuity.Value
         ApplyBonus(facts, src, choices)
-        ApplyLastSalary(facts, src, choices, notes)
+        notes.Add("Salary to the exit date is paid by the regular payroll run, not in this settlement.")
         ApplyLeave(facts, src.EmployeeId)
         Return facts
     End Function
@@ -98,16 +98,6 @@ Public NotInheritable Class FnfService
         facts.BonusMonthlyWages = wages
         facts.BonusDaysWorked = CInt(Math.Floor(days))
         facts.BonusPct = If(choices.BonusPct, rule.Value.MinPct)
-    End Sub
-
-    Private Shared Sub ApplyLastSalary(facts As FnfFacts, src As FnfSourceFacts, choices As FnfPrepareOptions, notes As List(Of String))
-        If choices.LastSalaryOverride.HasValue Then
-            facts.LastSalaryNet = choices.LastSalaryOverride.Value
-        ElseIf src.FinalRunId.HasValue Then
-            facts.LastSalaryNet = src.FinalNetPay
-        Else
-            notes.Add("No run covers the exit date, so the last salary is zero. Enter it by hand.")
-        End If
     End Sub
 
     ''' <summary>Encashable leave types only: each balance cut to its own limit, then added up. The planner gets the total with no further limit.</summary>

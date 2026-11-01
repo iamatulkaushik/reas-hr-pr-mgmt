@@ -66,8 +66,8 @@ Public Class FnfTdsTrueUpTests
 
     <Fact>
     Public Sub FeedsTheAssembler()
-        Dim lines As IReadOnlyList(Of FnfLine) = FnfAssembler.Build(New FnfAssemblyInput(1000D, Nothing, Nothing, Nothing, Nothing, 0D, FnfTdsTrueUp.Adjustment(Projection(7000D, 10000D))))
-        Assert.Equal(FnfComponentKind.TdsRefund, lines(1).Kind)
-        Assert.Equal(3000D, lines(1).Amount)
+        Dim lines As IReadOnlyList(Of FnfLine) = FnfAssembler.Build(New FnfAssemblyInput(Nothing, Nothing, Nothing, Nothing, 0D, FnfTdsTrueUp.Adjustment(Projection(7000D, 10000D))))
+        Assert.Equal(FnfComponentKind.TdsRefund, lines(0).Kind)
+        Assert.Equal(3000D, lines(0).Amount)
     End Sub
 End Class

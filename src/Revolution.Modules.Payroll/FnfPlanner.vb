@@ -13,15 +13,15 @@ Public NotInheritable Class FnfPlanner
         Dim problem As String = Check(facts)
         If problem IsNot Nothing Then Return OperationResult(Of FnfPlan).Fail(problem)
         Dim notes As New List(Of String)()
-        Dim input As New FnfAssemblyInput(facts.LastSalaryNet, Notice(facts, notes), Bonus(facts, notes), Leave(facts, notes), Gratuity(facts, notes),
-                                          facts.LoanOutstanding, facts.TdsAdjustment, facts.ArrearsRecovery)
+        Dim input As New FnfAssemblyInput(Notice(facts, notes), Bonus(facts, notes), Leave(facts, notes), Gratuity(facts, notes),
+                                          facts.LoanOutstanding, facts.TdsAdjustment, facts.ArrearsRecovery, NoticePayable(facts, notes))
         Dim lines As IReadOnlyList(Of FnfLine) = FnfAssembler.Build(input)
         Return OperationResult(Of FnfPlan).Ok(New FnfPlan(lines, FnfCalculator.Total(lines), FnfDueWindow.For(facts.LastWorkingDay), notes))
     End Function
 
     Private Shared Function Check(facts As FnfFacts) As String
         If facts.LastWorkingDay.Date < facts.JoinDate.Date Then Return "The last working day is before the joining date."
-        If facts.LastSalaryNet < 0D OrElse facts.DailyWageGross < 0D OrElse facts.LoanOutstanding < 0D OrElse facts.ArrearsRecovery < 0D OrElse facts.LeaveBalanceDays < 0D Then Return "Money and days cannot be negative."
+        If facts.DailyWageGross < 0D OrElse facts.LoanOutstanding < 0D OrElse facts.ArrearsRecovery < 0D OrElse facts.LeaveBalanceDays < 0D Then Return "Money and days cannot be negative."
         If facts.NoticePeriodDays < 0 Then Return "Notice days cannot be negative."
         If facts.BonusRule IsNot Nothing AndAlso (facts.BonusPct < facts.BonusRule.MinPct OrElse facts.BonusPct > facts.BonusRule.MaxPct) Then
             Return $"The bonus must be between {facts.BonusRule.MinPct}% and {facts.BonusRule.MaxPct}%."
@@ -36,6 +36,17 @@ Public NotInheritable Class FnfPlanner
         End If
         Dim served As Integer = NoticePayCalculator.ServedDays(facts.NoticeDate, facts.LastWorkingDay)
         Return NoticePayCalculator.Calculate(facts.NoticePeriodDays, served, facts.DailyWageGross)
+    End Function
+
+    Private Shared Function NoticePayable(facts As FnfFacts, notes As List(Of String)) As NoticePayResult
+        If Not facts.EmployerEndedService Then Return Nothing
+        Dim given As Integer = NoticePayCalculator.ServedDays(facts.NoticeDate, facts.LastWorkingDay)
+        Dim result As NoticePayResult = NoticePayCalculator.Calculate(facts.NoticePeriodDays, given, facts.DailyWageGross)
+        If result.Amount = 0D Then
+            notes.Add("The employer gave the full notice, so no notice pay is due.")
+            Return Nothing
+        End If
+        Return result
     End Function
 
     Private Shared Function Bonus(facts As FnfFacts, notes As List(Of String)) As BonusResult

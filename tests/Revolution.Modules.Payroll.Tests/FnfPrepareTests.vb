@@ -59,7 +59,7 @@ Public Class FnfPrepareTests
         Assert.Equal(12000D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.LeaveEncashment).Amount)
         Assert.Equal(19000D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.NoticePayRecovery).Amount)
         Assert.Equal(5000D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.LoanClosure).Amount)
-        Assert.Equal(25000D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.LastSalary).Amount)
+        Assert.False(p.Lines.Any(Function(l) l.Kind = FnfComponentKind.LastSalary))
         Assert.Equal(6997D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.Bonus).Amount)
     End Sub
 
@@ -85,19 +85,30 @@ Public Class FnfPrepareTests
     End Sub
 
     <Fact>
-    Public Sub OwnerChoices_BonusPctArrearsAndLastSalary()
-        Dim p As FnfPlan = Plan(New FnfPrepareOptions With {.BonusPct = 20D, .ArrearsRecovery = 400D, .LastSalaryOverride = 30000D}).Value
-        Assert.Equal(16800D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.Bonus).Amount)
-        Assert.Equal(400D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.ArrearsRecovery).Amount)
-        Assert.Equal(30000D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.LastSalary).Amount)
+    Public Sub SalaryToExit_IsLeftToTheRegularRun_WithANote()
+        Dim p As FnfPlan = Plan().Value
+        Assert.False(p.Lines.Any(Function(l) l.Kind = FnfComponentKind.LastSalary))
+        Assert.True(p.Notes.Any(Function(n) n.StartsWith("Salary to the exit date is paid by the regular payroll run", StringComparison.Ordinal)))
     End Sub
 
     <Fact>
-    Public Sub NoRunCoversExit_LastSalaryZeroWithANote_AndTaxIsSkipped()
+    Public Sub EmployerEnded_NoticePayIsPaid_NotRecovered()
+        Dim p As FnfPlan = Plan(New FnfPrepareOptions With {.EmployerEndedService = True}).Value
+        Assert.False(p.Lines.Any(Function(l) l.Kind = FnfComponentKind.NoticePayRecovery))
+        Assert.True(p.Lines.Any(Function(l) l.Kind = FnfComponentKind.OtherEarning))
+    End Sub
+
+    <Fact>
+    Public Sub OwnerChoices_BonusPctAndArrears()
+        Dim p As FnfPlan = Plan(New FnfPrepareOptions With {.BonusPct = 20D, .ArrearsRecovery = 400D, .EmployerEndedService = False}).Value
+        Assert.Equal(16800D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.Bonus).Amount)
+        Assert.Equal(400D, p.Lines.Single(Function(l) l.Kind = FnfComponentKind.ArrearsRecovery).Amount)
+    End Sub
+
+    <Fact>
+    Public Sub NoRunCoversExit_TaxIsSkippedWithANote()
         _source.Facts.FinalRunId = Nothing
         Dim p As FnfPlan = Plan().Value
-        Assert.False(p.Lines.Any(Function(l) l.Kind = FnfComponentKind.LastSalary))
-        Assert.True(p.Notes.Any(Function(n) n.StartsWith("No run covers", StringComparison.Ordinal)))
         Assert.True(p.Notes.Any(Function(n) n.StartsWith("Income tax true-up skipped", StringComparison.Ordinal)))
         Assert.Equal(0, _tax.Calls)
     End Sub
