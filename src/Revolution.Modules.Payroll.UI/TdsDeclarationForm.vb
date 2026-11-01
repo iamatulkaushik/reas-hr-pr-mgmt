@@ -160,7 +160,8 @@ Friend NotInheritable Class TdsDeclarationForm
             _rents.Rows.Add(rent.FromMonthKey, rent.ToMonthKey, Amount(rent.MonthlyRent), rent.City, rent.LandlordName, rent.LandlordRelationship, rent.LandlordAddress, String.Empty)
         Next
         ShowPrev(bundle.Prev)
-        ShowStatus($"Declaration loaded, {bundle.Header.Status}. Landlord PAN is not shown: {bundle.Rents.Count(Function(r) r.HasPan).ToString(CultureInfo.InvariantCulture)} of {bundle.Rents.Count.ToString(CultureInfo.InvariantCulture)} rent periods hold one.")
+        Dim withPan As Integer = bundle.Rents.Where(Function(r) r.HasPan).Count()
+        ShowStatus($"Declaration loaded, {bundle.Header.Status}. Landlord PAN is not shown: {withPan.ToString(CultureInfo.InvariantCulture)} of {bundle.Rents.Count.ToString(CultureInfo.InvariantCulture)} rent periods hold one.")
         SetActions(bundle.Header.Status)
     End Sub
 
