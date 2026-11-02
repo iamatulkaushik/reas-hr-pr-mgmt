@@ -107,7 +107,7 @@ Friend NotInheritable Class ArrearsReportForm
     ''' <summary>Builds the arrear ECR for the first wage month picked, from the open claims, and saves it as text with no byte order mark.</summary>
     Private Sub DoEcr()
         ClearValidation()
-        Dim result As OperationResult(Of FileOutput(Of String)) = _services.Ecr.Build(_fromMonth.Value)
+        Dim result As OperationResult(Of Revolution.Modules.Payroll.FileOutput(Of String)) = _services.Ecr.Build(_fromMonth.Value)
         If Not result.Succeeded Then
             ShowError(result.Message)
             Return

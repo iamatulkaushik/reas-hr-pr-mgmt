@@ -58,7 +58,7 @@ Public Module Program
             New EmployeesShellModule(employees, services.Permissions),
             New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions),
             New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions),
-            New ArrearsShellModule(ArrearsModule.Compose(services.Host))}
+            New ArrearsShellModule(ArrearsModule.Compose(services.Host, employees.Export))}
         Dim layout As New MenuLayoutModule(sources)
         Return New List(Of IShellModule) From {
             layout,

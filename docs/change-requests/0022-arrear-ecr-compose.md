@@ -5,4 +5,6 @@
 - What is missing or wrong in the shared code: `Revolution.App/Program.vb` composes the module with `ArrearsModule.Compose(services.Host)`, which gives no UAN release, so the screen hides the Arrear ECR button.
 - Proposed signature or schema change: one line in `Program.vb`, the same as for Payroll: `ArrearsModule.Compose(services.Host, employees.Export)`. The one-argument overload stays, so the App builds before and after the change. Nothing else in the App changes. Brave added a project reference from `Revolution.Modules.Arrears` to `Revolution.Modules.Employees` (Payroll already has it).
 - Workaround until done: the ECR button stays hidden. Claims, list and report work as before.
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted, 2026-11-02.** Sigma changed the one line in `Program.vb`: `ArrearsModule.Compose(services.Host, employees.Export)`, as proposed. The `Arrears` to `Employees` project reference is fine (module to module, same as Payroll). The UAN stays released only through the Employees export (ADR 0019).
+
+Migrations 0330 and 0331: **accepted, no changes.** Both take the company from session context only. `usp_ArrearsEcr_List` counts open claims only, which is complete because a claim is either Open or Cancelled; if step 7e-2 adds a Paid status, change that filter in the same migration so paid claims stay in the ECR.
