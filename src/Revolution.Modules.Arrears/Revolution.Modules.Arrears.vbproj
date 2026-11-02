@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Revolution.Modules.Arrears</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
+    <ProjectReference Include="..\Revolution.Data\Revolution.Data.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Payroll\Revolution.Modules.Payroll.vbproj" />
+  </ItemGroup>
+</Project>

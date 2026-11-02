@@ -1,6 +1,6 @@
 # ADR 0005: Crystal Reports on .NET 10
 
-Status: **open. ReportStudio proposed as the replacement for Crystal; updated drop checked and staged in reports/ReportStudio on 2026-10-25 (see below); it joins the solution only after the Windows spike passes.** Owner: Brave runs the spike, Sigma reviews.
+Status: **accepted 2026-11-01: ReportStudio replaces Crystal Reports (Owner). Spike partly passed; the verdict is recorded below and Phase 0 closes when the open items there are done.** Owner: Brave runs the spike, Sigma reviews.
 
 Question: does the current SAP Crystal Reports runtime for .NET run inside a net10.0-windows WinForms app?
 
@@ -68,3 +68,11 @@ Also delivered from the should-haves: Indian grouping and dd-MM-yyyy, amount in 
 
 **Required before it joins the solution:** see `docs/reportstudio-required-changes.md`. **Decision for now:** the source is staged in `reports/ReportStudio` (its own solution, outside `src/` and `tests/`, not in `Revolution.slnx`, no HRMS project references it). Brave runs the Windows spike from there. If it passes, Sigma adds `Revolution.Reports` (Brave) and the wiring.
 
+## Decision and spike result 2026-11-01 (Owner)
+
+- **Decision.** ReportStudio is the report tool. Crystal Reports is dropped. Source: https://github.com/revolutionassociates/ReportStudio (newer than the copy staged in `reports/ReportStudio`, which is now stale: it has a misnamed font file and lacks later features).
+- **Fonts.** Ubuntu (embedded in the PDF), not Segoe UI. The four Ubuntu .ttf files are in the ReportStudio repo.
+- **Packaging.** The HRMS references built assemblies at a pinned version (now 0.1.0), not the source.
+- **Passed (Owner):** the Windows build has no errors; the viewer previews, and file selection checks its input; the layout file holds no query or connection string.
+- **Not verified yet:** a payslip layout from host-supplied rows (preview, print, PDF); a bulk run of 50 payslips with page numbers restarting; a Form 130 style certificate on one page. All three need data from the HRMS, so they run in Phase 5 once `Revolution.Reports` exists. Golden image files are not committed yet (no `tests/ReportStudio.Export.Tests/Golden` folder).
+- **Not done until the spike is fully verified:** the edits to `README.md`, `CLAUDE.md`, `docs/PLAN.md`, ADR 0001 and the removal of `Revolution.ReportViewer` and the CI skip note.
