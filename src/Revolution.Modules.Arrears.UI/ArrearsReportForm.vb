@@ -1,5 +1,7 @@
 Imports System.Drawing
 Imports System.Globalization
+Imports System.IO
+Imports System.Text
 Imports System.Windows.Forms
 Imports Revolution.Modules.Arrears
 
@@ -13,6 +15,7 @@ Friend NotInheritable Class ArrearsReportForm
     Private Const FormWidth As Integer = 1000
     Private Const FormHeight As Integer = 640
     Private Const MonthFormat As String = "MMM yyyy"
+    Private Const PlainIdWarning As String = "The file holds plain UAN numbers. Keep it safe, upload it to EPFO, then delete it."
 
     Private Shared ReadOnly Indian As CultureInfo = CultureInfo.GetCultureInfo("en-IN")
 
@@ -21,6 +24,7 @@ Friend NotInheritable Class ArrearsReportForm
     Private ReadOnly _toMonth As New DateTimePicker()
     Private ReadOnly _grid As New DataGridView()
     Private ReadOnly _load As New Button()
+    Private ReadOnly _ecr As New Button()
     Private ReadOnly _exit As New Button()
 
     Public Sub New(services As ArrearsServices)
@@ -47,9 +51,14 @@ Friend NotInheritable Class ArrearsReportForm
         CancelButton = _exit
         _load.Text = "Load"
         _load.AutoSize = True
+        _ecr.Text = "Arrear ECR (first month)"
+        _ecr.AutoSize = True
+        _ecr.Visible = _services.Ecr IsNot Nothing
         bar.Controls.Add(_exit)
+        bar.Controls.Add(_ecr)
         bar.Controls.Add(_load)
         AddHandler _load.Click, Sub(sender As Object, e As EventArgs) DoLoad()
+        AddHandler _ecr.Click, Sub(sender As Object, e As EventArgs) DoEcr()
     End Sub
 
     Private Shared Sub ConfigureMonth(picker As DateTimePicker)
@@ -94,6 +103,36 @@ Friend NotInheritable Class ArrearsReportForm
         ShowStatus($"{report.EmployeeCount.ToString(CultureInfo.InvariantCulture)} employees. Gross {Money(report.GrossTotal)}, EPF and ESI {Money(report.EmployeeDeductionTotal)}, " &
                    $"net before tax {Money(report.NetBeforeTax)}, employer share {Money(report.EmployerTotal)}.")
     End Sub
+
+    ''' <summary>Builds the arrear ECR for the first wage month picked, from the open claims, and saves it as text with no byte order mark.</summary>
+    Private Sub DoEcr()
+        ClearValidation()
+        Dim result As OperationResult(Of FileOutput(Of String)) = _services.Ecr.Build(_fromMonth.Value)
+        If Not result.Succeeded Then
+            ShowError(result.Message)
+            Return
+        End If
+        Dim place As String = AskFile(result.Value.FileName)
+        If place Is Nothing Then Return
+        Try
+            File.WriteAllText(place, result.Value.Content, New UTF8Encoding(False))
+        Catch ex As IOException
+            ShowError("The file could not be saved. Check the folder and try again.")
+            Return
+        Catch ex As UnauthorizedAccessException
+            ShowError("The file could not be saved. Check the folder and try again.")
+            Return
+        End Try
+        ShowStatus($"Saved {Path.GetFileName(place)}. Left out: {result.Value.Problems.Count.ToString(CultureInfo.InvariantCulture)}. " & String.Join(" ", result.Value.Problems))
+        MessageBox.Show(Me, PlainIdWarning, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning)
+    End Sub
+
+    Private Function AskFile(suggested As String) As String
+        Using dialog As New SaveFileDialog With {.Title = Text, .Filter = "Text files (*.txt)|*.txt", .FileName = suggested, .AddExtension = True, .OverwritePrompt = True}
+            If dialog.ShowDialog(Me) <> DialogResult.OK Then Return Nothing
+            Return dialog.FileName
+        End Using
+    End Function
 
     Protected Overrides Sub OnRefreshRequested()
         DoLoad()

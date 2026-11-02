@@ -26,14 +26,18 @@ Public NotInheritable Class ArrearsCalculator
     Public Shared Function CalculateMonth(input As ArrearsMonthInput) As ArrearsMonthResult
         If input Is Nothing Then Throw New ArgumentNullException(NameOf(input))
         Dim epfRate As EpfRate = input.Rates.Epf
-        Dim epfDue As EpfResult = EpfCalculator.Calculate(input.Due.EpfWage, epfRate, input.EpfOnActualWage, input.PensionOnActualWage)
-        Dim epfPaid As EpfResult = EpfCalculator.Calculate(input.Paid.EpfWage, epfRate, input.EpfOnActualWage, input.PensionOnActualWage)
-        Dim esiDue As EsiResult = EsiCalculator.Calculate(input.Due.EsiWage, input.DailyWage, input.Rates.Esi, input.StayEsiEligible)
-        Dim esiPaid As EsiResult = EsiCalculator.Calculate(input.Paid.EsiWage, input.DailyWage, input.Rates.Esi, input.StayEsiEligible)
-        Dim epsDueWage As Decimal = PensionWage(input.Due.EpfWage, epfRate, input.PensionOnActualWage)
-        Dim epsPaidWage As Decimal = PensionWage(input.Paid.EpfWage, epfRate, input.PensionOnActualWage)
-        Dim edliDueWage As Decimal = Math.Min(input.Due.EpfWage, epfRate.EdliWageCeiling)
-        Dim edliPaidWage As Decimal = Math.Min(input.Paid.EpfWage, epfRate.EdliWageCeiling)
+        Dim noEpf As New EpfResult(0D, 0D, 0D, 0D, 0D, 0D)
+        Dim noEsi As New EsiResult(False, 0D, 0D)
+        Dim dueEpfWage As Decimal = If(input.IsEpfMember, input.Due.EpfWage, 0D)
+        Dim paidEpfWage As Decimal = If(input.IsEpfMember, input.Paid.EpfWage, 0D)
+        Dim epfDue As EpfResult = If(input.IsEpfMember, EpfCalculator.Calculate(dueEpfWage, epfRate, input.EpfOnActualWage, input.PensionOnActualWage), noEpf)
+        Dim epfPaid As EpfResult = If(input.IsEpfMember, EpfCalculator.Calculate(paidEpfWage, epfRate, input.EpfOnActualWage, input.PensionOnActualWage), noEpf)
+        Dim esiDue As EsiResult = If(input.IsEsiMember, EsiCalculator.Calculate(input.Due.EsiWage, input.DailyWage, input.Rates.Esi, input.StayEsiEligible), noEsi)
+        Dim esiPaid As EsiResult = If(input.IsEsiMember, EsiCalculator.Calculate(input.Paid.EsiWage, input.DailyWage, input.Rates.Esi, input.StayEsiEligible), noEsi)
+        Dim epsDueWage As Decimal = PensionWage(dueEpfWage, epfRate, input.PensionOnActualWage)
+        Dim epsPaidWage As Decimal = PensionWage(paidEpfWage, epfRate, input.PensionOnActualWage)
+        Dim edliDueWage As Decimal = Math.Min(dueEpfWage, epfRate.EdliWageCeiling)
+        Dim edliPaidWage As Decimal = Math.Min(paidEpfWage, epfRate.EdliWageCeiling)
         Return New ArrearsMonthResult(
             input.WageMonth,
             LineDifference(input.Paid.Lines, input.Due.Lines),

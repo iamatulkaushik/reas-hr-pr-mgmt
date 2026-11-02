@@ -2,7 +2,8 @@ Imports Revolution.Core
 
 ''' <summary>One wage month of an arrears claim: what was paid, what should have been paid, and the rate rows to use for that month's contributions.</summary>
 Public NotInheritable Class ArrearsMonthInput
-    Public Sub New(wageMonth As Date, paid As WageBreakdown, due As WageBreakdown, rates As RunRates, dailyWage As Decimal, stayEsiEligible As Boolean, Optional epfOnActualWage As Boolean = False, Optional pensionOnActualWage As Boolean = False)
+    Public Sub New(wageMonth As Date, paid As WageBreakdown, due As WageBreakdown, rates As RunRates, dailyWage As Decimal, stayEsiEligible As Boolean, Optional epfOnActualWage As Boolean = False, Optional pensionOnActualWage As Boolean = False,
+                   Optional isEpfMember As Boolean = True, Optional isEsiMember As Boolean = True)
         If paid Is Nothing Then Throw New ArgumentNullException(NameOf(paid))
         If due Is Nothing Then Throw New ArgumentNullException(NameOf(due))
         If rates Is Nothing Then Throw New ArgumentNullException(NameOf(rates))
@@ -14,6 +15,8 @@ Public NotInheritable Class ArrearsMonthInput
         Me.StayEsiEligible = stayEsiEligible
         Me.EpfOnActualWage = epfOnActualWage
         Me.PensionOnActualWage = pensionOnActualWage
+        Me.IsEpfMember = isEpfMember
+        Me.IsEsiMember = isEsiMember
     End Sub
 
     ''' <summary>First day of the wage month the arrears belong to.</summary>
@@ -26,4 +29,8 @@ Public NotInheritable Class ArrearsMonthInput
     Public ReadOnly Property StayEsiEligible As Boolean
     Public ReadOnly Property EpfOnActualWage As Boolean
     Public ReadOnly Property PensionOnActualWage As Boolean
+    ''' <summary>False when the employee is not an EPF member: no EPF wages or contributions are worked, as in the regular run.</summary>
+    Public ReadOnly Property IsEpfMember As Boolean
+    ''' <summary>False when the employee is not an ESI member: no ESI is worked.</summary>
+    Public ReadOnly Property IsEsiMember As Boolean
 End Class

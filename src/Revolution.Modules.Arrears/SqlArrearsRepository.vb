@@ -91,6 +91,25 @@ Public NotInheritable Class SqlArrearsRepository
         End Try
     End Sub
 
+    Public Function EcrLines(wageMonth As Date) As IReadOnlyList(Of ArrearsEcrLine) Implements IArrearsRepository.EcrLines
+        Dim lines As New List(Of ArrearsEcrLine)()
+        Using conn As SqlConnection = _factory.Open()
+            Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "pay.usp_ArrearsEcr_List")
+                cmd.Parameters.Add("@WageMonth", SqlDbType.Date).Value = wageMonth.Date
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        lines.Add(New ArrearsEcrLine(reader.GetInt32(reader.GetOrdinal("EmployeeID")), reader.GetString(reader.GetOrdinal("EmpCode")),
+                                                     reader.GetString(reader.GetOrdinal("FullName")), reader.GetDecimal(reader.GetOrdinal("EpfWages")),
+                                                     reader.GetDecimal(reader.GetOrdinal("EpsWages")), reader.GetDecimal(reader.GetOrdinal("EdliWages")),
+                                                     reader.GetDecimal(reader.GetOrdinal("EmployeeEpf")), reader.GetDecimal(reader.GetOrdinal("EmployerEps")),
+                                                     reader.GetDecimal(reader.GetOrdinal("EmployerEpf"))))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return lines
+    End Function
+
     Public Function Report(fromMonth As Date, toMonth As Date) As IReadOnlyList(Of ArrearsReportRow) Implements IArrearsRepository.Report
         Dim rows As New List(Of ArrearsReportRow)()
         Using conn As SqlConnection = _factory.Open()

@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
     <ProjectReference Include="..\Revolution.Data\Revolution.Data.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Employees\Revolution.Modules.Employees.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Payroll\Revolution.Modules.Payroll.vbproj" />
   </ItemGroup>
 </Project>

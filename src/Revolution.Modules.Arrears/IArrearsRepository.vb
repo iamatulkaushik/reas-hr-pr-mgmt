@@ -5,5 +5,7 @@ Public Interface IArrearsRepository
     Function List(filter As ArrearsFilter) As IReadOnlyList(Of ArrearsClaimRow)
     Function [Get](claimId As Integer) As ArrearsClaimDetail
     Sub Cancel(claimId As Integer, reason As String, userId As Integer?)
+    ''' <summary>The open claims' arrear amounts for one wage month, one line per employee (pay.usp_ArrearsEcr_List).</summary>
+    Function EcrLines(wageMonth As Date) As IReadOnlyList(Of ArrearsEcrLine)
     Function Report(fromMonth As Date, toMonth As Date) As IReadOnlyList(Of ArrearsReportRow)
 End Interface

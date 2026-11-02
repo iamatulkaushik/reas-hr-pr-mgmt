@@ -26,6 +26,7 @@ Friend NotInheritable Class ArrearsListForm
     Private ReadOnly _grid As New DataGridView()
     Private ReadOnly _load As New Button()
     Private ReadOnly _cancel As New Button()
+    Private ReadOnly _newClaim As New Button()
     Private ReadOnly _exit As New Button()
 
     Public Sub New(services As ArrearsServices)
@@ -64,13 +65,17 @@ Friend NotInheritable Class ArrearsListForm
         CancelButton = _exit
         _cancel.Text = "Cancel claim"
         _cancel.AutoSize = True
+        _newClaim.Text = "New claim"
+        _newClaim.AutoSize = True
         _load.Text = "Load"
         _load.AutoSize = True
         bar.Controls.Add(_exit)
         bar.Controls.Add(_cancel)
+        bar.Controls.Add(_newClaim)
         bar.Controls.Add(_load)
         AddHandler _load.Click, Sub(sender As Object, e As EventArgs) DoLoad()
         AddHandler _cancel.Click, Sub(sender As Object, e As EventArgs) DoCancel()
+        AddHandler _newClaim.Click, Sub(sender As Object, e As EventArgs) DoNewClaim()
     End Sub
 
     Private Shared Sub ConfigureMonth(picker As DateTimePicker)
@@ -122,6 +127,12 @@ Friend NotInheritable Class ArrearsListForm
         End If
         _grid.DataSource = result.Value.Select(Function(c) New ClaimLine(c)).ToList()
         ShowStatus($"{result.Value.Count.ToString(CultureInfo.InvariantCulture)} claims.")
+    End Sub
+
+    Private Sub DoNewClaim()
+        Using form As New ArrearsAddForm(_services)
+            If form.ShowDialog(Me) = DialogResult.OK Then DoLoad()
+        End Using
     End Sub
 
     Private Sub DoCancel()
