@@ -1,5 +1,7 @@
 Imports System.Windows.Forms
 Imports Microsoft.Data.SqlClient
+Imports Revolution.Modules.Arrears
+Imports Revolution.Modules.Arrears.UI
 Imports Revolution.Modules.Attendance
 Imports Revolution.Modules.Attendance.UI
 Imports Revolution.Modules.Employees
@@ -55,7 +57,8 @@ Public Module Program
         Dim sources As New List(Of IShellModule) From {
             New EmployeesShellModule(employees, services.Permissions),
             New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions),
-            New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions)}
+            New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions),
+            New ArrearsShellModule(ArrearsModule.Compose(services.Host))}
         Dim layout As New MenuLayoutModule(sources)
         Return New List(Of IShellModule) From {
             layout,

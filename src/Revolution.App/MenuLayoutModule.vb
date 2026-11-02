@@ -40,6 +40,8 @@ Public NotInheritable Class MenuLayoutModule
     Private Const EsicScreen As String = "payroll.export.esic"
     Private Const BankScreen As String = "payroll.export.bank"
     Private Const FnfScreen As String = "payroll.fnf"
+    Private Const ArrearsListScreen As String = "arrears.list"
+    Private Const ArrearsReportScreen As String = "arrears.report"
     Private Const RunScreen As String = "payroll.run"
     Private Const PayslipScreen As String = "payroll.payslips"
     Private Const LeaveScreen As String = "payroll.leave"
@@ -134,6 +136,7 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("payroll.tds", ProcessGroup, "Income tax declaration", ModuleKey.Payroll, PlanFeature.Tds, 550, TdsScreen)
         AddScreen("payroll.loans", ProcessGroup, "Loans", ModuleKey.Payroll, PlanFeature.Loans, 560, LoansScreen)
         AddScreen("payroll.leave", ProcessGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, 570, LeaveScreen)
+        AddScreen("arrears.list", ProcessGroup, "Arrears", ModuleKey.Payroll, PlanFeature.BasicPayroll, 580, ArrearsListScreen)
     End Sub
 
     ''' <summary>
@@ -156,6 +159,7 @@ Public NotInheritable Class MenuLayoutModule
         AddPlanned("reports.salarysheet", ReportsGroup, "Salary Sheet", ModuleKey.Reports, PlanFeature.BasicPayroll, 700)
         AddPlanned("reports.abstract", ReportsGroup, "Abstract", ModuleKey.Reports, PlanFeature.BasicPayroll, 710)
         AddDetailedReports()
+        AddScreen("arrears.report", ReportsGroup, "Arrears report", ModuleKey.Payroll, PlanFeature.BasicPayroll, 790, ArrearsReportScreen)
         AddCaReports()
     End Sub
 
