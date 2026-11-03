@@ -3,7 +3,7 @@ Public NotInheritable Class ArrearsMonthResult
     Public Sub New(wageMonth As Date, lines As IReadOnlyList(Of EarnedLine), overtimeDifference As Decimal, grossDifference As Decimal,
                    epfWages As Decimal, epsWages As Decimal, edliWages As Decimal,
                    employeeEpf As Decimal, employerEpf As Decimal, employerEps As Decimal, edli As Decimal, admin As Decimal,
-                   esiEmployee As Decimal, esiEmployer As Decimal)
+                   esiEmployee As Decimal, esiEmployer As Decimal, Optional esiWages As Decimal = 0D)
         Me.WageMonth = wageMonth
         Me.Lines = lines
         Me.OvertimeDifference = overtimeDifference
@@ -18,6 +18,7 @@ Public NotInheritable Class ArrearsMonthResult
         Me.Admin = admin
         Me.EsiEmployee = esiEmployee
         Me.EsiEmployer = esiEmployer
+        Me.EsiWages = esiWages
     End Sub
 
     Public ReadOnly Property WageMonth As Date
@@ -34,6 +35,8 @@ Public NotInheritable Class ArrearsMonthResult
     Public ReadOnly Property Admin As Decimal
     Public ReadOnly Property EsiEmployee As Decimal
     Public ReadOnly Property EsiEmployer As Decimal
+    ''' <summary>Difference in the ESI wage, worked only for an ESI member who is eligible.</summary>
+    Public ReadOnly Property EsiWages As Decimal
     ''' <summary>Employee deductions on this month's difference, before tax.</summary>
     Public ReadOnly Property EmployeeDeductions As Decimal
         Get

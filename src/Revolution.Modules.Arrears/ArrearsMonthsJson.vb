@@ -14,7 +14,8 @@ Public NotInheritable Class ArrearsMonthsJson
                 {"wageMonth", m.WageMonth.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}, {"paidGross", m.PaidGross}, {"dueGross", m.DueGross},
                 {"grossDifference", m.GrossDifference}, {"epfWages", m.EpfWages}, {"epsWages", m.EpsWages}, {"edliWages", m.EdliWages},
                 {"employeeEpf", m.EmployeeEpf}, {"employerEpf", m.EmployerEpf}, {"employerEps", m.EmployerEps}, {"edli", m.Edli}, {"admin", m.Admin},
-                {"esiEmployee", m.EsiEmployee}, {"esiEmployer", m.EsiEmployer}})
+                {"esiEmployee", m.EsiEmployee}, {"esiEmployer", m.EsiEmployer}, {"overtimeDifference", m.OvertimeDifference}, {"esiWages", m.EsiWages},
+                {"heads", m.Heads.Select(Function(h As ArrearsHeadAmount) New Dictionary(Of String, Object) From {{"componentId", h.ComponentId}, {"amount", h.Amount}}).ToList()}})
         Next
         Return JsonSerializer.Serialize(items)
     End Function

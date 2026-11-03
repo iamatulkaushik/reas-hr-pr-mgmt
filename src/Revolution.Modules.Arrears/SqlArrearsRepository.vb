@@ -67,7 +67,14 @@ Public NotInheritable Class SqlArrearsRepository
                                 months.Add(ReadMonth(reader))
                             End While
                         End If
-                        Return New ArrearsClaimDetail(claim, months)
+                        Dim heads As New List(Of Tuple(Of Date, ArrearsHeadAmount))()
+                        If reader.NextResult() Then
+                            While reader.Read()
+                                heads.Add(Tuple.Create(reader.GetDateTime(reader.GetOrdinal("WageMonth")),
+                                                       New ArrearsHeadAmount(reader.GetInt32(reader.GetOrdinal("ComponentID")), reader.GetDecimal(reader.GetOrdinal("Amount")))))
+                            End While
+                        End If
+                        Return New ArrearsClaimDetail(claim, months.Select(Function(m As ArrearsMonthRecord) WithHeads(m, heads)).ToList())
                     End Using
                 End Using
             End Using
@@ -83,6 +90,34 @@ Public NotInheritable Class SqlArrearsRepository
                     cmd.Parameters.Add("@ClaimID", SqlDbType.Int).Value = claimId
                     cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = StoredProcedure.DbValue(userId)
                     cmd.Parameters.Add("@Reason", SqlDbType.NVarChar, MaxReasonLength).Value = reason
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As SqlException When ArrearsErrorMap.Translate(ex.Number, ex.Message) IsNot Nothing
+            Throw New PayrollRuleException(ArrearsErrorMap.Translate(ex.Number, ex.Message), ex.Number, ex)
+        End Try
+    End Sub
+
+    Public Sub MarkPaid(runId As Integer, claimIds As IReadOnlyCollection(Of Integer)) Implements IArrearsRepository.MarkPaid
+        If claimIds Is Nothing Then Throw New ArgumentNullException(NameOf(claimIds))
+        Try
+            Using conn As SqlConnection = _factory.Open()
+                Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "pay.usp_ArrearsClaim_Apply")
+                    cmd.Parameters.Add("@RunID", SqlDbType.Int).Value = runId
+                    cmd.Parameters.Add("@ClaimIdsJson", SqlDbType.NVarChar, -1).Value = System.Text.Json.JsonSerializer.Serialize(claimIds)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As SqlException When ArrearsErrorMap.Translate(ex.Number, ex.Message) IsNot Nothing
+            Throw New PayrollRuleException(ArrearsErrorMap.Translate(ex.Number, ex.Message), ex.Number, ex)
+        End Try
+    End Sub
+
+    Public Sub Release(runId As Integer) Implements IArrearsRepository.Release
+        Try
+            Using conn As SqlConnection = _factory.Open()
+                Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "pay.usp_ArrearsClaim_Release")
+                    cmd.Parameters.Add("@RunID", SqlDbType.Int).Value = runId
                     cmd.ExecuteNonQuery()
                 End Using
             End Using
@@ -141,7 +176,14 @@ Public NotInheritable Class SqlArrearsRepository
                                    reader.GetString(reader.GetOrdinal("Reason")), CType(CInt(reader.GetByte(reader.GetOrdinal("StatusID"))), ArrearsClaimStatus),
                                    reader.GetDecimal(reader.GetOrdinal("GrossTotal")), reader.GetDecimal(reader.GetOrdinal("EmployeeDeductions")),
                                    reader.GetDecimal(reader.GetOrdinal("EmployerContributions")), reader.GetDecimal(reader.GetOrdinal("NetBeforeTax")),
-                                   reader.GetDateTime(reader.GetOrdinal("CreatedUtc")))
+                                   reader.GetDateTime(reader.GetOrdinal("CreatedUtc")),
+                                   If(reader.IsDBNull(reader.GetOrdinal("AppliedRunID")), CType(Nothing, Integer?), reader.GetInt32(reader.GetOrdinal("AppliedRunID"))))
+    End Function
+
+    Private Shared Function WithHeads(m As ArrearsMonthRecord, heads As List(Of Tuple(Of Date, ArrearsHeadAmount))) As ArrearsMonthRecord
+        Dim mine As List(Of ArrearsHeadAmount) = heads.Where(Function(h As Tuple(Of Date, ArrearsHeadAmount)) h.Item1 = m.WageMonth).Select(Function(h As Tuple(Of Date, ArrearsHeadAmount)) h.Item2).ToList()
+        Return New ArrearsMonthRecord(m.WageMonth, m.PaidGross, m.DueGross, m.GrossDifference, m.EpfWages, m.EpsWages, m.EdliWages, m.EmployeeEpf, m.EmployerEpf,
+                                      m.EmployerEps, m.Edli, m.Admin, m.EsiEmployee, m.EsiEmployer, mine, m.OvertimeDifference, m.EsiWages)
     End Function
 
     Private Shared Function ReadMonth(reader As SqlDataReader) As ArrearsMonthRecord
@@ -151,6 +193,7 @@ Public NotInheritable Class SqlArrearsRepository
                                       reader.GetDecimal(reader.GetOrdinal("EdliWages")), reader.GetDecimal(reader.GetOrdinal("EmployeeEpf")),
                                       reader.GetDecimal(reader.GetOrdinal("EmployerEpf")), reader.GetDecimal(reader.GetOrdinal("EmployerEps")),
                                       reader.GetDecimal(reader.GetOrdinal("Edli")), reader.GetDecimal(reader.GetOrdinal("Admin")),
-                                      reader.GetDecimal(reader.GetOrdinal("EsiEmployee")), reader.GetDecimal(reader.GetOrdinal("EsiEmployer")))
+                                      reader.GetDecimal(reader.GetOrdinal("EsiEmployee")), reader.GetDecimal(reader.GetOrdinal("EsiEmployer")), Nothing,
+                                      reader.GetDecimal(reader.GetOrdinal("OvertimeDifference")), reader.GetDecimal(reader.GetOrdinal("EsiWages")))
     End Function
 End Class

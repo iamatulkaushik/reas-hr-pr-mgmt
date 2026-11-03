@@ -52,7 +52,8 @@ Public NotInheritable Class ArrearsCalculator
             epfDue.Edli - epfPaid.Edli,
             epfDue.Admin - epfPaid.Admin,
             esiDue.EmployeeShare - esiPaid.EmployeeShare,
-            esiDue.EmployerShare - esiPaid.EmployerShare)
+            esiDue.EmployerShare - esiPaid.EmployerShare,
+            If(esiDue.Eligible, input.Due.EsiWage, 0D) - If(esiPaid.Eligible, input.Paid.EsiWage, 0D))
     End Function
 
     Private Shared Function PensionWage(epfWage As Decimal, rate As EpfRate, onActual As Boolean) As Decimal

@@ -7,5 +7,9 @@ Public Interface IArrearsRepository
     Sub Cancel(claimId As Integer, reason As String, userId As Integer?)
     ''' <summary>The open claims' arrear amounts for one wage month, one line per employee (pay.usp_ArrearsEcr_List).</summary>
     Function EcrLines(wageMonth As Date) As IReadOnlyList(Of ArrearsEcrLine)
+    ''' <summary>Marks open claims Paid by an arrears run, all or none (pay.usp_ArrearsClaim_Apply).</summary>
+    Sub MarkPaid(runId As Integer, claimIds As IReadOnlyCollection(Of Integer))
+    ''' <summary>Puts the claims of a run back to Open when the run could not be filled. Only while the run has no lines (pay.usp_ArrearsClaim_Release).</summary>
+    Sub Release(runId As Integer)
     Function Report(fromMonth As Date, toMonth As Date) As IReadOnlyList(Of ArrearsReportRow)
 End Interface

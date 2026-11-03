@@ -14,6 +14,16 @@ Public NotInheritable Class SqlArrearsSource
         _factory = factory
     End Sub
 
+    Public Function NextRunNo(period As RunPeriod) As Integer Implements IArrearsSource.NextRunNo
+        If period Is Nothing Then Throw New ArgumentNullException(NameOf(period))
+        Using conn As SqlConnection = _factory.Open()
+            Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "pay.usp_ArrearsRun_NextNo")
+                cmd.Parameters.Add("@PeriodFrom", SqlDbType.Date).Value = period.PeriodFrom.Date
+                Return Convert.ToInt32(cmd.ExecuteScalar(), Globalization.CultureInfo.InvariantCulture)
+            End Using
+        End Using
+    End Function
+
     Public Function FindRegularRun(period As RunPeriod) As PayrollRunHeader Implements IArrearsSource.FindRegularRun
         If period Is Nothing Then Throw New ArgumentNullException(NameOf(period))
         Using conn As SqlConnection = _factory.Open()

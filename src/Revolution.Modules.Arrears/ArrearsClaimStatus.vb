@@ -2,4 +2,6 @@
 Public Enum ArrearsClaimStatus
     Open = 1
     Cancelled = 2
+    ''' <summary>Paid by an arrears run (RunNo 2 and up). It cannot be cancelled and its months cannot be claimed again.</summary>
+    Paid = 3
 End Enum

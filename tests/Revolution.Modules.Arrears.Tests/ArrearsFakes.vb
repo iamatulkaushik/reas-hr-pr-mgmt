@@ -10,6 +10,10 @@ Friend NotInheritable Class FakeArrearsRepository
     Public Rows As New List(Of ArrearsClaimRow)()
     Public ReportRows As New List(Of ArrearsReportRow)()
     Public EcrRows As New List(Of ArrearsEcrLine)()
+    Public ReadOnly Details As New Dictionary(Of Integer, ArrearsClaimDetail)()
+    Public ReadOnly PaidBy As New List(Of Tuple(Of Integer, IReadOnlyCollection(Of Integer)))()
+    Public ReadOnly Released As New List(Of Integer)()
+    Public MarkPaidFail As String
     Public LastFilter As ArrearsFilter
     Public LastReport As Tuple(Of Date, Date)
     Public FailWith As String
@@ -27,12 +31,22 @@ Friend NotInheritable Class FakeArrearsRepository
 
     Public Function [Get](claimId As Integer) As ArrearsClaimDetail Implements IArrearsRepository.Get
         If FailWith IsNot Nothing Then Throw New PayrollRuleException(FailWith)
+        If Details.ContainsKey(claimId) Then Return Details(claimId)
         Return New ArrearsClaimDetail(Rows.Single(Function(r As ArrearsClaimRow) r.ClaimId = claimId), New List(Of ArrearsMonthRecord)())
     End Function
 
     Public Sub Cancel(claimId As Integer, reason As String, userId As Integer?) Implements IArrearsRepository.Cancel
         If FailWith IsNot Nothing Then Throw New PayrollRuleException(FailWith)
         Cancelled.Add(Tuple.Create(claimId, reason, userId))
+    End Sub
+
+    Public Sub MarkPaid(runId As Integer, claimIds As IReadOnlyCollection(Of Integer)) Implements IArrearsRepository.MarkPaid
+        If MarkPaidFail IsNot Nothing Then Throw New PayrollRuleException(MarkPaidFail)
+        PaidBy.Add(Tuple.Create(runId, claimIds))
+    End Sub
+
+    Public Sub Release(runId As Integer) Implements IArrearsRepository.Release
+        Released.Add(runId)
     End Sub
 
     Public Function EcrLines(wageMonth As Date) As IReadOnlyList(Of ArrearsEcrLine) Implements IArrearsRepository.EcrLines
@@ -130,6 +144,11 @@ Friend NotInheritable Class FakeArrearsSource
     Implements IArrearsSource
 
     Public ReadOnly Runs As New Dictionary(Of Date, PayrollRunHeader)()
+    Public NextNo As Integer = 2
+
+    Public Function NextRunNo(period As RunPeriod) As Integer Implements IArrearsSource.NextRunNo
+        Return NextNo
+    End Function
 
     Public Function FindRegularRun(period As RunPeriod) As PayrollRunHeader Implements IArrearsSource.FindRegularRun
         Dim header As PayrollRunHeader = Nothing
@@ -191,6 +210,9 @@ Friend NotInheritable Class FakeArrearsRunRepository
 
     Public ReadOnly Lines As New Dictionary(Of Integer, List(Of RunLineResult))()
     Public ReadOnly Facts As New Dictionary(Of Date, List(Of RunEmployeeFacts))()
+    Public ReadOnly Created As New List(Of Tuple(Of RunPeriod, Integer))()
+    Public ReadOnly Saved As New List(Of Tuple(Of Integer, IReadOnlyList(Of RunLineResult)))()
+    Public ReplaceFail As String
 
     Public Function ListLines(runId As Integer) As IReadOnlyList(Of RunLineResult) Implements IPayrollRunRepository.ListLines
         Return If(Lines.ContainsKey(runId), Lines(runId), New List(Of RunLineResult)())
@@ -201,7 +223,8 @@ Friend NotInheritable Class FakeArrearsRunRepository
     End Function
 
     Public Function CreateRun(period As RunPeriod, runNo As Integer, userId As Integer?) As Integer Implements IPayrollRunRepository.CreateRun
-        Throw New NotSupportedException()
+        Created.Add(Tuple.Create(period, runNo))
+        Return 900 + Created.Count
     End Function
 
     Public Function GetRun(runId As Integer) As PayrollRunHeader Implements IPayrollRunRepository.GetRun
@@ -213,7 +236,8 @@ Friend NotInheritable Class FakeArrearsRunRepository
     End Function
 
     Public Sub ReplaceLines(runId As Integer, lines As IReadOnlyList(Of RunLineResult), userId As Integer?) Implements IPayrollRunRepository.ReplaceLines
-        Throw New NotSupportedException()
+        If ReplaceFail IsNot Nothing Then Throw New PayrollRuleException(ReplaceFail)
+        Saved.Add(Tuple.Create(runId, lines))
     End Sub
 
     Public Sub ChangeStatus(runId As Integer, toStatus As PayrollRunStatus, action As String, reason As String) Implements IPayrollRunRepository.ChangeStatus

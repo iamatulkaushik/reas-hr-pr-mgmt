@@ -23,12 +23,19 @@ Public NotInheritable Class ArrearsMonthPreparer
         For Each l As SalaryLineView In dueFacts.Salary
             codes(l.ComponentId) = l.Code
         Next
+        Dim ids As New Dictionary(Of String, Integer)()
+        For Each pair As KeyValuePair(Of Integer, String) In codes
+            ids(pair.Value) = pair.Key
+        Next
+        For Each e As EarningAmount In paid.Earnings.Concat(due.Value.Earnings)
+            If Not codes.ContainsKey(e.ComponentId) Then ids("C" & e.ComponentId.ToString(Globalization.CultureInfo.InvariantCulture)) = e.ComponentId
+        Next
         Dim monthly As Decimal = dueFacts.Salary.Sum(Function(l As SalaryLineView) l.Amount)
         Dim dailyWage As Decimal = monthly / If(dueFacts.IsDailyWage, policy.DailyWageDivisor, CDec(period.Days))
         Dim month As New Date(period.PeriodTo.Year, period.PeriodTo.Month, 1)
         Return OperationResult(Of ArrearsMonthInput).Ok(New ArrearsMonthInput(month, Breakdown(paid, codes), Breakdown(due.Value, codes), rates, dailyWage,
                                                                               dueFacts.EsiStayEligible, dueFacts.EpfOnHigherWage, dueFacts.EpsOnHigherWage,
-                                                                              dueFacts.IsEpfMember, dueFacts.IsEsiMember))
+                                                                              dueFacts.IsEpfMember, dueFacts.IsEsiMember, ids))
     End Function
 
     Private Shared Function Breakdown(line As RunLineResult, codes As Dictionary(Of Integer, String)) As WageBreakdown

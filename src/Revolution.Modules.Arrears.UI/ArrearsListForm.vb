@@ -27,6 +27,7 @@ Friend NotInheritable Class ArrearsListForm
     Private ReadOnly _load As New Button()
     Private ReadOnly _cancel As New Button()
     Private ReadOnly _newClaim As New Button()
+    Private ReadOnly _payRun As New Button()
     Private ReadOnly _exit As New Button()
 
     Public Sub New(services As ArrearsServices)
@@ -71,11 +72,16 @@ Friend NotInheritable Class ArrearsListForm
         _load.AutoSize = True
         bar.Controls.Add(_exit)
         bar.Controls.Add(_cancel)
+        _payRun.Text = "Pay in a run"
+        _payRun.AutoSize = True
+        _payRun.Visible = _services.Run IsNot Nothing
+        bar.Controls.Add(_payRun)
         bar.Controls.Add(_newClaim)
         bar.Controls.Add(_load)
         AddHandler _load.Click, Sub(sender As Object, e As EventArgs) DoLoad()
         AddHandler _cancel.Click, Sub(sender As Object, e As EventArgs) DoCancel()
         AddHandler _newClaim.Click, Sub(sender As Object, e As EventArgs) DoNewClaim()
+        AddHandler _payRun.Click, Sub(sender As Object, e As EventArgs) DoPayRun()
     End Sub
 
     Private Shared Sub ConfigureMonth(picker As DateTimePicker)
@@ -135,6 +141,13 @@ Friend NotInheritable Class ArrearsListForm
         End Using
     End Sub
 
+    Private Sub DoPayRun()
+        Using form As New ArrearsRunForm(_services)
+            form.ShowDialog(Me)
+        End Using
+        DoLoad()
+    End Sub
+
     Private Sub DoCancel()
         ClearValidation()
         Dim picked As ClaimLine = TryCast(If(_grid.CurrentRow Is Nothing, Nothing, _grid.CurrentRow.DataBoundItem), ClaimLine)
@@ -172,9 +185,17 @@ Friend NotInheritable Class ArrearsListForm
             Gross = Money(claim.GrossTotal)
             Deductions = Money(claim.EmployeeDeductions)
             Net = Money(claim.NetBeforeTax)
-            State = If(claim.Status = ArrearsClaimStatus.Open, "Open", "Cancelled")
+            State = StateText(claim)
             Reason = claim.Reason
         End Sub
+
+        Private Shared Function StateText(claim As ArrearsClaimRow) As String
+            Select Case claim.Status
+                Case ArrearsClaimStatus.Open : Return "Open"
+                Case ArrearsClaimStatus.Paid : Return "Paid, run id " & If(claim.AppliedRunId.HasValue, claim.AppliedRunId.Value.ToString(CultureInfo.InvariantCulture), "?")
+                Case Else : Return "Cancelled"
+            End Select
+        End Function
 
         Public ReadOnly Property ClaimId As Integer
         Public ReadOnly Property ClaimNo As String

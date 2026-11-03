@@ -106,6 +106,7 @@ Public NotInheritable Class PayrollRunService
         Dim header As PayrollRunHeader = _runs.GetRun(runId)
         If header Is Nothing Then Return OperationResult(Of Integer).Fail("Run not found.")
         If Not RunStateMachine.CanEditLines(header.Status) Then Return OperationResult(Of Integer).Fail("The run cannot be processed in this status.")
+        If header.RunNo > 1 Then Return OperationResult(Of Integer).Fail("This is an arrears run. Its lines come from the arrears claims, so it cannot be processed here.")
 
         Dim policy As PolicySettings = _salary.GetPolicy()
         Dim period As RunPeriod = header.Period()
