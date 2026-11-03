@@ -21,6 +21,7 @@ Public NotInheritable Class PayrollModule
         Dim tds As New TdsDeclarationService(tdsRepository, host.Crypto, host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim leaveRepository As New SqlLeaveRepository(host.Factory)
         Dim leave As New LeaveService(leaveRepository, host.Permissions, host.Entitlements, host.Audit, host.Session)
+        Dim leaveAccrual As New LeaveAccrualService(New SqlLeaveAccrualSource(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim fnf As New FnfService(New SqlFnfRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session,
                                   New SqlFnfFactsSource(host.Factory), host.Rates, leaveRepository, New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection)
         Dim repository As New SqlPayrollFileRepository(host.Factory)
@@ -29,6 +30,6 @@ Public NotInheritable Class PayrollModule
         Dim payslips As New PayslipService(New SqlPayslipRepository(host.Factory), releaser, host.Permissions, host.Entitlements, host.Audit)
         Dim files As New PayrollFileService(source, host.Permissions, host.Audit, repository)
         Dim writers As New List(Of IBankFileWriter) From {New SbiFileWriter()}
-        Return New PayrollServices(salary, runs, payslips, loans, tds, tdsProjection, files, host.Rates, host.Exporter, writers, leave, fnf)
+        Return New PayrollServices(salary, runs, payslips, loans, tds, tdsProjection, files, host.Rates, host.Exporter, writers, leave, fnf, leaveAccrual)
     End Function
 End Class

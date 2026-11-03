@@ -39,6 +39,7 @@ Friend Module MenuIconMap
         {"payroll.tds", AppIcon.Declaration},
         {"payroll.loans", AppIcon.Rupee},
         {"payroll.leave", AppIcon.Leave},
+        {"payroll.leaveaccrual", AppIcon.Leave},
         {"arrears.list", AppIcon.Calculator},
         {"arrears.report", AppIcon.Report},
         {"Compliance", AppIcon.Shield},

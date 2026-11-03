@@ -45,6 +45,7 @@ Public NotInheritable Class MenuLayoutModule
     Private Const RunScreen As String = "payroll.run"
     Private Const PayslipScreen As String = "payroll.payslips"
     Private Const LeaveScreen As String = "payroll.leave"
+    Private Const LeaveAccrualScreen As String = "payroll.leaveaccrual"
     Private Const TdsScreen As String = "payroll.tds"
     Private Const LoansScreen As String = "payroll.loans"
 
@@ -136,6 +137,7 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("payroll.tds", ProcessGroup, "Income tax declaration", ModuleKey.Payroll, PlanFeature.Tds, 550, TdsScreen)
         AddScreen("payroll.loans", ProcessGroup, "Loans", ModuleKey.Payroll, PlanFeature.Loans, 560, LoansScreen)
         AddScreen("payroll.leave", ProcessGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, 570, LeaveScreen)
+        AddScreen("payroll.leaveaccrual", ProcessGroup, "Leave accrual", ModuleKey.Payroll, PlanFeature.FullAndFinal, 575, LeaveAccrualScreen)
         AddScreen("arrears.list", ProcessGroup, "Arrears", ModuleKey.Payroll, PlanFeature.BasicPayroll, 580, ArrearsListScreen)
     End Sub
 

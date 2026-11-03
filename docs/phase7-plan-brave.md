@@ -33,7 +33,7 @@ I. **Final month.** F&F is settled in the month after exit, from the 1st to the 
 ## Still open
 1. Employer-paid notice pay: **built** 2026-11-01.
 2. Arrears: list, report and add-claim **built** (7c, 7d). Arrear ECR **built** (7e-1). Still to build (7e-2): off-cycle run that pays a claim with section 89 relief.
-3. Leave accrual: calculator built; the stored company setting needs change request 0020 to Sigma. Encashment and carry-forward caps are now columns on `pay.LeaveType`, set by the Owner.
+3. Leave accrual: **built** 2026-11-02 (0326, 0332, 0333, service, plain form, menu line) per Sigma's reply on change request 0020. Encashment and carry-forward caps are now columns on `pay.LeaveType`, set by the Owner.
 4a. No change request needed for a leave plan feature: leave is gated by the existing `PlanFeature.FullAndFinal`.
 4b. The F&F procs update `mst.EmployeeSeparation.FnFStatusID` from the `pay` lane. Sigma to review.
 5. Bonus percentage at exit: the Owner picks inside the rule's range, default is the minimum.

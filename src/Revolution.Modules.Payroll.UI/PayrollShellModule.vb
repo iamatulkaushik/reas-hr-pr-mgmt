@@ -13,6 +13,7 @@ Public NotInheritable Class PayrollShellModule
     Private Const RunSort As Integer = 480
     Private Const PayslipSort As Integer = 490
     Private Const LeaveSort As Integer = 510
+    Private Const LeaveAccrualSort As Integer = 515
     Private Const LoanSort As Integer = 470
     Private Const TdsSort As Integer = 460
 
@@ -38,6 +39,8 @@ Public NotInheritable Class PayrollShellModule
                           Function() CType(New PayslipListForm(services), Form)),
             New ShellItem(New MenuEntry("payroll.leave", PayrollGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, LeaveSort),
                           Function() CType(New LeaveLedgerForm(services), Form)),
+            New ShellItem(New MenuEntry("payroll.leaveaccrual", PayrollGroup, "Leave accrual", ModuleKey.Payroll, PlanFeature.FullAndFinal, LeaveAccrualSort),
+                          Function() CType(New LeaveAccrualForm(services), Form)),
             New ShellItem(New MenuEntry("payroll.fnf", PayrollGroup, "Full and final", ModuleKey.Payroll, PlanFeature.FullAndFinal, FnfSort),
                           Function() CType(New FnfForm(services), Form))}
     End Sub
