@@ -78,7 +78,7 @@ Public Class PayrollRunServiceTests
         Dim id As Integer = _runs.CreateRun(New RunPeriod(New Date(2026, 9, 26), New Date(2026, 10, 25)), 2, Nothing)
         Dim r = _service.Process(id)
         Assert.False(r.Succeeded)
-        Assert.Contains("arrears run", r.Message, StringComparison.Ordinal)
+        Assert.Contains("off-cycle run", r.Message, StringComparison.Ordinal)
         Assert.Empty(_runs.Lines.Where(Function(l) l.Key = id))
     End Sub
 

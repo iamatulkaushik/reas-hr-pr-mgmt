@@ -6,7 +6,8 @@ Imports Revolution.Modules.Payroll
 ''' Pays the open arrears claims in an off-cycle run (RunNo 2 and up) for a pay month (Owner, 2026-11-03: head by head, no tax in this run). Needs the BasicPayroll plan feature and Payroll Create.
 ''' The run is made empty, the claims are marked Paid by it (all or none, so two people cannot pay one claim twice), and the lines are saved; if the lines cannot be saved the claims are
 ''' put back to Open. The run then goes through the normal approve, lock and pay steps, and cannot be processed like a regular run. The attendance month of the period must be closed,
-''' as for any run. A claim that cannot be paid is left Open and named in Problems by employee code. The audit text holds no amounts.
+''' as for any run. A claim that cannot be paid is left Open and named in Problems by employee code. An overpaid claim stays Open, is named in Recoveries, and is taken by the next regular run as
+''' other deductions (ArrearsRecovery, Owner 2026-11-03). The audit text holds no amounts.
 ''' </summary>
 Public NotInheritable Class ArrearsRunService
     Private ReadOnly _repository As IArrearsRepository
@@ -74,7 +75,7 @@ Public NotInheritable Class ArrearsRunService
         Dim logged As OperationResult = _audit.Record(New AuditEntry(ModuleKey.Payroll, "Arrears.Run", "PayrollRun", runId.ToString(CultureInfo.InvariantCulture),
                                                                       $"Run {runNo.ToString(CultureInfo.InvariantCulture)}, {runPlan.Lines.Count.ToString(CultureInfo.InvariantCulture)} employees, {runPlan.ClaimIds.Count.ToString(CultureInfo.InvariantCulture)} claims."))
         If Not logged.Succeeded Then Return OperationResult(Of ArrearsRunResult).Fail(logged.Message)
-        Return OperationResult(Of ArrearsRunResult).Ok(New ArrearsRunResult(runId, runNo, runPlan.Lines.Count, runPlan.ClaimIds.Count, runPlan.TotalGross, runPlan.TotalNet, runPlan.Problems))
+        Return OperationResult(Of ArrearsRunResult).Ok(New ArrearsRunResult(runId, runNo, runPlan.Lines.Count, runPlan.ClaimIds.Count, runPlan.TotalGross, runPlan.TotalNet, runPlan.Problems, runPlan.Recoveries))
     End Function
 
     Private Function Plan(payMonth As Date) As OperationResult(Of ArrearsRunPlan)
@@ -106,8 +107,9 @@ Public NotInheritable Class ArrearsRunService
     End Sub
 
     Private Shared Function NothingToPay(plan As ArrearsRunPlan) As String
-        If plan.Problems.Count = 0 Then Return "There is nothing to pay in the open claims."
-        Return "No claim can be paid. " & String.Join(" ", plan.Problems.Take(5))
+        Dim recovery As String = If(plan.Recoveries.Count = 0, String.Empty, " Overpaid claims are recovered through the next regular run: " & String.Join(", ", plan.Recoveries) & ".")
+        If plan.Problems.Count = 0 Then Return "There is nothing to pay in the open claims." & recovery
+        Return "No claim can be paid. " & String.Join(" ", plan.Problems.Take(5)) & recovery
     End Function
 
     Private Function CheckAccess() As OperationResult

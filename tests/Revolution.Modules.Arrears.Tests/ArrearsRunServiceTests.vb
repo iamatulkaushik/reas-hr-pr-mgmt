@@ -107,6 +107,26 @@ Public Class ArrearsRunServiceTests
     End Sub
 
     <Fact>
+    Public Sub OnlyOverpaidClaims_MakeNoRun_AndSayTheyGoToTheRegularRun()
+        _repo.Rows.Clear()
+        AddClaim(11, 101, "E101", -400D)
+        Dim r As OperationResult(Of ArrearsRunResult) = _service.Create(New Date(2026, 11, 1))
+        Assert.False(r.Succeeded)
+        Assert.Contains("regular run", r.Message, StringComparison.Ordinal)
+        Assert.Contains("E101", r.Message, StringComparison.Ordinal)
+        Assert.Empty(_runs.Created)
+    End Sub
+
+    <Fact>
+    Public Sub OverpaidClaimBesidePayableOnes_StaysOpen_AndIsReported()
+        AddClaim(13, 101, "E101", -400D)
+        Dim r As OperationResult(Of ArrearsRunResult) = _service.Create(New Date(2026, 11, 1))
+        Assert.True(r.Succeeded)
+        Assert.Equal("E101", r.Value.Recoveries.Single())
+        Assert.DoesNotContain(13, _repo.PaidBy.Single().Item2)
+    End Sub
+
+    <Fact>
     Public Sub NeedsCreate_AndThePlan()
         _perms.Allowed.Remove(PermissionAction.Create)
         Assert.False(_service.Create(New Date(2026, 11, 1)).Succeeded)

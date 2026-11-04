@@ -44,7 +44,7 @@ Public NotInheritable Class ArrearsRunBuilder
         If claim.Months.Count = 0 Then Return "the claim has no months."
         For Each m As ArrearsMonthRecord In claim.Months
             If m.GrossDifference <> m.OvertimeDifference + m.Heads.Sum(Function(h As ArrearsHeadAmount) h.Amount) Then Return "saved without head amounts. Cancel it and make it again."
-            If AnyBelowZero(m) Then Return "an amount is below zero (an overpayment). Recover it through a regular run."
+            If AnyBelowZero(m) Then Return "an amount is below zero. A claim that is an overpayment as a whole is taken back by the regular run; if only some months are below zero, cancel the claim and make it again."
         Next
         Return String.Empty
     End Function

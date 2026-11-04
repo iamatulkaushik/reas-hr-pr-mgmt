@@ -59,7 +59,7 @@ Public Module Program
             New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions),
             New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions),
             New ArrearsShellModule(ArrearsModule.Compose(services.Host, employees.Export))}
-        Dim layout As New MenuLayoutModule(sources)
+        Dim layout As New MenuLayoutModule(sources, services.Permissions, services.Entitlements)
         Return New List(Of IShellModule) From {
             layout,
             New LicenceShellModule(services.LicenceAdmin),

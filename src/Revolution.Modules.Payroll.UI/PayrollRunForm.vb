@@ -104,6 +104,7 @@ Friend NotInheritable Class PayrollRunForm
         AddColumn(NameOf(LineRow.ProfessionalTax), "PT", 8, True)
         AddColumn(NameOf(LineRow.Tds), "TDS", 10, True)
         AddColumn(NameOf(LineRow.Emi), "EMI", 10, True)
+        AddColumn(NameOf(LineRow.OtherDeductions), "Other deductions", 10, True)
         AddColumn(NameOf(LineRow.Deductions), "Total deductions", 12, True)
         AddColumn(NameOf(LineRow.NetPay), "Net pay", 12, True)
     End Sub
@@ -138,7 +139,9 @@ Friend NotInheritable Class PayrollRunForm
         End If
         Dim warnings As IReadOnlyList(Of String) = _services.Runs.TdsWarnings
         Dim note As String = If(warnings.Count = 0, String.Empty, $" Tax could not be taken in full for: {String.Join(", ", warnings)}.")
-        Reload($"Processed {result.Value.ToString(CultureInfo.InvariantCulture)} employees.{note}")
+        Dim notes As IReadOnlyList(Of String) = _services.Runs.RecoveryNotes
+        Dim recoveryNote As String = If(notes.Count = 0, String.Empty, $" An overpaid arrears claim could not be taken back for: {String.Join(", ", notes)} (no pay in the period).")
+        Reload($"Processed {result.Value.ToString(CultureInfo.InvariantCulture)} employees.{note}{recoveryNote}")
     End Sub
 
     Private Sub DoMove(move As Func(Of Integer, OperationResult), done As String)
@@ -200,6 +203,7 @@ Friend NotInheritable Class PayrollRunForm
             ProfessionalTax = Money(line.ProfessionalTax)
             Tds = Money(line.TdsAmount)
             Emi = Money(line.LoanEmi)
+            OtherDeductions = Money(line.OtherDeductions)
             Deductions = Money(line.TotalDeductions)
             NetPay = Money(line.NetPay)
         End Sub
@@ -212,6 +216,7 @@ Friend NotInheritable Class PayrollRunForm
         Public ReadOnly Property ProfessionalTax As String
         Public ReadOnly Property Tds As String
         Public ReadOnly Property Emi As String
+        Public ReadOnly Property OtherDeductions As String
         Public ReadOnly Property Deductions As String
         Public ReadOnly Property NetPay As String
     End Class

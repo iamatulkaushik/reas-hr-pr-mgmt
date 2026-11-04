@@ -34,6 +34,8 @@ Friend Module MenuIconMap
         {"Career", AppIcon.Grade},
         {"Process", AppIcon.Payroll},
         {"payroll.run", AppIcon.PayslipRun},
+        {"payroll.lock", AppIcon.Lock},
+        {"payroll.bonus", AppIcon.Rupee},
         {"payroll.fnf", AppIcon.Exit},
         {"payroll.export.bank", AppIcon.BankFile},
         {"payroll.tds", AppIcon.Declaration},

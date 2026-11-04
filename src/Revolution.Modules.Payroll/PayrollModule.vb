@@ -15,8 +15,11 @@ Public NotInheritable Class PayrollModule
         Dim salary As New SalaryService(salaryRepository, host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim tdsRepository As New SqlTdsRepository(host.Factory)
         Dim tdsProjection As New TdsProjectionService(host.Rates)
-        Dim runs As New PayrollRunService(New SqlPayrollRunRepository(host.Factory), salaryRepository, host.Rates, host.Approvals, host.Permissions, host.Entitlements, host.Audit, host.Session,
-                                          New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection)
+        Dim runRepository As New SqlPayrollRunRepository(host.Factory)
+        Dim runs As New PayrollRunService(runRepository, salaryRepository, host.Rates, host.Approvals, host.Permissions, host.Entitlements, host.Audit, host.Session,
+                                          New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection, New SqlArrearsRecoveryLedger(host.Factory), New SqlRunDirectory(host.Factory))
+        Dim bonus As New BonusRunService(New SqlBonusSource(host.Factory), runRepository, salaryRepository, host.Rates, host.Permissions, host.Entitlements, host.Audit, host.Session,
+                                      New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection)
         Dim loans As New LoanService(New SqlLoanRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim tds As New TdsDeclarationService(tdsRepository, host.Crypto, host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim leaveRepository As New SqlLeaveRepository(host.Factory)
@@ -30,6 +33,6 @@ Public NotInheritable Class PayrollModule
         Dim payslips As New PayslipService(New SqlPayslipRepository(host.Factory), releaser, host.Permissions, host.Entitlements, host.Audit)
         Dim files As New PayrollFileService(source, host.Permissions, host.Audit, repository)
         Dim writers As New List(Of IBankFileWriter) From {New SbiFileWriter()}
-        Return New PayrollServices(salary, runs, payslips, loans, tds, tdsProjection, files, host.Rates, host.Exporter, writers, leave, fnf, leaveAccrual)
+        Return New PayrollServices(salary, runs, payslips, loans, tds, tdsProjection, files, host.Rates, host.Exporter, writers, leave, fnf, leaveAccrual, bonus)
     End Function
 End Class

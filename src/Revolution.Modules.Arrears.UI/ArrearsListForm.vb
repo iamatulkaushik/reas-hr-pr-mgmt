@@ -193,6 +193,7 @@ Friend NotInheritable Class ArrearsListForm
             Select Case claim.Status
                 Case ArrearsClaimStatus.Open : Return "Open"
                 Case ArrearsClaimStatus.Paid : Return "Paid, run id " & If(claim.AppliedRunId.HasValue, claim.AppliedRunId.Value.ToString(CultureInfo.InvariantCulture), "?")
+                Case ArrearsClaimStatus.Recovered : Return "Recovered in run id " & If(claim.AppliedRunId.HasValue, claim.AppliedRunId.Value.ToString(CultureInfo.InvariantCulture), "?")
                 Case Else : Return "Cancelled"
             End Select
         End Function

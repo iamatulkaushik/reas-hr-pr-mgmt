@@ -102,7 +102,8 @@ Friend NotInheritable Class ArrearsRunForm
         _grid.DataSource = plan.Lines.Select(Function(l) New PayLine(l)).ToList()
         _make.Enabled = plan.Lines.Count > 0
         ShowStatus($"{plan.Lines.Count.ToString(CultureInfo.InvariantCulture)} employees, arrears {Money(plan.TotalGross)}, net {Money(plan.TotalNet)}. " &
-                   If(plan.Problems.Count = 0, String.Empty, "Left open: " & String.Join(" ", plan.Problems)))
+                   If(plan.Problems.Count = 0, String.Empty, "Left open: " & String.Join(" ", plan.Problems) & " ") &
+                   If(plan.Recoveries.Count = 0, String.Empty, "Recovered through the next regular run: " & String.Join(", ", plan.Recoveries) & "."))
     End Sub
 
     Private Sub DoMake()
@@ -116,7 +117,8 @@ Friend NotInheritable Class ArrearsRunForm
         End If
         ForgetPreview()
         ShowStatus($"Run {result.Value.RunNo.ToString(CultureInfo.InvariantCulture)} is made for {result.Value.EmployeeCount.ToString(CultureInfo.InvariantCulture)} employees. " &
-                   "Approve it in the payroll run screen. " & If(result.Value.Problems.Count = 0, String.Empty, "Left open: " & String.Join(" ", result.Value.Problems)))
+                   "Approve it in the payroll run screen. " & If(result.Value.Problems.Count = 0, String.Empty, "Left open: " & String.Join(" ", result.Value.Problems) & " ") &
+                   If(result.Value.Recoveries.Count = 0, String.Empty, "Recovered through the next regular run: " & String.Join(", ", result.Value.Recoveries) & "."))
     End Sub
 
     Private Shared Function Money(value As Decimal) As String

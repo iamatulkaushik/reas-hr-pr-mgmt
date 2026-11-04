@@ -27,11 +27,14 @@ Public NotInheritable Class PayrollRunService
     Private ReadOnly _session As ISessionContext
     Private ReadOnly _tax As IRunTaxSource
     Private ReadOnly _projection As TdsProjectionService
+    Private ReadOnly _recoveries As IArrearsRecoveryLedger
+    Private ReadOnly _directory As IRunDirectory
     Private _tdsWarnings As IReadOnlyList(Of String) = New List(Of String)()
+    Private _recoveryNotes As IReadOnlyList(Of String) = New List(Of String)()
 
     Public Sub New(runs As IPayrollRunRepository, salary As ISalaryRepository, rates As IStatutoryRateService, approvals As IApprovalService,
                    permissions As IPermissionService, entitlements As IEntitlementService, audit As IAuditService, session As ISessionContext,
-                   Optional tax As IRunTaxSource = Nothing, Optional projection As TdsProjectionService = Nothing)
+                   Optional tax As IRunTaxSource = Nothing, Optional projection As TdsProjectionService = Nothing, Optional recoveries As IArrearsRecoveryLedger = Nothing, Optional directory As IRunDirectory = Nothing)
         If runs Is Nothing Then Throw New ArgumentNullException(NameOf(runs))
         If salary Is Nothing Then Throw New ArgumentNullException(NameOf(salary))
         If rates Is Nothing Then Throw New ArgumentNullException(NameOf(rates))
@@ -50,6 +53,8 @@ Public NotInheritable Class PayrollRunService
         _session = session
         _tax = tax
         _projection = projection
+        _recoveries = recoveries
+        _directory = directory
     End Sub
 
     ''' <summary>Employees whose tax pay could not cover in the last Process call, by code. Not stored: read it right after Process.</summary>
@@ -59,12 +64,30 @@ Public NotInheritable Class PayrollRunService
         End Get
     End Property
 
+    ''' <summary>Employees with an overpaid arrears claim who have no pay in the period of the last Process call, by code. Their claims stay Open. Not stored: read it right after Process.</summary>
+    Public ReadOnly Property RecoveryNotes As IReadOnlyList(Of String)
+        Get
+            Return _recoveryNotes
+        End Get
+    End Property
+
     Public Function GetRun(runId As Integer) As OperationResult(Of PayrollRunHeader)
         Dim allowed As OperationResult = CheckAccess(PermissionAction.View)
         If Not allowed.Succeeded Then Return OperationResult(Of PayrollRunHeader).Fail(allowed.Message)
         Dim header As PayrollRunHeader = _runs.GetRun(runId)
         If header Is Nothing Then Return OperationResult(Of PayrollRunHeader).Fail("Run not found.")
         Return OperationResult(Of PayrollRunHeader).Ok(header)
+    End Function
+
+    ''' <summary>Every run of the pay month (any date in it), the regular run first, then the arrears runs. Empty when no run was made for the month.</summary>
+    Public Function ListRunsOfMonth(year As Integer, month As Integer) As OperationResult(Of IReadOnlyList(Of PayrollRunHeader))
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.View)
+        If Not allowed.Succeeded Then Return OperationResult(Of IReadOnlyList(Of PayrollRunHeader)).Fail(allowed.Message)
+        If year < 2000 OrElse year > 9999 OrElse month < 1 OrElse month > 12 Then Return OperationResult(Of IReadOnlyList(Of PayrollRunHeader)).Fail("Month or year is not valid.")
+        If _directory Is Nothing Then Return OperationResult(Of IReadOnlyList(Of PayrollRunHeader)).Fail("The run list is not set up.")
+        Dim policy As PolicySettings = _salary.GetPolicy()
+        Dim period As RunPeriod = PayCycle.PeriodFor(year, month, policy.PayCycleStartDay)
+        Return OperationResult(Of IReadOnlyList(Of PayrollRunHeader)).Ok(_directory.ListForPeriod(period))
     End Function
 
     Public Function ListLines(runId As Integer) As OperationResult(Of IReadOnlyList(Of RunLineResult))
@@ -106,7 +129,7 @@ Public NotInheritable Class PayrollRunService
         Dim header As PayrollRunHeader = _runs.GetRun(runId)
         If header Is Nothing Then Return OperationResult(Of Integer).Fail("Run not found.")
         If Not RunStateMachine.CanEditLines(header.Status) Then Return OperationResult(Of Integer).Fail("The run cannot be processed in this status.")
-        If header.RunNo > 1 Then Return OperationResult(Of Integer).Fail("This is an arrears run. Its lines come from the arrears claims, so it cannot be processed here.")
+        If header.RunNo > 1 Then Return OperationResult(Of Integer).Fail("This is an off-cycle run (arrears or bonus). Its lines come from its own screen, so it cannot be processed here.")
 
         Dim policy As PolicySettings = _salary.GetPolicy()
         Dim period As RunPeriod = header.Period()
@@ -114,6 +137,15 @@ Public NotInheritable Class PayrollRunService
         If facts.Count = 0 Then Return OperationResult(Of Integer).Fail("No employee has pay in this period.")
         Dim rates As OperationResult(Of RunRates) = LoadRates(period, facts)
         If Not rates.Succeeded Then Return OperationResult(Of Integer).Fail(rates.Message)
+        Dim recovery As ArrearsRecoveryPlan = Nothing
+        If _recoveries IsNot Nothing Then
+            Try
+                recovery = ArrearsRecoveryPlanner.Plan(facts, _recoveries.Due(runId))
+            Catch ex As PayrollRuleException
+                Return OperationResult(Of Integer).Fail(ex.Message)
+            End Try
+            facts = recovery.Facts
+        End If
 
         Dim taxFacts As IReadOnlyDictionary(Of Integer, EmployeeTaxFacts) = LoadTaxFacts(runId, period, facts)
         Dim lines As New List(Of RunLineResult)()
@@ -126,10 +158,21 @@ Public NotInheritable Class PayrollRunService
         Next
         If failures.Count > 0 Then Return OperationResult(Of Integer).Fail(Summarise(failures))
         _tdsWarnings = warnings
+        _recoveryNotes = If(recovery Is Nothing, New List(Of String)(), recovery.NotInRun)
 
+        Dim held As Boolean = False
+        If recovery IsNot Nothing AndAlso recovery.ClaimIds.Count > 0 Then
+            Try
+                _recoveries.Reserve(runId, recovery.ClaimIds)
+                held = True
+            Catch ex As PayrollRuleException
+                Return OperationResult(Of Integer).Fail(ex.Message)
+            End Try
+        End If
         Try
             _runs.ReplaceLines(runId, lines, CurrentUserId())
         Catch ex As PayrollRuleException
+            If held Then AbandonRecoveries(runId, header.Status)
             Return OperationResult(Of Integer).Fail(ex.Message)
         End Try
         Dim logged As OperationResult = Log("Process", runId, $"{lines.Count.ToString(CultureInfo.InvariantCulture)} employees.")
@@ -167,6 +210,7 @@ Public NotInheritable Class PayrollRunService
         Dim request As OperationResult(Of Integer) = _approvals.Submit(ModuleKey.Payroll, EntityName, runId.ToString(CultureInfo.InvariantCulture), summary)
         If Not request.Succeeded Then
             Change(runId, PayrollRunStatus.Draft, "SubmitFailed", Nothing, number)
+            ReleaseRecoveriesQuietly(runId)
             Return OperationResult.Fail(request.Message)
         End If
         Return Log("Submit", runId, summary)
@@ -196,6 +240,7 @@ Public NotInheritable Class PayrollRunService
             If number = ChecksumMismatchNumber Then
                 Dim ignored As Integer
                 Change(runId, PayrollRunStatus.Draft, "ChecksumMismatch", "Totals changed after submission.", ignored)
+                ReleaseRecoveriesQuietly(runId)
                 Return OperationResult.Fail(changed.Message & " The run is back in Draft.")
             End If
             Return changed
@@ -216,6 +261,8 @@ Public NotInheritable Class PayrollRunService
         Dim number As Integer
         Dim changed As OperationResult = Change(runId, PayrollRunStatus.Draft, "ReturnToDraft", CleanReason(reason), number)
         If Not changed.Succeeded Then Return changed
+        Dim released As OperationResult = ReleaseRecoveries(runId)
+        If Not released.Succeeded Then Return OperationResult.Fail("The run is back in Draft but its arrears recoveries were not released: " & released.Message & " Process the run again.")
         Return Log("ReturnToDraft", runId, String.Empty)
     End Function
 
@@ -234,6 +281,34 @@ Public NotInheritable Class PayrollRunService
             Return OperationResult.Fail("The run is locked but its loan recoveries were not saved: " & applied.Message & " Use Apply loan recoveries to try again.")
         End If
         Return Log("Lock", runId, String.Empty)
+    End Function
+
+    ''' <summary>
+    ''' Locks the run for the Lock Payroll screen: a Processed run is approved first when the plan needs no second approver (the attendance lock has already verified the month, Owner 2026-10-31),
+    ''' then locked with its loan recoveries. Where a second approver is needed the run must already be Approved. Each step is checked as in Approve and Lock.
+    ''' </summary>
+    Public Function LockPayroll(runId As Integer) As OperationResult
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.Edit)
+        If Not allowed.Succeeded Then Return allowed
+        Dim header As PayrollRunHeader = _runs.GetRun(runId)
+        If header Is Nothing Then Return OperationResult.Fail("Run not found.")
+        Select Case header.Status
+            Case PayrollRunStatus.Locked, PayrollRunStatus.Paid
+                Return OperationResult.Fail("The run is already locked.")
+            Case PayrollRunStatus.Draft
+                Return OperationResult.Fail("Process the run before it is locked.")
+            Case PayrollRunStatus.Submitted
+                Return OperationResult.Fail("The run is waiting for approval. It can be locked once it is approved.")
+            Case PayrollRunStatus.Processed
+                If _approvals.IsRequired(ModuleKey.Payroll) Then Return OperationResult.Fail("This plan needs the run to be submitted and approved before it is locked.")
+                Dim approved As OperationResult = Approve(runId)
+                If Not approved.Succeeded Then Return approved
+        End Select
+        Dim locked As OperationResult = Lock(runId)
+        If locked.Succeeded OrElse header.Status <> PayrollRunStatus.Processed Then Return locked
+        Dim now As PayrollRunHeader = _runs.GetRun(runId)
+        If now IsNot Nothing AndAlso now.Status = PayrollRunStatus.Locked Then Return locked
+        Return OperationResult.Fail("The run is approved but not locked: " & locked.Message)
     End Function
 
     ''' <summary>Writes the loan recoveries of a locked run. Safe to repeat: recoveries already applied count as done.</summary>
@@ -266,6 +341,8 @@ Public NotInheritable Class PayrollRunService
         Catch ex As PayrollRuleException
             Return OperationResult.Fail("The run is open again but its loan recoveries were not reversed: " & ex.Message)
         End Try
+        Dim released As OperationResult = ReleaseRecoveries(runId)
+        If Not released.Succeeded Then Return OperationResult.Fail("The run is open again but its arrears recoveries were not released: " & released.Message & " Process the run again.")
         Return Log("Reopen", runId, String.Empty)
     End Function
 
@@ -281,6 +358,30 @@ Public NotInheritable Class PayrollRunService
         If Not changed.Succeeded Then Return changed
         Return Log("MarkPaid", runId, String.Empty)
     End Function
+
+    ''' <summary>Puts the overpaid arrears claims held by the run back to Open. Nothing to do when the module has no ledger.</summary>
+    Private Function ReleaseRecoveries(runId As Integer) As OperationResult
+        If _recoveries Is Nothing Then Return OperationResult.Ok()
+        Try
+            _recoveries.Release(runId)
+        Catch ex As PayrollRuleException
+            Return OperationResult.Fail(ex.Message)
+        End Try
+        Return OperationResult.Ok()
+    End Function
+
+    ''' <summary>For the paths where the run goes back to Draft for another reason: a failed release is not reported, because processing the run again holds the claims again.</summary>
+    Private Sub ReleaseRecoveriesQuietly(runId As Integer)
+        ReleaseRecoveries(runId)
+    End Sub
+
+    ''' <summary>The lines could not be saved: the claims are put back, and a Processed run goes back to Draft so it cannot be approved with the old deductions.</summary>
+    Private Sub AbandonRecoveries(runId As Integer, status As PayrollRunStatus)
+        ReleaseRecoveriesQuietly(runId)
+        If status <> PayrollRunStatus.Processed Then Return
+        Dim ignored As Integer
+        Change(runId, PayrollRunStatus.Draft, "RecoveryFailed", "The lines could not be saved.", ignored)
+    End Sub
 
     Private Function LoadRates(period As RunPeriod, facts As IReadOnlyList(Of RunEmployeeFacts)) As OperationResult(Of RunRates)
         Dim epf As OperationResult(Of EpfRate) = _rates.GetEpfRate(period.RateDate)

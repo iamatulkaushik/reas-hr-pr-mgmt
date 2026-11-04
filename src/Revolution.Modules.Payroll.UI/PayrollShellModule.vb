@@ -16,6 +16,8 @@ Public NotInheritable Class PayrollShellModule
     Private Const LeaveAccrualSort As Integer = 515
     Private Const LoanSort As Integer = 470
     Private Const TdsSort As Integer = 460
+    Private Const LockSort As Integer = 485
+    Private Const BonusSort As Integer = 486
 
     Private ReadOnly _items As IReadOnlyList(Of ShellItem)
 
@@ -35,6 +37,10 @@ Public NotInheritable Class PayrollShellModule
                           Function() CType(New LoansForm(services), Form)),
             New ShellItem(New MenuEntry("payroll.run", PayrollGroup, "Payroll run", ModuleKey.Payroll, PlanFeature.BasicPayroll, RunSort),
                           Function() CType(New PayrollRunForm(services), Form)),
+            New ShellItem(New MenuEntry("payroll.lock", PayrollGroup, "Lock payroll", ModuleKey.Payroll, PlanFeature.BasicPayroll, LockSort),
+                          Function() CType(New PayrollLockForm(services), Form)),
+            New ShellItem(New MenuEntry("payroll.bonus", PayrollGroup, "Bonuses", ModuleKey.Payroll, PlanFeature.BasicPayroll, BonusSort),
+                          Function() CType(New BonusRunForm(services), Form)),
             New ShellItem(New MenuEntry("payroll.payslips", PayrollGroup, "Payslips", ModuleKey.Payroll, PlanFeature.Payslips, PayslipSort),
                           Function() CType(New PayslipListForm(services), Form)),
             New ShellItem(New MenuEntry("payroll.leave", PayrollGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, LeaveSort),

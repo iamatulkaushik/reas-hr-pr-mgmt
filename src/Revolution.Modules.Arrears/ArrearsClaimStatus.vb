@@ -4,4 +4,6 @@ Public Enum ArrearsClaimStatus
     Cancelled = 2
     ''' <summary>Paid by an arrears run (RunNo 2 and up). It cannot be cancelled and its months cannot be claimed again.</summary>
     Paid = 3
+    ''' <summary>An overpaid claim held by a regular run, which takes the amount back from the employee's pay. It cannot be cancelled while a run holds it and its months cannot be claimed again.</summary>
+    Recovered = 4
 End Enum

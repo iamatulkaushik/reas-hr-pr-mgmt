@@ -43,6 +43,8 @@ Public NotInheritable Class MenuLayoutModule
     Private Const ArrearsListScreen As String = "arrears.list"
     Private Const ArrearsReportScreen As String = "arrears.report"
     Private Const RunScreen As String = "payroll.run"
+    Private Const LockScreen As String = "payroll.lock"
+    Private Const BonusScreen As String = "payroll.bonus"
     Private Const PayslipScreen As String = "payroll.payslips"
     Private Const LeaveScreen As String = "payroll.leave"
     Private Const LeaveAccrualScreen As String = "payroll.leaveaccrual"
@@ -130,8 +132,8 @@ Public NotInheritable Class MenuLayoutModule
     ''' </summary>
     Private Sub AddProcess()
         AddScreen("payroll.run", ProcessGroup, "Payroll", ModuleKey.Payroll, PlanFeature.BasicPayroll, 500, RunScreen)
-        AddPlanned("process.lockpayroll", ProcessGroup, "Lock Payroll", ModuleKey.Payroll, PlanFeature.BasicPayroll, 510)
-        AddPlanned("process.bonuses", ProcessGroup, "Bonuses", ModuleKey.Payroll, PlanFeature.BasicPayroll, 520)
+        AddScreen("payroll.lock", ProcessGroup, "Lock Payroll", ModuleKey.Payroll, PlanFeature.BasicPayroll, 510, LockScreen)
+        AddScreen("payroll.bonus", ProcessGroup, "Bonuses", ModuleKey.Payroll, PlanFeature.BasicPayroll, 520, BonusScreen)
         AddScreen("payroll.fnf", ProcessGroup, "Full and Final Settlements", ModuleKey.Payroll, PlanFeature.FullAndFinal, 530, FnfScreen)
         AddScreen("payroll.export.bank", ProcessGroup, "Bank file", ModuleKey.Payroll, PlanFeature.BankFiles, 540, BankScreen)
         AddScreen("payroll.tds", ProcessGroup, "Income tax declaration", ModuleKey.Payroll, PlanFeature.Tds, 550, TdsScreen)

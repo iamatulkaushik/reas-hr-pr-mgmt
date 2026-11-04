@@ -47,8 +47,14 @@ Public NotInheritable Class RunEmployeeFacts
     ''' <summary>Days inside the employee's working window of the period that have no attendance mark.</summary>
     Public ReadOnly Property UnmarkedDays As Integer
     Public ReadOnly Property CarryForwardIn As Decimal
-    ''' <summary>No source yet. The data source returns 0.</summary>
+    ''' <summary>Deductions other than statutory, tax, loans and the shortfall carried in. The data source returns 0; the run adds overpaid arrears claims to it (IArrearsRecoveryLedger).</summary>
     Public ReadOnly Property OtherDeductions As Decimal
     Public ReadOnly Property Salary As IReadOnlyList(Of SalaryLineView)
     Public ReadOnly Property Installments As IReadOnlyList(Of OpenInstallment)
+
+    ''' <summary>The same facts with other deductions set to the given amount (for example with an arrears recovery added).</summary>
+    Public Function WithOtherDeductions(amount As Decimal) As RunEmployeeFacts
+        Return New RunEmployeeFacts(EmployeeId, FactoryId, EmpCode, IsDailyWage, GenderId, PtStateId, IsEpfMember, EpfOnHigherWage, EpsOnHigherWage, IsEsiMember, EsiStayEligible,
+                                    PaidDays, OvertimeHours, HoursPerDay, UnmarkedDays, CarryForwardIn, amount, Salary, Installments)
+    End Function
 End Class

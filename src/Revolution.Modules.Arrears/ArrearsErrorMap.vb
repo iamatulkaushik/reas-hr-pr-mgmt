@@ -1,4 +1,4 @@
-''' <summary>Turns the arrears procedures' error numbers (53100 to 53104) into messages a screen can show. Nothing for any other number.</summary>
+''' <summary>Turns the arrears procedures' error numbers (53100 to 53109) into messages a screen can show. Nothing for any other number.</summary>
 Public NotInheritable Class ArrearsErrorMap
     Private Sub New()
     End Sub
@@ -14,6 +14,7 @@ Public NotInheritable Class ArrearsErrorMap
             Case 53106 : Return "A claim is not open any more. Load the list again."
             Case 53107 : Return "The arrears run is not found."
             Case 53108 : Return "The arrears run already has lines."
+            Case 53109 : Return "A claim that a regular run is recovering cannot be cancelled. Return that run to Draft first."
             Case 50002 : Return "No company is selected."
             Case Else : Return Nothing
         End Select

@@ -51,13 +51,14 @@ Public Class ArrearsRunBuilderTests
     End Sub
 
     <Fact>
-    Public Sub Overpayment_IsLeftOut_AndNamedByCode()
+    Public Sub Overpayment_IsNotInTheRun_AndIsNamedForRecovery()
         Dim plan As ArrearsRunPlan = ArrearsRunBuilder.Build(New List(Of ArrearsClaimDetail) From {
             Claim(11, 101, "E101", Month(5, Heads(-300D, 0D), -300D, -36D)), Claim(12, 102, "E102", Month(5, Heads(1000D, 0D), 1000D, 120D))}, Factories(101, 102))
         Assert.Equal(1, plan.Lines.Count)
         Assert.Equal(102, plan.Lines.Single().EmployeeId)
-        Assert.Contains("E101", plan.Problems.Single(), StringComparison.Ordinal)
-        Assert.DoesNotContain("300", plan.Problems.Single(), StringComparison.Ordinal)
+        Assert.Equal("E101", plan.Recoveries.Single())
+        Assert.Empty(plan.Problems)
+        Assert.Equal(12, plan.ClaimIds.Single())
     End Sub
 
     <Fact>
@@ -82,11 +83,28 @@ Public Class ArrearsRunBuilderTests
     End Sub
 
     <Fact>
-    Public Sub NetBelowZero_IsLeftOut()
+    Public Sub NetBelowZero_IsAnOverpayment_ForRecovery()
         Dim plan As ArrearsRunPlan = ArrearsRunBuilder.Build(New List(Of ArrearsClaimDetail) From {Claim(11, 101, "E101", Month(5, Heads(100D, 0D), 100D, 240D))}, Factories(101))
         Assert.Empty(plan.Lines)
-        Assert.Contains("below zero", plan.Problems.Single(), StringComparison.Ordinal)
+        Assert.Equal("E101", plan.Recoveries.Single())
         Assert.Empty(plan.ClaimIds)
+    End Sub
+
+    <Fact>
+    Public Sub OneLowerMonth_IsFine_WhenTheClaimAsAWholeIsPositive()
+        Dim plan As ArrearsRunPlan = ArrearsRunBuilder.Build(New List(Of ArrearsClaimDetail) From {
+            Claim(11, 101, "E101", Month(5, Heads(2000D, 0D), 2000D, 240D), Month(6, Heads(-500D, 0D), -500D, -60D))}, Factories(101))
+        Assert.Empty(plan.Problems)
+        Assert.Empty(plan.Recoveries)
+        Assert.Equal(1500D, plan.Lines.Single().GrossEarnings)
+        Assert.Equal(1500D, plan.Lines.Single().Earnings.Single(Function(e) e.ComponentId = 1).Amount)
+    End Sub
+
+    <Fact>
+    Public Sub OverpaidClaim_NeedsNoPayFacts()
+        Dim plan As ArrearsRunPlan = ArrearsRunBuilder.Build(New List(Of ArrearsClaimDetail) From {Claim(11, 101, "E101", Month(5, Heads(-300D, 0D), -300D, -36D))}, Factories(999))
+        Assert.Equal("E101", plan.Recoveries.Single())
+        Assert.Empty(plan.Problems)
     End Sub
 
     <Fact>

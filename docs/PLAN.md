@@ -21,7 +21,7 @@ CI green on a Windows runner, tests pass, the screens were actually run and scre
 | 6 | Tax: TDS (both regimes), declarations, Form 16 and Form 24Q (Form 130 and Form 138 under the Income-tax Act 2025) | Brave | |
 | 7 | Arrears, full and final, bank files, ECR and challans | Brave | |
 | 8 | Biometric and RFID agent (Windows Service, one brand first) | Brave | |
-| 9 | Assets and expenses | Brave | |
+| 9 | Assets and expenses. Also the ReportStudio checks that need real data (moved from Phase 0, Owner 2026-11-03): golden image files committed, one payslip layout previewed, printed and saved as PDF from database rows, a bulk run of 50 payslips with page numbers restarting, a Form 130 style certificate on one page | Brave, Sigma reviews | The ReportStudio checks pass on the complete app runtime. |
 | 10 | Hardening: installer, licence enforcement, SQL Agent backups, security review, pilot month | Both | |
 
 ## Risks
