@@ -9,4 +9,6 @@ Public Interface IBiometricRepository
     Sub UnmapCard(employeeId As Integer, userId As Integer?)
     Function ListPunches(filter As PunchFilter) As IReadOnlyList(Of PunchRow)
     Function ResolvePunches() As ResolveResult
+    ''' <summary>Matched punch times from fromTime up to but not including toTime, in employee and time order (att.usp_Punch_Times).</summary>
+    Function ListPunchTimes(fromTime As Date, toTime As Date) As IReadOnlyList(Of EmployeePunchTime)
 End Interface

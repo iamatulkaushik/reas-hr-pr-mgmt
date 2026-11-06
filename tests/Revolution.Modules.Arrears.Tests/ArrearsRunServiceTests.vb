@@ -118,11 +118,11 @@ Public Class ArrearsRunServiceTests
     End Sub
 
     <Fact>
-    Public Sub OverpaidClaimBesidePayableOnes_StaysOpen_AndIsReported()
+    Public Sub OverpaidClaimBesidePayableOnes_StaysOpen_AndIsNamedInProblems()
         AddClaim(13, 101, "E101", -400D)
         Dim r As OperationResult(Of ArrearsRunResult) = _service.Create(New Date(2026, 11, 1))
         Assert.True(r.Succeeded)
-        Assert.Equal("E101", r.Value.Recoveries.Single())
+        Assert.Contains("E101", r.Value.Problems.Single(), StringComparison.Ordinal)
         Assert.DoesNotContain(13, _repo.PaidBy.Single().Item2)
     End Sub
 

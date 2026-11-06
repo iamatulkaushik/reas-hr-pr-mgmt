@@ -136,6 +136,22 @@ Public NotInheritable Class SqlBiometricRepository
         End Using
     End Function
 
+    Public Function ListPunchTimes(fromTime As Date, toTime As Date) As IReadOnlyList(Of EmployeePunchTime) Implements IBiometricRepository.ListPunchTimes
+        Dim rows As New List(Of EmployeePunchTime)()
+        Using conn As SqlConnection = _factory.Open()
+            Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "att.usp_Punch_Times")
+                cmd.Parameters.Add("@FromTime", SqlDbType.DateTime2).Value = fromTime
+                cmd.Parameters.Add("@ToTime", SqlDbType.DateTime2).Value = toTime
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        rows.Add(New EmployeePunchTime(reader.GetInt32(reader.GetOrdinal("EmployeeID")), reader.GetDateTime(reader.GetOrdinal("PunchTime"))))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return rows
+    End Function
+
     Private Shared Function NullableDate(reader As SqlDataReader, name As String) As Date?
         Dim i As Integer = reader.GetOrdinal(name)
         Return If(reader.IsDBNull(i), CType(Nothing, Date?), reader.GetDateTime(i))

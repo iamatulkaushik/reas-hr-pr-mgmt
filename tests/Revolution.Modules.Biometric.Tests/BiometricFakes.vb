@@ -1,4 +1,5 @@
 Imports Revolution.Core
+Imports Revolution.Modules.Attendance
 Imports Revolution.Modules.Biometric
 
 Friend NotInheritable Class FakeBiometricRepository
@@ -11,6 +12,7 @@ Friend NotInheritable Class FakeBiometricRepository
     Public ReadOnly Mapped As New List(Of Tuple(Of Integer, String, Integer?))()
     Public ReadOnly Unmapped As New List(Of Integer)()
     Public LastFilter As PunchFilter
+    Public PunchTimes As New List(Of EmployeePunchTime)()
     Public Resolve As New ResolveResult(3, 1)
     Public FailWith As String
 
@@ -50,6 +52,10 @@ Friend NotInheritable Class FakeBiometricRepository
     Public Function ResolvePunches() As ResolveResult Implements IBiometricRepository.ResolvePunches
         Return Resolve
     End Function
+
+    Public Function ListPunchTimes(fromTime As Date, toTime As Date) As IReadOnlyList(Of EmployeePunchTime) Implements IBiometricRepository.ListPunchTimes
+        Return PunchTimes.Where(Function(p) p.PunchTime >= fromTime AndAlso p.PunchTime < toTime).ToList()
+    End Function
 End Class
 
 Friend NotInheritable Class FakeBioPermissions
@@ -58,7 +64,7 @@ Friend NotInheritable Class FakeBioPermissions
     Public ReadOnly Allowed As New HashSet(Of PermissionAction)()
 
     Public Function IsAllowed(moduleKey As ModuleKey, action As PermissionAction) As Boolean Implements IPermissionService.IsAllowed
-        Return moduleKey = ModuleKey.Biometric AndAlso Allowed.Contains(action)
+        Return (moduleKey = ModuleKey.Biometric OrElse moduleKey = ModuleKey.Attendance) AndAlso Allowed.Contains(action)
     End Function
 End Class
 
@@ -148,4 +154,77 @@ Friend NotInheritable Class FakePunchSink
         Calls.Add(Tuple.Create(deviceId, punches))
         Return New PunchIngestResult(punches.Count, punches.Count, 0)
     End Function
+End Class
+
+Friend NotInheritable Class FakeRoster
+    Implements IRosterRepository
+
+    Public ReadOnly Shifts As New List(Of ShiftItem)()
+    Public ReadOnly Holidays As New List(Of HolidayItem)()
+    Public ReadOnly WeeklyOff As New List(Of WeeklyOffRule)()
+    Public ReadOnly Assignments As New Dictionary(Of Integer, List(Of EmployeeShiftItem))()
+
+    Public Function ListShifts() As IReadOnlyList(Of ShiftItem) Implements IRosterRepository.ListShifts
+        Return Shifts
+    End Function
+
+    Public Function SaveShift(item As ShiftItem) As Integer Implements IRosterRepository.SaveShift
+        Throw New NotSupportedException()
+    End Function
+
+    Public Function ListHolidays(year As Integer) As IReadOnlyList(Of HolidayItem) Implements IRosterRepository.ListHolidays
+        Return Holidays.Where(Function(h) h.Day.Year = year).ToList()
+    End Function
+
+    Public Sub SaveHoliday(item As HolidayItem) Implements IRosterRepository.SaveHoliday
+        Throw New NotSupportedException()
+    End Sub
+
+    Public Sub DeleteHoliday(day As Date) Implements IRosterRepository.DeleteHoliday
+        Throw New NotSupportedException()
+    End Sub
+
+    Public Function ListWeeklyOff() As IReadOnlyList(Of WeeklyOffRule) Implements IRosterRepository.ListWeeklyOff
+        Return WeeklyOff
+    End Function
+
+    Public Sub SaveWeeklyOff(rule As WeeklyOffRule) Implements IRosterRepository.SaveWeeklyOff
+        Throw New NotSupportedException()
+    End Sub
+
+    Public Function ListEmployeeShifts(employeeId As Integer) As IReadOnlyList(Of EmployeeShiftItem) Implements IRosterRepository.ListEmployeeShifts
+        Return If(Assignments.ContainsKey(employeeId), Assignments(employeeId), New List(Of EmployeeShiftItem)())
+    End Function
+
+    Public Sub AssignShift(employeeId As Integer, shiftId As Integer, effectiveFrom As Date) Implements IRosterRepository.AssignShift
+        Throw New NotSupportedException()
+    End Sub
+End Class
+
+Friend NotInheritable Class FakeAttendanceRepository
+    Implements IAttendanceRepository
+
+    Public ReadOnly Locked As New HashSet(Of Integer)()
+    Public ReadOnly Marked As New Dictionary(Of Integer, List(Of DayRecord))()
+    Public ReadOnly Saved As New List(Of Tuple(Of Integer, DayRecord, Integer?, Integer))()
+
+    Public Function ListLockedMonths() As ISet(Of Integer) Implements IAttendanceRepository.ListLockedMonths
+        Return Locked
+    End Function
+
+    Public Function ListMonth(employeeId As Integer, year As Integer, month As Integer) As IReadOnlyList(Of DayRecord) Implements IAttendanceRepository.ListMonth
+        Return If(Marked.ContainsKey(employeeId), Marked(employeeId), New List(Of DayRecord)()).Where(Function(d) d.Day.Year = year AndAlso d.Day.Month = month).ToList()
+    End Function
+
+    Public Sub SaveDay(employeeId As Integer, record As DayRecord, shiftId As Integer?, workedMinutes As Integer, userId As Integer?) Implements IAttendanceRepository.SaveDay
+        Saved.Add(Tuple.Create(employeeId, record, shiftId, workedMinutes))
+    End Sub
+
+    Public Sub CloseMonth(monthKey As Integer, userId As Integer?) Implements IAttendanceRepository.CloseMonth
+        Throw New NotSupportedException()
+    End Sub
+
+    Public Sub ReopenMonth(monthKey As Integer, reason As String, userId As Integer?) Implements IAttendanceRepository.ReopenMonth
+        Throw New NotSupportedException()
+    End Sub
 End Class
