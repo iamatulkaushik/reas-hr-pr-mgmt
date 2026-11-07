@@ -64,7 +64,7 @@ Public NotInheritable Class CompanySettingsForm
         If section Is Nothing Then
             Return
         End If
-        Dim child As Form = section.OpenScreen()
+        Dim child As Form = section.OpenScreen.Invoke()
         If child Is Nothing Then
             Return
         End If

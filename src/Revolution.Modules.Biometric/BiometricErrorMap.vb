@@ -1,4 +1,4 @@
-''' <summary>Turns the biometric procedures' error numbers (53300 to 53306, and 50002) into messages a screen can show. Nothing for any other number.</summary>
+''' <summary>Turns the biometric procedures' error numbers (53300 to 53307, and 50002) into messages a screen can show. Nothing for any other number.</summary>
 Public NotInheritable Class BiometricErrorMap
     Private Sub New()
     End Sub
@@ -12,6 +12,7 @@ Public NotInheritable Class BiometricErrorMap
             Case 53304 : Return "Employee not found."
             Case 53305 : Return "The card is already mapped to another employee."
             Case 53306 : Return "The employee has no active card."
+            Case 53307 : Return "The biometric id belongs to another employee."
             Case 50002 : Return "No company is selected."
             Case Else : Return Nothing
         End Select

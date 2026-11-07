@@ -13,6 +13,11 @@ Friend NotInheritable Class FakeBiometricRepository
     Public ReadOnly Unmapped As New List(Of Integer)()
     Public LastFilter As PunchFilter
     Public PunchTimes As New List(Of EmployeePunchTime)()
+    Public Users As New List(Of BiometricUserItem)()
+    Public Unknowns As New List(Of UnknownBiometricUser)()
+    Public NextId As Integer = 41
+    Public ReadOnly Assigned As New List(Of Tuple(Of Integer, Integer?, Integer?))()
+    Public ResolveCalls As Integer
     Public Resolve As New ResolveResult(3, 1)
     Public FailWith As String
 
@@ -50,8 +55,26 @@ Friend NotInheritable Class FakeBiometricRepository
     End Function
 
     Public Function ResolvePunches() As ResolveResult Implements IBiometricRepository.ResolvePunches
+        ResolveCalls += 1
         Return Resolve
     End Function
+
+    Public Function ListUsers(onlyUnassigned As Boolean) As IReadOnlyList(Of BiometricUserItem) Implements IBiometricRepository.ListUsers
+        Return Users.Where(Function(u) Not onlyUnassigned OrElse Not u.IsEnrolled).ToList()
+    End Function
+
+    Public Function ListUnknownUsers() As IReadOnlyList(Of UnknownBiometricUser) Implements IBiometricRepository.ListUnknownUsers
+        Return Unknowns
+    End Function
+
+    Public Function NextBiometricId() As Integer Implements IBiometricRepository.NextBiometricId
+        Return NextId
+    End Function
+
+    Public Sub AssignBiometricId(employeeId As Integer, biometricId As Integer?, userId As Integer?) Implements IBiometricRepository.AssignBiometricId
+        MaybeFail()
+        Assigned.Add(Tuple.Create(employeeId, biometricId, userId))
+    End Sub
 
     Public Function ListPunchTimes(fromTime As Date, toTime As Date) As IReadOnlyList(Of EmployeePunchTime) Implements IBiometricRepository.ListPunchTimes
         Return PunchTimes.Where(Function(p) p.PunchTime >= fromTime AndAlso p.PunchTime < toTime).ToList()

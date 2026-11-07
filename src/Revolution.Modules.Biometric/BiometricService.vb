@@ -116,6 +116,72 @@ Public NotInheritable Class BiometricService
         Return OperationResult(Of ResolveResult).Ok(result)
     End Function
 
+    ''' <summary>Employees as biometric users: id, card, newest punch. onlyUnassigned lists those with neither an id nor a card.</summary>
+    Public Function ListUsers(onlyUnassigned As Boolean) As OperationResult(Of IReadOnlyList(Of BiometricUserItem))
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.View)
+        If Not allowed.Succeeded Then Return OperationResult(Of IReadOnlyList(Of BiometricUserItem)).Fail(allowed.Message)
+        Return OperationResult(Of IReadOnlyList(Of BiometricUserItem)).Ok(_repository.ListUsers(onlyUnassigned))
+    End Function
+
+    ''' <summary>Ids and cards that devices reported and that match nobody, newest first.</summary>
+    Public Function ListUnknownUsers() As OperationResult(Of IReadOnlyList(Of UnknownBiometricUser))
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.View)
+        If Not allowed.Succeeded Then Return OperationResult(Of IReadOnlyList(Of UnknownBiometricUser)).Fail(allowed.Message)
+        Return OperationResult(Of IReadOnlyList(Of UnknownBiometricUser)).Ok(_repository.ListUnknownUsers())
+    End Function
+
+    ''' <summary>The next unused biometric id, for enrolling a new person on any device.</summary>
+    Public Function NextBiometricId() As OperationResult(Of Integer)
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.View)
+        If Not allowed.Succeeded Then Return OperationResult(Of Integer).Fail(allowed.Message)
+        Return OperationResult(Of Integer).Ok(_repository.NextBiometricId())
+    End Function
+
+    ''' <summary>Sets the employee's biometric id (needs Edit). The same id is used on every device. Waiting punches are matched by ResolvePunches afterwards.</summary>
+    Public Function AssignBiometricId(employeeId As Integer, biometricId As Integer) As OperationResult
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.Edit)
+        If Not allowed.Succeeded Then Return allowed
+        If employeeId <= 0 Then Return OperationResult.Fail("Pick an employee.")
+        If biometricId <= 0 Then Return OperationResult.Fail("The biometric id must be more than zero.")
+        Try
+            _repository.AssignBiometricId(employeeId, biometricId, CurrentUserId())
+        Catch ex As BiometricRuleException
+            Return OperationResult.Fail(ex.Message)
+        End Try
+        Return _audit.Record(New AuditEntry(ModuleKey.Biometric, "BiometricUser.Assign", "Employee", employeeId.ToString(CultureInfo.InvariantCulture), "Biometric id set."))
+    End Function
+
+    ''' <summary>Clears the employee's biometric id (needs Edit). Past punches keep their employee.</summary>
+    Public Function ClearBiometricId(employeeId As Integer) As OperationResult
+        Dim allowed As OperationResult = CheckAccess(PermissionAction.Edit)
+        If Not allowed.Succeeded Then Return allowed
+        If employeeId <= 0 Then Return OperationResult.Fail("Pick an employee.")
+        Try
+            _repository.AssignBiometricId(employeeId, Nothing, CurrentUserId())
+        Catch ex As BiometricRuleException
+            Return OperationResult.Fail(ex.Message)
+        End Try
+        Return _audit.Record(New AuditEntry(ModuleKey.Biometric, "BiometricUser.Clear", "Employee", employeeId.ToString(CultureInfo.InvariantCulture), "Biometric id cleared."))
+    End Function
+
+    ''' <summary>
+    ''' Links an unknown id or card to an employee (needs Edit for an id, Create for a card), then matches the waiting punches. An unknown that has an id is linked by id; one that has only a card
+    ''' by card. Returns how many punches were matched and how many still wait.
+    ''' </summary>
+    Public Function LinkUnknown(unknown As UnknownBiometricUser, employeeId As Integer) As OperationResult(Of ResolveResult)
+        If unknown Is Nothing Then Return OperationResult(Of ResolveResult).Fail("Pick an unknown user.")
+        Dim linked As OperationResult
+        If unknown.DeviceUserId.HasValue Then
+            linked = AssignBiometricId(employeeId, unknown.DeviceUserId.Value)
+        ElseIf Not String.IsNullOrWhiteSpace(unknown.CardNo) Then
+            linked = MapCard(employeeId, unknown.CardNo)
+        Else
+            linked = OperationResult.Fail("The unknown user has neither an id nor a card.")
+        End If
+        If Not linked.Succeeded Then Return OperationResult(Of ResolveResult).Fail(linked.Message)
+        Return ResolvePunches()
+    End Function
+
     Private Shared Function ValidateDevice(device As DeviceWrite) As String
         If device.FactoryId <= 0 Then Return "Pick the location."
         If Not CodePattern.IsMatch(If(device.Code, String.Empty).Trim()) Then Return "The device code must be 1 to 30 letters, digits, hyphens or underscores."

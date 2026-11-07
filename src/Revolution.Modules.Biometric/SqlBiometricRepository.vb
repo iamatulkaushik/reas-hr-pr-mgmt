@@ -136,6 +136,62 @@ Public NotInheritable Class SqlBiometricRepository
         End Using
     End Function
 
+    Public Function ListUsers(onlyUnassigned As Boolean) As IReadOnlyList(Of BiometricUserItem) Implements IBiometricRepository.ListUsers
+        Dim items As New List(Of BiometricUserItem)()
+        Using conn As SqlConnection = _factory.Open()
+            Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "att.usp_BiometricUser_List")
+                cmd.Parameters.Add("@OnlyUnassigned", SqlDbType.Bit).Value = onlyUnassigned
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        items.Add(New BiometricUserItem(reader.GetInt32(reader.GetOrdinal("EmployeeID")), reader.GetString(reader.GetOrdinal("EmpCode")),
+                                                        reader.GetString(reader.GetOrdinal("FullName")), StoredProcedure.ReadNullableInt(reader, "BiometricID"),
+                                                        NullableString(reader, "CardNo"), NullableDate(reader, "LastPunchTime"), reader.GetInt32(reader.GetOrdinal("Punches30"))))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return items
+    End Function
+
+    Public Function ListUnknownUsers() As IReadOnlyList(Of UnknownBiometricUser) Implements IBiometricRepository.ListUnknownUsers
+        Dim items As New List(Of UnknownBiometricUser)()
+        Using conn As SqlConnection = _factory.Open()
+            Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "att.usp_BiometricUser_Unknown")
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        items.Add(New UnknownBiometricUser(StoredProcedure.ReadNullableInt(reader, "DeviceUserID"), NullableString(reader, "CardNo"),
+                                                           reader.GetInt32(reader.GetOrdinal("PunchCount")), reader.GetDateTime(reader.GetOrdinal("FirstSeen")),
+                                                           reader.GetDateTime(reader.GetOrdinal("LastSeen")), reader.GetInt32(reader.GetOrdinal("DeviceCount"))))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return items
+    End Function
+
+    Public Function NextBiometricId() As Integer Implements IBiometricRepository.NextBiometricId
+        Using conn As SqlConnection = _factory.Open()
+            Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "att.usp_BiometricUser_NextId")
+                Return Convert.ToInt32(cmd.ExecuteScalar(), Globalization.CultureInfo.InvariantCulture)
+            End Using
+        End Using
+    End Function
+
+    Public Sub AssignBiometricId(employeeId As Integer, biometricId As Integer?, userId As Integer?) Implements IBiometricRepository.AssignBiometricId
+        Try
+            Using conn As SqlConnection = _factory.Open()
+                Using cmd As SqlCommand = StoredProcedure.CreateCommand(conn, "att.usp_BiometricUser_Assign")
+                    cmd.Parameters.Add("@EmployeeID", SqlDbType.Int).Value = employeeId
+                    cmd.Parameters.Add("@BiometricID", SqlDbType.Int).Value = StoredProcedure.DbValue(biometricId)
+                    cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = StoredProcedure.DbValue(userId)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As SqlException When BiometricErrorMap.Translate(ex.Number) IsNot Nothing
+            Throw New BiometricRuleException(BiometricErrorMap.Translate(ex.Number), ex.Number, ex)
+        End Try
+    End Sub
+
     Public Function ListPunchTimes(fromTime As Date, toTime As Date) As IReadOnlyList(Of EmployeePunchTime) Implements IBiometricRepository.ListPunchTimes
         Dim rows As New List(Of EmployeePunchTime)()
         Using conn As SqlConnection = _factory.Open()
