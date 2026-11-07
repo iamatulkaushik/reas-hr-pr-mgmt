@@ -43,6 +43,8 @@ Friend Module MenuIconMap
         {"payroll.leave", AppIcon.Leave},
         {"payroll.leaveaccrual", AppIcon.Leave},
         {"arrears.list", AppIcon.Calculator},
+        {"biometric.users", AppIcon.IdCard},
+        {"biometric.punchattendance", AppIcon.Clock},
         {"arrears.report", AppIcon.Report},
         {"Compliance", AppIcon.Shield},
         {"Compliance|Monthly", AppIcon.Calendar},

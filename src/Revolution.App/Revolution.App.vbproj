@@ -23,6 +23,8 @@
     <ProjectReference Include="..\Revolution.Modules.Attendance.UI\Revolution.Modules.Attendance.UI.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Arrears\Revolution.Modules.Arrears.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Arrears.UI\Revolution.Modules.Arrears.UI.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Biometric\Revolution.Modules.Biometric.vbproj" />
+    <ProjectReference Include="..\Revolution.Modules.Biometric.UI\Revolution.Modules.Biometric.UI.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Payroll\Revolution.Modules.Payroll.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Payroll.UI\Revolution.Modules.Payroll.UI.vbproj" />
   </ItemGroup>
