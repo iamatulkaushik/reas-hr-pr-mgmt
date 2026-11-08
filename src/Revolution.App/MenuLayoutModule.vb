@@ -42,8 +42,6 @@ Public NotInheritable Class MenuLayoutModule
     Private Const FnfScreen As String = "payroll.fnf"
     Private Const ArrearsListScreen As String = "arrears.list"
     Private Const ArrearsReportScreen As String = "arrears.report"
-    Private Const BiometricUsersScreen As String = "biometric.users"
-    Private Const PunchAttendanceScreen As String = "biometric.punchattendance"
     Private Const RunScreen As String = "payroll.run"
     Private Const LockScreen As String = "payroll.lock"
     Private Const BonusScreen As String = "payroll.bonus"
@@ -143,8 +141,6 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("payroll.leave", ProcessGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, 570, LeaveScreen)
         AddScreen("payroll.leaveaccrual", ProcessGroup, "Leave accrual", ModuleKey.Payroll, PlanFeature.FullAndFinal, 575, LeaveAccrualScreen)
         AddScreen("arrears.list", ProcessGroup, "Arrears", ModuleKey.Payroll, PlanFeature.BasicPayroll, 580, ArrearsListScreen)
-        AddScreen("biometric.users", ProcessGroup, "Biometric users", ModuleKey.Biometric, PlanFeature.Biometric, 585, BiometricUsersScreen)
-        AddScreen("biometric.punchattendance", ProcessGroup, "Attendance from punches", ModuleKey.Biometric, PlanFeature.Biometric, 590, PunchAttendanceScreen)
     End Sub
 
     ''' <summary>

@@ -4,8 +4,6 @@ Imports Revolution.Modules.Arrears
 Imports Revolution.Modules.Arrears.UI
 Imports Revolution.Modules.Attendance
 Imports Revolution.Modules.Attendance.UI
-Imports Revolution.Modules.Biometric
-Imports Revolution.Modules.Biometric.UI
 Imports Revolution.Modules.Employees
 Imports Revolution.Modules.Employees.UI
 Imports Revolution.Modules.Payroll
@@ -60,8 +58,7 @@ Public Module Program
             New EmployeesShellModule(employees, services.Permissions),
             New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions),
             New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions),
-            New ArrearsShellModule(ArrearsModule.Compose(services.Host, employees.Export)),
-            New BiometricShellModule(BiometricModule.Compose(services.Host))}
+            New ArrearsShellModule(ArrearsModule.Compose(services.Host, employees.Export))}
         Dim layout As New MenuLayoutModule(sources)
         Return New List(Of IShellModule) From {
             layout,

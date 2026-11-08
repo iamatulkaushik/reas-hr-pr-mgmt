@@ -86,7 +86,7 @@ Friend NotInheritable Class SetupCommands
             conn.Open()
             Using cmd = conn.CreateCommand()
                 cmd.CommandText =
-                    "IF DATABASE_PRINCIPAL_ID(N'hrms_agent') IS NULL THROW 53420, N'Run migrate first: the role hrms_agent does not exist.', 1;" &
+                    "IF DATABASE_PRINCIPAL_ID(N'hrms_agent') IS NULL THROW 53420, N'Apply database/special/biometric first: the role hrms_agent does not exist.', 1;" &
                     "IF SUSER_ID(@name) IS NOT NULL THROW 53421, N'A login with this name already exists.', 1;" &
                     "DECLARE @sql NVARCHAR(MAX) = N'CREATE LOGIN ' + QUOTENAME(@name) + N' WITH PASSWORD = ' + QUOTENAME(@password, '''') + N', CHECK_POLICY = ON;';" &
                     "EXEC (@sql);" &

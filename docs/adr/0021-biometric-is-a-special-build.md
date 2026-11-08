@@ -1,0 +1,9 @@
+# ADR 0021: Biometric attendance is a special build, not part of the standard product
+
+Status: accepted (Owner, 2026-11-08). Owner: Sigma.
+
+- Biometric and RFID punches depend on the customer's devices (make, model, protocol, pull or push). The standard product does not include the feature. A customer who has devices gets a special build once the customer has given the make, model and support type of each device; a reader for that brand is written then (`IPunchSource`, one project per brand).
+- **Kept in the repository, out of the standard app.** `Revolution.Modules.Biometric`, `.Biometric.UI`, `Revolution.Agent` and their tests stay in the solution and keep building and passing. `Revolution.App` does not reference them: no menu line, no composition, no icon mapping. A special build adds them back in `Program.vb`, `Revolution.App.vbproj`, `MenuLayoutModule` (Biometric users 585, Attendance from punches 590 in Process) and `MenuIconMap` (IdCard, Clock); change request 0024 has the exact lines.
+- **Database.** Migrations 0500 to 0504 are merged and stay in `database/migrations`; the tables are empty and harmless in a standard database. Migration 0030 denies `att.usp_Punch_Ingest` to the app login in every database (the schema grant of 0006 had covered it, and the procedure takes the company as a parameter). The agent key table, the agent wrapper and the agent role are only in `database/special/biometric` (0900, 0901), applied with `RevolutionSetup migrate database/special/biometric` after the standard migrations. Those numbers are outside the standard range on purpose.
+- **Not removed:** the employee's `BiometricID` field (0105), `ModuleKey.Biometric` and `PlanFeature.Biometric` (licence and plan matrix tests), the Biometric rows in the permission seeds, and `IFactoryLookup` (a general location picker).
+- A special build per customer is a licence and release matter (Phase 10): its licence must carry the Biometric feature.

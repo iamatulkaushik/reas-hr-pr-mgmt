@@ -10,7 +10,7 @@ BEGIN
     (
         SettingKey   NVARCHAR(100) NOT NULL CONSTRAINT PK_Setting PRIMARY KEY,
         SettingValue NVARCHAR(500) NOT NULL,
-        Description  NVARCHAR(300) NULL,
+        [Description]  NVARCHAR(300) NULL,
         UpdatedUtc   DATETIME2(0)  NOT NULL CONSTRAINT DF_Setting_UpdatedUtc DEFAULT SYSUTCDATETIME()
     );
 END

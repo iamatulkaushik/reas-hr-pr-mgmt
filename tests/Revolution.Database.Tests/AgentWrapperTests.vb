@@ -4,7 +4,8 @@ Imports Xunit
 
 ''' <summary>
 ''' Change requests 0023 and 0025 in a real database: the punch agent reaches the server only through the agt procedures, with a key bound to one company, and the
-''' ingest procedure is closed to the app login (migrations 0030 and 0031). Needs HRMS_TEST_CONNECTION (see Db).
+''' ingest procedure is closed to the app login (migration 0030, and database/special/biometric 0900 and 0901). Needs HRMS_TEST_CONNECTION (see Db).
+''' The tests that need the special build return at once when it is not installed (ADR 0021); the app-login denial is checked either way.
 ''' </summary>
 <Collection("Agent wrapper")>
 Public Class AgentWrapperTests
@@ -25,7 +26,7 @@ Public Class AgentWrapperTests
 
     Public Sub New(seed As SeedFixture)
         _seed = seed
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Dim tag = Guid.NewGuid().ToString("N").Substring(0, 8)
         Using admin = Db.Open()
             Db.Execute(admin, "IF DATABASE_PRINCIPAL_ID('rv_test_agent') IS NULL CREATE USER rv_test_agent WITHOUT LOGIN; ALTER ROLE hrms_agent ADD MEMBER rv_test_agent;")
@@ -39,6 +40,16 @@ Public Class AgentWrapperTests
         _deviceA = MakeDevice(_seed.CompanyA, _seed.FactoryA, "ADEV")
         _deviceB = MakeDevice(_seed.CompanyB, _seed.FactoryB, "BDEV")
     End Sub
+
+    ''' <summary>True when a database is configured and the biometric special build (schema agt, table sec.AgentRegistration) is applied to it.</summary>
+    Private Shared ReadOnly Property Installed As Boolean
+        Get
+            If Not Db.Available Then Return False
+            Using admin = Db.Open()
+                Return CInt(Db.Scalar(admin, "SELECT CASE WHEN SCHEMA_ID(N'agt') IS NOT NULL AND OBJECT_ID(N'sec.AgentRegistration', N'U') IS NOT NULL THEN 1 ELSE 0 END")) = 1
+            End Using
+        End Get
+    End Property
 
     Private Shared Function NewUser(admin As SqlConnection, userName As String, roleId As Integer, companyId As Integer) As Integer
         Return CInt(Db.Scalar(admin, "INSERT sec.[User] (UserName, CompanyID, RoleID, PasswordHash, PasswordSalt, Iterations, MustChangePassword) " &
@@ -76,7 +87,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub IssuedKey_IsBase64Of32Bytes_AndOnlyItsHashIsStored()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Assert.Equal(44, _keyA.Length)
         Assert.Equal(32, Convert.FromBase64String(_keyA).Length)
         Using admin = Db.Open()
@@ -87,7 +98,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub AnOperator_CannotIssueListOrRetireKeys()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Using conn = Db.Open(_seed.CompanyA, runAs:="rv_test_app", userId:=_operatorA)
             Assert.Equal(NotAllowed, Assert.Throws(Of SqlException)(Sub() Db.Proc(conn, "sec.usp_Agent_Issue", ("@Label", "x"))).Number)
             Assert.Equal(NotAllowed, Assert.Throws(Of SqlException)(Sub() Db.Proc(conn, "sec.usp_Agent_List")).Number)
@@ -97,7 +108,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub TheOwnerOfAnotherCompany_CannotRetireOrListThisCompanysKeys()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Using conn = Db.Open(_seed.CompanyB, runAs:="rv_test_app", userId:=_ownerB)
             Assert.Equal(53412, Assert.Throws(Of SqlException)(Sub() Db.Proc(conn, "sec.usp_Agent_Retire", ("@AgentRegistrationID", _keyAId))).Number)
             Assert.DoesNotContain(_keyAId, Db.Proc(conn, "sec.usp_Agent_List").Select(Function(o) CInt(o)).ToList())
@@ -106,7 +117,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub Devices_AreOnlyThoseOfTheKeysCompany()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Using conn = AsAgent()
             Dim codes = Db.Proc(conn, "agt.usp_Agent_Devices", ("@AgentKey", _keyA)).Select(Function(o) CStr(o)).ToList()
             Assert.Contains("ADEV", codes)
@@ -116,7 +127,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub Ingest_StoresThePunchUnderTheKeysCompany_Only()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Using conn = AsAgent()
             Dim received = CInt(Db.Proc(conn, "agt.usp_Agent_Ingest", ("@AgentKey", _keyA), ("@DeviceCode", "ADEV"), ("@PunchesJson", OnePunch()))(0))
             Assert.Equal(1, received)
@@ -129,7 +140,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub TheKeyOfCompanyA_CannotUseTheDeviceCodeOfCompanyB()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Using conn = AsAgent()
             Assert.Equal(Refused, Assert.Throws(Of SqlException)(Sub() Db.Proc(conn, "agt.usp_Agent_Ingest", ("@AgentKey", _keyA), ("@DeviceCode", "BDEV"), ("@PunchesJson", OnePunch()))).Number)
         End Using
@@ -140,7 +151,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub WrongMalformedAndEmptyKeys_AreAllRefusedTheSameWay()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Dim wrong = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
         Dim shortKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16))
         Using conn = AsAgent()
@@ -155,7 +166,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub ARetiredKey_IsRefused()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Dim issued = Issue(_seed.CompanyA, _ownerA, "To retire")
         Using conn = AsAgent()
             Assert.NotEmpty(Db.Proc(conn, "agt.usp_Agent_Devices", ("@AgentKey", issued.Key)))
@@ -179,7 +190,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub TheAppLogin_CannotCallTheAgentProcedures()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Using conn = Db.Open(_seed.CompanyA, runAs:="rv_test_app")
             Assert.Equal(ExecuteDenied, Assert.Throws(Of SqlException)(Sub() Db.Proc(conn, "agt.usp_Agent_Devices", ("@AgentKey", _keyA))).Number)
         End Using
@@ -187,7 +198,7 @@ Public Class AgentWrapperTests
 
     <Fact>
     Public Sub TheAgentLogin_HasExecuteOnAgtOnly()
-        If Not Db.Available Then Return
+        If Not Installed Then Return
         Using conn = AsAgent()
             Assert.Equal(ExecuteDenied, Assert.Throws(Of SqlException)(Sub() Db.Scalar(conn, "SELECT COUNT(*) FROM att.Punch")).Number)
             Assert.Equal(ExecuteDenied, Assert.Throws(Of SqlException)(Sub() Db.Scalar(conn, "SELECT COUNT(*) FROM sec.AgentRegistration")).Number)

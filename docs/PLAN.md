@@ -20,7 +20,7 @@ CI green on a Windows runner, tests pass, the screens were actually run and scre
 | 5 | Payroll core: salary structure, EPF and ESI, PT (19+ states), loans and EMI, payslip run, dual approval, payslip reports | Brave, Sigma for approval hooks | Known-answer tests verified by a CA. |
 | 6 | Tax: TDS (both regimes), declarations, Form 16 and Form 24Q (Form 130 and Form 138 under the Income-tax Act 2025) | Brave | |
 | 7 | Arrears, full and final, bank files, ECR and challans | Brave | |
-| 8 | Biometric and RFID agent (Windows Service, one brand first) | Brave | |
+| 8 | Biometric and RFID agent (Windows Service, one brand first). **Special build per customer, not in the standard product (Owner, 2026-11-08, ADR 0021)**: built once the customer gives device make, model and support type | Brave | |
 | 9 | Assets and expenses. Also the ReportStudio checks that need real data (moved from Phase 0, Owner 2026-11-03): golden image files committed, one payslip layout previewed, printed and saved as PDF from database rows, a bulk run of 50 payslips with page numbers restarting, a Form 130 style certificate on one page | Brave, Sigma reviews | The ReportStudio checks pass on the complete app runtime. |
 | 10 | Hardening: installer, licence enforcement, SQL Agent backups, security review, pilot month | Both | |
 

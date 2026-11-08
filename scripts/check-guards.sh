@@ -4,9 +4,9 @@ set -u
 fail=0
 err() { echo "GUARD FAIL: $*" >&2; fail=1; }
 
-# 1. SQL lives only in database/migrations.
+# 1. SQL lives only in database/migrations, or in database/special/<build> for a customer special build (ADR 0021).
 while IFS= read -r f; do
-  case "$f" in database/migrations/*) ;; *) err "SQL outside database/migrations: $f" ;; esac
+  case "$f" in database/migrations/*|database/special/*) ;; *) err "SQL outside database/migrations and database/special: $f" ;; esac
 done < <(find . -name '*.sql' -not -path './.git/*' -not -path '*/bin/*' -not -path '*/obj/*' | sed 's#^\./##')
 
 # 2. Migration names: 4 digits, underscore, lowercase name; numbers unique.
@@ -44,15 +44,15 @@ nsrisky=$(grep -rnEi --include='*.vb' 'For Each[[:space:]]+(text|io|linq|collect
 # 5. Brave must not touch shared projects without Sigma: enforced by CODEOWNERS, listed here for visibility.
 [ -f .github/CODEOWNERS ] || err "CODEOWNERS missing"
 
-# 6. Every table with a CompanyID column joins a tenant security policy (ADR 0007). mst.Company, sec.[User], sec.UserCompany and sec.AgentRegistration are exempt (read before a company is chosen; the agent wrapper finds the company from the key hash, migration 0031).
+# 6. Every table with a CompanyID column joins a tenant security policy (ADR 0007). mst.Company, sec.[User], sec.UserCompany and sec.AgentRegistration are exempt (read before a company is chosen; the biometric agent wrapper finds the company from the key hash). Special builds (database/special) are checked too.
 tables=$(awk '
   /CREATE TABLE/ { name=$0; sub(/.*CREATE TABLE[ \t]+/, "", name); sub(/[ \t\r(].*/, "", name); intable=1; has=0; next }
   intable && /CompanyID/ { has=1 }
   intable && /^[ \t]*\);/ { if (has) print name; intable=0 }
-' database/migrations/*.sql 2>/dev/null | sort -u)
+' database/migrations/*.sql database/special/*/*.sql 2>/dev/null | sort -u)
 for t in $tables; do
   case "$t" in mst.Company|'sec.[User]'|sec.UserCompany|sec.AgentRegistration) continue ;; esac
-  grep -h "FILTER PREDICATE" database/migrations/*.sql 2>/dev/null | grep -qi "ON $t\b" || err "Table with CompanyID has no tenant security policy: $t"
+  grep -h "FILTER PREDICATE" database/migrations/*.sql database/special/*/*.sql 2>/dev/null | grep -qi "ON $t\b" || err "Table with CompanyID has no tenant security policy: $t"
 done
 
 # 7. A table or a security policy is created in one script only. A second CREATE TABLE is skipped by the IF OBJECT_ID guard and hides a different shape.
