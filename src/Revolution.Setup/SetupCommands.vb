@@ -1,3 +1,6 @@
+Imports System.Data
+Imports System.Text.RegularExpressions
+Imports Microsoft.Data.SqlClient
 Imports Revolution.Data
 Imports Revolution.Services
 
@@ -59,6 +62,45 @@ Friend NotInheritable Class SetupCommands
         End If
         Console.Error.WriteLine(result.Message)
         Return 1
+    End Function
+
+    ''' <summary>
+    ''' Creates the punch agent's SQL login and puts it in the database role hrms_agent (migration 0031), which can execute the agt procedures and nothing else.
+    ''' The password is asked for twice and sent as a value, never written to a file or a log. Needs a login that can create logins.
+    ''' </summary>
+    Friend Shared Function CreateAgentLogin(connection As String, args As String()) As Integer
+        If args.Length < 2 OrElse Not Regex.IsMatch(args(1), "^[A-Za-z][A-Za-z0-9_]{2,59}$") Then
+            Console.Error.WriteLine("Usage: create-agent-login <loginName>   (3 to 60 letters, digits or underscores, starting with a letter)")
+            Return 2
+        End If
+        Dim password = ConsolePrompt.ReadNewPassword()
+        If password Is Nothing Then
+            Console.Error.WriteLine("The two passwords did not match.")
+            Return 1
+        End If
+        If password.Length < 12 OrElse password.Length > 128 Then
+            Console.Error.WriteLine("The password must be 12 to 128 characters.")
+            Return 1
+        End If
+        Using conn As New SqlConnection(connection)
+            conn.Open()
+            Using cmd = conn.CreateCommand()
+                cmd.CommandText =
+                    "IF DATABASE_PRINCIPAL_ID(N'hrms_agent') IS NULL THROW 53420, N'Run migrate first: the role hrms_agent does not exist.', 1;" &
+                    "IF SUSER_ID(@name) IS NOT NULL THROW 53421, N'A login with this name already exists.', 1;" &
+                    "DECLARE @sql NVARCHAR(MAX) = N'CREATE LOGIN ' + QUOTENAME(@name) + N' WITH PASSWORD = ' + QUOTENAME(@password, '''') + N', CHECK_POLICY = ON;';" &
+                    "EXEC (@sql);" &
+                    "SET @sql = N'CREATE USER ' + QUOTENAME(@name) + N' FOR LOGIN ' + QUOTENAME(@name) + N';';" &
+                    "EXEC (@sql);" &
+                    "SET @sql = N'ALTER ROLE hrms_agent ADD MEMBER ' + QUOTENAME(@name) + N';';" &
+                    "EXEC (@sql);"
+                cmd.Parameters.Add("@name", SqlDbType.NVarChar, 128).Value = args(1)
+                cmd.Parameters.Add("@password", SqlDbType.NVarChar, 128).Value = password
+                cmd.ExecuteNonQuery()
+            End Using
+        End Using
+        Console.WriteLine($"Agent login {args(1)} created in the role hrms_agent. Use it in the agent's connection string.")
+        Return 0
     End Function
 
     Private Shared Function Report(result As OperationResult(Of Integer), successText As String) As Integer

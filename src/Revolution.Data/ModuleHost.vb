@@ -25,6 +25,7 @@ Public NotInheritable Class ModuleHost
         Me.Rates = rates
         Me.Crypto = crypto
         Me.Exporter = exporter
+        Me.Factories = New SqlFactoryLookup(factory)
     End Sub
 
     ''' <summary>Opens connections with the tenant context applied.</summary>
@@ -43,4 +44,6 @@ Public NotInheritable Class ModuleHost
     Public ReadOnly Property Crypto As IFieldCrypto
     ''' <summary>Writes Excel 97-2003 (.xls) files for statutory and bank exports (ADR 0019).</summary>
     Public ReadOnly Property Exporter As ITableExporter
+    ''' <summary>Active locations of the current company, for a location picker (change request 0024). Built from the connection factory; the constructor is unchanged.</summary>
+    Public ReadOnly Property Factories As IFactoryLookup
 End Class

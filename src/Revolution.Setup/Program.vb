@@ -6,6 +6,7 @@ Public Module Program
         "  add-company <name> <plan>               plan: Copper | Silver | Gold | Platinum" & vbLf &
         "  add-user <userName> <role> [companyId]  role: Developer | Owner | Associate | Operator (an Associate may have no company)" & vbLf &
         "  set-associate-plan <userName> <plan>    caps companies per Associate: Copper 5, Silver 15, Gold 35, Platinum 90" & vbLf &
+        "  create-agent-login <loginName>          SQL login for the punch agent (role hrms_agent, EXECUTE on agt only; run migrate first)" & vbLf &
         "Field key commands (Windows only, no database needed):" & vbLf &
         KeyCommandsUsage & vbLf &
         "Set HRMS_SETUP_CONNECTION to an administrator connection string for the HRMS database."
@@ -32,6 +33,8 @@ Public Module Program
                     Return SetupCommands.AddUser(connection, args)
                 Case "set-associate-plan"
                     Return SetupCommands.SetAssociatePlan(connection, args)
+                Case "create-agent-login"
+                    Return SetupCommands.CreateAgentLogin(connection, args)
                 Case Else
                     Console.Error.WriteLine(Usage)
                     Return 2
