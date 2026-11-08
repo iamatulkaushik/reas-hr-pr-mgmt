@@ -102,11 +102,13 @@ Public Class ShellForm
         Dim selectItem As New ToolStripMenuItem("Select &Company...") With {.Enabled = CanSwitchCompany(), .Image = ShellMenuBuilder.MenuImage(AppIcon.CompanySwitch, DeviceDpi)}
         AddHandler selectItem.Click, AddressOf OnSwitchCompany
         Dim yearItem As New ToolStripMenuItem("&Financial Year...") With {.Enabled = False, .ToolTipText = "Planned: not available yet.", .Image = ShellMenuBuilder.MenuImage(AppIcon.Calendar, DeviceDpi)}
+        Dim passwordItem As New ToolStripMenuItem("Change &Password...") With {.Image = ShellMenuBuilder.MenuImage(AppIcon.Key, DeviceDpi)}
+        AddHandler passwordItem.Click, AddressOf OnChangePassword
         Dim signOutItem As New ToolStripMenuItem("&Sign Out") With {.Image = ShellMenuBuilder.MenuImage(AppIcon.Logout, DeviceDpi)}
         AddHandler signOutItem.Click, AddressOf OnSignOut
         Dim exitItem As New ToolStripMenuItem("E&xit") With {.Image = ShellMenuBuilder.MenuImage(AppIcon.[Exit], DeviceDpi)}
         AddHandler exitItem.Click, Sub(sender As Object, args As EventArgs) Close()
-        fileMenu.DropDownItems.AddRange(New ToolStripItem() {selectItem, yearItem, signOutItem, New ToolStripSeparator(), exitItem})
+        fileMenu.DropDownItems.AddRange(New ToolStripItem() {selectItem, yearItem, passwordItem, signOutItem, New ToolStripSeparator(), exitItem})
         Return fileMenu
     End Function
 
@@ -115,6 +117,19 @@ Public Class ShellForm
         Dim companies = _services.Auth.ListCompanies()
         Return companies.Succeeded AndAlso companies.Value.Count > 1
     End Function
+
+    ''' <summary>Every signed-in user changes their own password: no permission is needed, the current password is asked for (ADR 0022).</summary>
+    Private Sub OnChangePassword(sender As Object, e As EventArgs)
+        Dim user = _services.Session.Current
+        If user Is Nothing Then
+            Return
+        End If
+        Using dialog As New ChangePasswordForm(_services.Auth, user.UserName)
+            If dialog.ShowDialog(Me) = DialogResult.OK Then
+                ShowStatus("Your password is changed.")
+            End If
+        End Using
+    End Sub
 
     Private Sub OnOpenItem(item As ShellItem)
         If item.IsPlanned Then

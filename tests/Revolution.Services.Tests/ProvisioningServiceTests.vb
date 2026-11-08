@@ -81,4 +81,23 @@ Public Class ProvisioningServiceTests
         Assert.True(_svc.CreateUser("assoc2", GoodPassword, UserRole.Associate, Nothing).Succeeded)
         Assert.False(_svc.CreateUser("assoc3", GoodPassword, UserRole.Associate, 99).Succeeded)
     End Sub
+    <Fact>
+    Public Sub ResetPassword_SetsTemporaryPassword_ForcesChange()
+        _users.Add(New UserRecord(7, "assoc1", 1, UserRole.Associate, True, False, New Byte() {1}, New Byte() {2}, 1, Nothing))
+        Dim r = _svc.ResetPassword(" assoc1 ", GoodPassword)
+        Assert.True(r.Succeeded)
+        Dim after = _users.FindByUserName("assoc1")
+        Assert.True(after.MustChangePassword)
+        Assert.True(_hasher.Verify(GoodPassword, after.PasswordHash, after.PasswordSalt, after.Iterations))
+    End Sub
+
+    <Fact>
+    Public Sub ResetPassword_UnknownInactiveOrWeak_Fails_AndChangesNothing()
+        _users.Add(New UserRecord(7, "assoc1", 1, UserRole.Associate, True, False, New Byte() {1}, New Byte() {2}, 1, Nothing))
+        _users.Add(New UserRecord(8, "gone", 1, UserRole.Operator, False, False, New Byte() {1}, New Byte() {2}, 1, Nothing))
+        Assert.False(_svc.ResetPassword("nobody", GoodPassword).Succeeded)
+        Assert.False(_svc.ResetPassword("gone", GoodPassword).Succeeded)
+        Assert.False(_svc.ResetPassword("assoc1", "weak").Succeeded)
+        Assert.False(_users.FindByUserName("assoc1").MustChangePassword)
+    End Sub
 End Class

@@ -49,6 +49,29 @@ Friend NotInheritable Class SetupCommands
         Return Report(result, "User created with id")
     End Function
 
+    ''' <summary>
+    ''' The Developer's emergency reset (ADR 0022): sets a temporary password for any active user. The user must change it at the next sign-in and a lock is cleared.
+    ''' The password is asked for twice and never written to a file or a log.
+    ''' </summary>
+    Friend Shared Function ResetPassword(connection As String, args As String()) As Integer
+        If args.Length < 2 Then
+            Console.Error.WriteLine("Usage: reset-password <userName>")
+            Return 2
+        End If
+        Dim password = ConsolePrompt.ReadNewPassword()
+        If password Is Nothing Then
+            Console.Error.WriteLine("The two passwords did not match.")
+            Return 1
+        End If
+        Dim result = BuildProvisioning(connection).ResetPassword(args(1), password)
+        If result.Succeeded Then
+            Console.WriteLine($"Temporary password set for {args(1).Trim()}. They must choose a new password at the next sign-in.")
+            Return 0
+        End If
+        Console.Error.WriteLine(result.Message)
+        Return 1
+    End Function
+
     Friend Shared Function SetAssociatePlan(connection As String, args As String()) As Integer
         Dim plan As PlanTier
         If args.Length < 3 OrElse Not [Enum].TryParse(args(2), True, plan) Then
@@ -65,7 +88,7 @@ Friend NotInheritable Class SetupCommands
     End Function
 
     ''' <summary>
-    ''' Creates the punch agent's SQL login and puts it in the database role hrms_agent (migration 0031), which can execute the agt procedures and nothing else.
+    ''' Creates the punch agent's SQL login and puts it in the database role hrms_agent (database/special/biometric 0901), which can execute the agt procedures and nothing else.
     ''' The password is asked for twice and sent as a value, never written to a file or a log. Needs a login that can create logins.
     ''' </summary>
     Friend Shared Function CreateAgentLogin(connection As String, args As String()) As Integer

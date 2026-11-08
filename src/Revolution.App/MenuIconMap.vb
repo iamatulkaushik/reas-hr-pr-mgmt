@@ -56,6 +56,7 @@ Friend Module MenuIconMap
         {"reports.detailed.payslip", AppIcon.Payslip},
         {"Administration", AppIcon.Settings},
         {"licence.manage", AppIcon.Key},
+        {"security.resetpassword", AppIcon.Key},
         {"tools.iconmap", AppIcon.Menu}
     }
 

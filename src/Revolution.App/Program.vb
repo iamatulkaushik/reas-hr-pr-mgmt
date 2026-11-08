@@ -63,6 +63,7 @@ Public Module Program
         Return New List(Of IShellModule) From {
             layout,
             New LicenceShellModule(services.LicenceAdmin),
+            New UserAdminShellModule(services.UserPasswordAdmin, services.Session),
             New IconMapShellModule(Function() layout.Items, Function() sources.SelectMany(Function(m) m.Items).ToList(), services.Permissions)}
     End Function
 

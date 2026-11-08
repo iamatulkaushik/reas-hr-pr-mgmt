@@ -6,6 +6,7 @@ Public Module Program
         "  add-company <name> <plan>               plan: Copper | Silver | Gold | Platinum" & vbLf &
         "  add-user <userName> <role> [companyId]  role: Developer | Owner | Associate | Operator (an Associate may have no company)" & vbLf &
         "  set-associate-plan <userName> <plan>    caps companies per Associate: Copper 5, Silver 15, Gold 35, Platinum 90" & vbLf &
+        "  reset-password <userName>               emergency reset: temporary password for any active user, changed at next sign-in, lock cleared" & vbLf &
         "  create-agent-login <loginName>          SQL login for the punch agent (biometric special build: role hrms_agent, EXECUTE on agt only)" & vbLf &
         "Field key commands (Windows only, no database needed):" & vbLf &
         KeyCommandsUsage & vbLf &
@@ -33,6 +34,8 @@ Public Module Program
                     Return SetupCommands.AddUser(connection, args)
                 Case "set-associate-plan"
                     Return SetupCommands.SetAssociatePlan(connection, args)
+                Case "reset-password"
+                    Return SetupCommands.ResetPassword(connection, args)
                 Case "create-agent-login"
                     Return SetupCommands.CreateAgentLogin(connection, args)
                 Case Else

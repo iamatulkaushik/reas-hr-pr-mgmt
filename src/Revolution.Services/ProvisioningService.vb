@@ -38,6 +38,24 @@ Public NotInheritable Class ProvisioningService
         Return OperationResult.Ok()
     End Function
 
+    ''' <summary>
+    ''' Setup tool only (the Developer's emergency reset, ADR 0022): sets a temporary password for any user, makes the user change it at the next sign-in and clears a lock.
+    ''' Inside the app a user resets only the users sec.fn_ResettableUsers allows.
+    ''' </summary>
+    Public Function ResetPassword(userName As String, temporaryPassword As String) As OperationResult
+        Dim user = _users.FindByUserName(If(userName, String.Empty).Trim())
+        If user Is Nothing OrElse Not user.IsActive Then
+            Return OperationResult.Fail("No active user with that user name.")
+        End If
+        Dim policy = PasswordPolicy.Validate(temporaryPassword)
+        If Not policy.Succeeded Then
+            Return policy
+        End If
+        Dim created = _hasher.Create(temporaryPassword)
+        _users.SetPassword(user.UserId, created.Hash, created.Salt, created.Iterations, True)
+        Return OperationResult.Ok()
+    End Function
+
     Public Function CreateUser(userName As String, password As String, role As UserRole,
                                companyId As Integer?) As OperationResult(Of Integer)
         Dim problem = Validate(userName, password, role, companyId)
