@@ -21,34 +21,40 @@ Public NotInheritable Class PunchPullCoordinator
     ''' <param name="now">The factory's local time now.</param>
     Public Function PullAll(devices As IReadOnlyList(Of DeviceItem), now As Date) As IReadOnlyList(Of DevicePullResult)
         If devices Is Nothing Then Throw New ArgumentNullException(NameOf(devices))
+        Return PullAll(devices.Where(Function(d As DeviceItem) d.IsActive).Select(Function(d As DeviceItem) DeviceEndpoint.From(d)).ToList(), now)
+    End Function
+
+    ''' <summary>The agent's form: the server has already left out inactive devices.</summary>
+    Public Function PullAll(devices As IReadOnlyList(Of DeviceEndpoint), now As Date) As IReadOnlyList(Of DevicePullResult)
+        If devices Is Nothing Then Throw New ArgumentNullException(NameOf(devices))
         Dim results As New List(Of DevicePullResult)()
-        For Each device As DeviceItem In devices.Where(Function(d As DeviceItem) d.IsActive)
+        For Each device As DeviceEndpoint In devices
             results.Add(PullOne(device, now))
         Next
         Return results
     End Function
 
-    Private Function PullOne(device As DeviceItem, now As Date) As DevicePullResult
+    Private Function PullOne(device As DeviceEndpoint, now As Date) As DevicePullResult
         Dim reader As IPunchSource = _sources.FirstOrDefault(Function(s As IPunchSource) String.Equals(s.Brand, device.Brand, StringComparison.OrdinalIgnoreCase))
         If reader Is Nothing Then Return Failed(device, "No reader for brand " & device.Brand & ".")
         Dim since As Date? = If(device.LastPunchTime.HasValue, device.LastPunchTime.Value.AddMinutes(-OverlapMinutes), CType(Nothing, Date?))
         Dim raws As IReadOnlyList(Of RawPunch)
         Try
-            raws = reader.Pull(DeviceEndpoint.From(device), since)
+            raws = reader.Pull(device, since)
         Catch ex As PunchSourceException
             Return Failed(device, "The device could not be read: " & ex.Message)
         End Try
         Dim batch As PunchBatch = PunchBatchBuilder.Build(raws, now)
         If batch.Punches.Count = 0 Then Return New DevicePullResult(device.Code, raws.Count, batch.RejectedCount, 0, 0, Nothing)
         Try
-            Dim stored As PunchIngestResult = _sink.Ingest(device.DeviceId, batch.Punches)
+            Dim stored As PunchIngestResult = _sink.Ingest(device.Code, batch.Punches)
             Return New DevicePullResult(device.Code, raws.Count, batch.RejectedCount, stored.Inserted, stored.Unmatched, Nothing)
         Catch ex As BiometricRuleException
             Return Failed(device, "The punches were not stored: " & ex.Message)
         End Try
     End Function
 
-    Private Shared Function Failed(device As DeviceItem, message As String) As DevicePullResult
+    Private Shared Function Failed(device As DeviceEndpoint, message As String) As DevicePullResult
         Return New DevicePullResult(device.Code, 0, 0, 0, 0, message)
     End Function
 End Class

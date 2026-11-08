@@ -25,7 +25,7 @@ Public Class PunchPullCoordinatorTests
         Assert.Equal(2, r.Single().Pulled)
         Assert.Equal(2, r.Single().Inserted)
         Assert.False(_essl.Pulls.Single().Item2.HasValue)
-        Assert.Equal(1, _sink.Calls.Single().Item1)
+        Assert.Equal("G1", _sink.Calls.Single().Item1)
     End Sub
 
     <Fact>
@@ -49,7 +49,7 @@ Public Class PunchPullCoordinatorTests
         Assert.False(r(0).Succeeded)
         Assert.Contains("could not be read", r(0).Error, StringComparison.Ordinal)
         Assert.True(r(1).Succeeded)
-        Assert.Equal(2, _sink.Calls.Single().Item1)
+        Assert.Equal("G2", _sink.Calls.Single().Item1)
     End Sub
 
     <Fact>

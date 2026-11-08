@@ -169,12 +169,12 @@ End Class
 Friend NotInheritable Class FakePunchSink
     Implements IPunchSink
 
-    Public ReadOnly Calls As New List(Of Tuple(Of Integer, IReadOnlyList(Of RawPunch)))()
+    Public ReadOnly Calls As New List(Of Tuple(Of String, IReadOnlyList(Of RawPunch)))()
     Public FailWith As String
 
-    Public Function Ingest(deviceId As Integer, punches As IReadOnlyList(Of RawPunch)) As PunchIngestResult Implements IPunchSink.Ingest
+    Public Function Ingest(deviceCode As String, punches As IReadOnlyList(Of RawPunch)) As PunchIngestResult Implements IPunchSink.Ingest
         If FailWith IsNot Nothing Then Throw New BiometricRuleException(FailWith)
-        Calls.Add(Tuple.Create(deviceId, punches))
+        Calls.Add(Tuple.Create(deviceCode, punches))
         Return New PunchIngestResult(punches.Count, punches.Count, 0)
     End Function
 End Class
@@ -250,4 +250,22 @@ Friend NotInheritable Class FakeAttendanceRepository
     Public Sub ReopenMonth(monthKey As Integer, reason As String, userId As Integer?) Implements IAttendanceRepository.ReopenMonth
         Throw New NotSupportedException()
     End Sub
+End Class
+
+Friend NotInheritable Class FakeAgentGateway
+    Implements IAgentGateway
+
+    Public Devices As New List(Of DeviceEndpoint)()
+    Public ListFails As String
+    Public ReadOnly Calls As New List(Of Tuple(Of String, IReadOnlyList(Of RawPunch)))()
+
+    Public Function ListDevices() As IReadOnlyList(Of DeviceEndpoint) Implements IAgentGateway.ListDevices
+        If ListFails IsNot Nothing Then Throw New BiometricRuleException(ListFails)
+        Return Devices
+    End Function
+
+    Public Function Ingest(deviceCode As String, punches As IReadOnlyList(Of RawPunch)) As PunchIngestResult Implements IPunchSink.Ingest
+        Calls.Add(Tuple.Create(deviceCode, punches))
+        Return New PunchIngestResult(punches.Count, punches.Count, 0)
+    End Function
 End Class
