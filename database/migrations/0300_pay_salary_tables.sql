@@ -19,6 +19,7 @@ BEGIN
         OtInEsiWage       BIT           NOT NULL CONSTRAINT DF_CompanyPolicy_OtEsi DEFAULT 0,
         DailyWageDivisor  DECIMAL(7,2)  NOT NULL CONSTRAINT DF_CompanyPolicy_Div DEFAULT 26 CONSTRAINT CK_CompanyPolicy_Div CHECK (DailyWageDivisor > 0),
         EmiCapPct         DECIMAL(7,4)  NOT NULL CONSTRAINT DF_CompanyPolicy_Emi DEFAULT 25 CONSTRAINT CK_CompanyPolicy_Emi CHECK (EmiCapPct BETWEEN 0 AND 100),
+        AbsenceDeductionDivisor DECIMAL(7,2) NOT NULL CONSTRAINT DF_CompanyPolicy_AbsenceDiv DEFAULT 30 CONSTRAINT CK_CompanyPolicy_AbsenceDiv CHECK (AbsenceDeductionDivisor > 0), -- from 0028; here so a new database has it before 0309 uses it (ADR 0024)
         UpdatedUtc        DATETIME2(0)  NOT NULL CONSTRAINT DF_CompanyPolicy_Updated DEFAULT SYSUTCDATETIME(),
         UpdatedByUserID   INT           NULL
     );

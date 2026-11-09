@@ -293,6 +293,7 @@ dotnet test  Revolution.slnx
 
 ## Testing and CI
 - GitHub Actions (`.github/workflows/ci.yml`) on a Windows runner: drift guards, restore, build and test of every project (the ReportViewer is excluded).
+- `MigrationOrderTests` checks, without a database, that the migration scripts build an empty database in file order ([ADR 0024](docs/adr/0024-migrations-must-build-a-new-database.md)).
 - A second job, `database`, starts SQL Server in a container, applies every migration (standard and `database/special/biometric`) and runs `tests/Revolution.Database.Tests` for real: tenant isolation, EXECUTE-only access, the agent wrapper and password reset rules.
 - Unit tests per module and service. Locally, database tests need `HRMS_TEST_CONNECTION` (see `tests/Revolution.Database.Tests/README.md`) and otherwise return without checking.
 - `scripts/check-guards.sh` fails the build on drift: SQL outside the migration folders, duplicate migration numbers, a table with a company id and no security policy, and similar rules.
@@ -310,7 +311,7 @@ scripts/    guard checks
 
 ## Documentation
 - Plan and phases: [`docs/PLAN.md`](docs/PLAN.md)
-- Decisions (ADRs 0001 to 0023): [`docs/adr/`](docs/adr)
+- Decisions (ADRs 0001 to 0024): [`docs/adr/`](docs/adr)
 - Module contracts: [`docs/CONTRACT-v0.1.md`](docs/CONTRACT-v0.1.md)
 - Change requests between module and core developers: [`docs/change-requests/`](docs/change-requests)
 - Who owns what: [`docs/OWNERSHIP.md`](docs/OWNERSHIP.md)

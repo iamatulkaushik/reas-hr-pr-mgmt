@@ -5,10 +5,12 @@
    and EpsOnHigherWage starts off. The backfill sets IsDeveloper for this connection only (tenant filter), then clears it.
    usp_EmployeeStatutory_SaveFlags gets two optional parameters. A caller that does not pass them still works: EPF on higher wage then follows
    @HigherWageOption and EPS on higher wage is saved as off (the old screen cannot express it).
-   Errors: 50042 EPS needs EPF on higher wage, 50043 EPF on higher wage needs EPF membership. */
+   Errors: 50042 EPS needs EPF on higher wage, 50043 EPF on higher wage needs EPF membership.
+   Edited 2026-11-09 (ADR 0024): on a new database this script runs before mst.EmployeeStatutory exists (0105) and 0108 later redefines the two procedures, so the table
+   changes below are skipped when the table is missing and 0109 applies the same changes and the final procedures. A database that already ran this script is unchanged. */
 SET XACT_ABORT ON;
 GO
-IF COL_LENGTH(N'mst.EmployeeStatutory', N'EpfOnHigherWage') IS NULL
+IF OBJECT_ID(N'mst.EmployeeStatutory', N'U') IS NOT NULL AND COL_LENGTH(N'mst.EmployeeStatutory', N'EpfOnHigherWage') IS NULL
 BEGIN
     ALTER TABLE mst.EmployeeStatutory ADD
         EpfOnHigherWage BIT NOT NULL CONSTRAINT DF_EmpStat_EpfOnHigher DEFAULT 0,
@@ -18,7 +20,8 @@ BEGIN
     EXEC sp_set_session_context @key = N'IsDeveloper', @value = NULL;
 END
 GO
-IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_EmpStat_EpsNeedsEpf' AND parent_object_id = OBJECT_ID(N'mst.EmployeeStatutory'))
+IF COL_LENGTH(N'mst.EmployeeStatutory', N'EpsOnHigherWage') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_EmpStat_EpsNeedsEpf' AND parent_object_id = OBJECT_ID(N'mst.EmployeeStatutory'))
     ALTER TABLE mst.EmployeeStatutory ADD CONSTRAINT CK_EmpStat_EpsNeedsEpf CHECK (EpsOnHigherWage = 0 OR EpfOnHigherWage = 1);
 GO
 CREATE OR ALTER PROCEDURE mst.usp_EmployeeStatutory_Get

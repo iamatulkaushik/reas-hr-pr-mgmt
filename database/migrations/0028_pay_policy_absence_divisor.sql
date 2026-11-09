@@ -3,10 +3,12 @@
    default 26) and by 30 for a deduction such as absence. This adds the second divisor, AbsenceDeductionDivisor, default 30, to pay.CompanyPolicy.
    Existing companies get 30. usp_Policy_Get returns the new column last, so the current reader keeps working. usp_Policy_Save gets the new parameter
    as optional: NULL keeps the stored value (30 for a new row), so the current Brave repository keeps working until it sends the value.
-   Idempotent. Never edit after merge: add a new number. */
+   Idempotent. Never edit after merge: add a new number.
+   Edited 2026-11-09 (ADR 0024): on a new database this script runs before pay.CompanyPolicy exists (0300) and 0302 later redefines the two procedures. 0300 now creates the
+   column and 0315 defines the final procedures; the table change below is skipped when the table is missing. A database that already ran this script is unchanged. */
 SET XACT_ABORT ON;
 GO
-IF COL_LENGTH(N'pay.CompanyPolicy', N'AbsenceDeductionDivisor') IS NULL
+IF OBJECT_ID(N'pay.CompanyPolicy', N'U') IS NOT NULL AND COL_LENGTH(N'pay.CompanyPolicy', N'AbsenceDeductionDivisor') IS NULL
 BEGIN
     ALTER TABLE pay.CompanyPolicy ADD AbsenceDeductionDivisor DECIMAL(7,2) NOT NULL
         CONSTRAINT DF_CompanyPolicy_AbsenceDiv DEFAULT 30
