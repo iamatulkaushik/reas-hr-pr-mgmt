@@ -32,6 +32,8 @@ Friend NotInheritable Class BiometricUsersForm
     Private ReadOnly _link As New Button()
     Private ReadOnly _resolve As New Button()
     Private ReadOnly _punches As New Button()
+    Private ReadOnly _devices As New Button()
+    Private ReadOnly _agentKeys As New Button()
     Private ReadOnly _exit As New Button()
     Private _unknownItems As IReadOnlyList(Of UnknownBiometricUser) = New List(Of UnknownBiometricUser)()
 
@@ -66,12 +68,14 @@ Friend NotInheritable Class BiometricUsersForm
         _exit.DialogResult = DialogResult.Cancel
         CancelButton = _exit
         For Each pair As Tuple(Of Button, String) In New List(Of Tuple(Of Button, String)) From {
-            Tuple.Create(_punches, "Punches"), Tuple.Create(_resolve, "Resolve punches"), Tuple.Create(_link, "Link unknown to employee"), Tuple.Create(_retireCard, "Retire card"),
+            Tuple.Create(_agentKeys, "Agent keys"), Tuple.Create(_devices, "Devices"), Tuple.Create(_punches, "Punches"), Tuple.Create(_resolve, "Resolve punches"), Tuple.Create(_link, "Link unknown to employee"), Tuple.Create(_retireCard, "Retire card"),
             Tuple.Create(_mapCard, "Map card"), Tuple.Create(_clearId, "Clear id"), Tuple.Create(_setId, "Set id"), Tuple.Create(_next, "Next free id"), Tuple.Create(_load, "Load")}
             pair.Item1.Text = pair.Item2
             pair.Item1.AutoSize = True
         Next
         bar.Controls.Add(_exit)
+        bar.Controls.Add(_agentKeys)
+        bar.Controls.Add(_devices)
         bar.Controls.Add(_punches)
         bar.Controls.Add(_resolve)
         bar.Controls.Add(_link)
@@ -90,6 +94,8 @@ Friend NotInheritable Class BiometricUsersForm
         AddHandler _link.Click, Sub(sender As Object, e As EventArgs) DoLink()
         AddHandler _resolve.Click, Sub(sender As Object, e As EventArgs) DoResolve()
         AddHandler _punches.Click, Sub(sender As Object, e As EventArgs) DoPunches()
+        AddHandler _devices.Click, Sub(sender As Object, e As EventArgs) DoDevices()
+        AddHandler _agentKeys.Click, Sub(sender As Object, e As EventArgs) DoAgentKeys()
         AddHandler _onlyNotEnrolled.CheckedChanged, Sub(sender As Object, e As EventArgs) DoLoad()
     End Sub
 
@@ -232,6 +238,18 @@ Friend NotInheritable Class BiometricUsersForm
         End If
         DoLoad()
         ShowStatus($"Linked. {result.Value.Resolved.ToString(CultureInfo.InvariantCulture)} punches matched, {result.Value.StillUnmatched.ToString(CultureInfo.InvariantCulture)} still waiting.")
+    End Sub
+
+    Private Sub DoDevices()
+        Using form As New BiometricDevicesForm(_services)
+            form.ShowDialog(Me)
+        End Using
+    End Sub
+
+    Private Sub DoAgentKeys()
+        Using form As New AgentKeysForm(_services)
+            form.ShowDialog(Me)
+        End Using
     End Sub
 
     Private Sub DoPunches()

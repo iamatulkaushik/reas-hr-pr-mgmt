@@ -13,6 +13,7 @@ Public NotInheritable Class BiometricModule
         Dim attendance As New SqlAttendanceRepository(host.Factory)
         Dim marker As New AttendanceService(attendance, host.Permissions, host.Entitlements, host.Audit, host.Session, Function() Date.Today)
         Return New BiometricServices(New BiometricService(repository, host.Permissions, host.Entitlements, host.Audit, host.Session),
-                                     New PunchAttendanceService(repository, roster, attendance, marker, host.Permissions, host.Entitlements, host.Audit, Function() Date.Now))
+                                     New PunchAttendanceService(repository, roster, attendance, marker, host.Permissions, host.Entitlements, host.Audit, Function() Date.Now),
+                                     host.Factories, New AgentKeyService(New SqlAgentKeyRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit))
     End Function
 End Class

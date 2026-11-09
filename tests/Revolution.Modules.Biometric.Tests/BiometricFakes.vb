@@ -269,3 +269,28 @@ Friend NotInheritable Class FakeAgentGateway
         Return New PunchIngestResult(punches.Count, punches.Count, 0)
     End Function
 End Class
+
+Friend NotInheritable Class FakeAgentKeyRepository
+    Implements IAgentKeyRepository
+
+    Public Items As New List(Of AgentKeyItem)()
+    Public ReadOnly Issued As New List(Of String)()
+    Public ReadOnly Retired As New List(Of Integer)()
+    Public FailWith As String
+
+    Public Function Issue(label As String) As IssuedAgentKey Implements IAgentKeyRepository.Issue
+        If FailWith IsNot Nothing Then Throw New BiometricRuleException(FailWith)
+        Issued.Add(label)
+        Return New IssuedAgentKey(70 + Issued.Count, "SECRET-KEY-BASE64-PLACEHOLDER-0000000000000=")
+    End Function
+
+    Public Function List() As IReadOnlyList(Of AgentKeyItem) Implements IAgentKeyRepository.List
+        If FailWith IsNot Nothing Then Throw New BiometricRuleException(FailWith)
+        Return Items
+    End Function
+
+    Public Sub Retire(registrationId As Integer) Implements IAgentKeyRepository.Retire
+        If FailWith IsNot Nothing Then Throw New BiometricRuleException(FailWith)
+        Retired.Add(registrationId)
+    End Sub
+End Class
