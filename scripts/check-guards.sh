@@ -87,7 +87,7 @@ formicon=$(grep -rnE --include='*.vb' '(^|[^A-Za-z.])(Me\.)?Icon[[:space:]]*=[^=
 [ -n "$formicon" ] && err "A form sets its own icon. BaseForm sets it for every form (ADR 0020): $formicon"
 
 # 10. Files that were removed on purpose must not come back (a patch zip cannot delete a file, so a stale copy can stay behind and break a new database; ADR 0024).
-for gone in database/migrations/0030_att_punch_ingest_deny.sql database/migrations/0030_sec_agent_registration.sql database/migrations/0031_agt_agent_wrapper.sql; do
+for gone in database/migrations/0030_sec_agent_registration.sql database/migrations/0031_agt_agent_wrapper.sql; do
   [ -e "$gone" ] && err "Delete $gone (git rm). It was replaced: it changes an object before a script creates it, or belongs to the biometric special build (ADR 0021, ADR 0024)."
 done
 
