@@ -140,7 +140,7 @@ Public NotInheritable Class MenuLayoutModule
         AddScreen("payroll.loans", ProcessGroup, "Loans", ModuleKey.Payroll, PlanFeature.Loans, 560, LoansScreen)
         AddScreen("payroll.leave", ProcessGroup, "Leave ledger", ModuleKey.Payroll, PlanFeature.FullAndFinal, 570, LeaveScreen)
         AddScreen("payroll.leaveaccrual", ProcessGroup, "Leave accrual", ModuleKey.Payroll, PlanFeature.FullAndFinal, 575, LeaveAccrualScreen)
-        AddScreen("arrears.list", ProcessGroup, "Arrears", ModuleKey.Payroll, PlanFeature.BasicPayroll, 580, ArrearsListScreen)
+        AddScreen("arrears.list", ProcessGroup, "Arrears", ModuleKey.Payroll, PlanFeature.Arrears, 580, ArrearsListScreen)
     End Sub
 
     ''' <summary>
@@ -163,7 +163,7 @@ Public NotInheritable Class MenuLayoutModule
         AddPlanned("reports.salarysheet", ReportsGroup, "Salary Sheet", ModuleKey.Reports, PlanFeature.BasicPayroll, 700)
         AddPlanned("reports.abstract", ReportsGroup, "Abstract", ModuleKey.Reports, PlanFeature.BasicPayroll, 710)
         AddDetailedReports()
-        AddScreen("arrears.report", ReportsGroup, "Arrears report", ModuleKey.Payroll, PlanFeature.BasicPayroll, 790, ArrearsReportScreen)
+        AddScreen("arrears.report", ReportsGroup, "Arrears report", ModuleKey.Payroll, PlanFeature.Arrears, 790, ArrearsReportScreen)
         AddCaReports()
     End Sub
 

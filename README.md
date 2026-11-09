@@ -170,7 +170,7 @@ Generated from the menu layout in `src/Revolution.App/MenuLayoutModule.vb`. **Av
 | Process | Loans | Available | Silver | Owner, Associate |
 | Process | Leave ledger | Available | Gold | Owner, Associate |
 | Process | Leave accrual | Available | Gold | Owner, Associate |
-| Process | Arrears | Available | Copper today (plan map says Gold, see open points) | Owner, Associate |
+| Process | Arrears | Available | Gold | Owner, Associate |
 
 **Compliance**
 
@@ -191,7 +191,7 @@ Generated from the menu layout in `src/Revolution.App/MenuLayoutModule.vb`. **Av
 |---|---|---|---|---|
 | Reports | Salary Sheet | Planned | Copper | Owner, Associate |
 | Reports | Abstract | Planned | Copper | Owner, Associate |
-| Reports | Arrears report | Available | Copper today (plan map says Gold, see open points) | Owner, Associate |
+| Reports | Arrears report | Available | Gold | Owner, Associate |
 | Reports > Detailed | Payslip | Available | Copper | Owner, Associate |
 | Reports > Detailed | Bonus | Planned | Copper | Owner, Associate |
 | Reports > Detailed | Career History | Planned | Copper | Owner, Associate |
@@ -233,7 +233,7 @@ Roadmap by phase (full gates in [`docs/PLAN.md`](docs/PLAN.md)). "Implemented" m
 
 **Statutory points still open** (the CA verification pack, part G): the September 2026 EPF split month, EPS and EDLI eligibility, the ESI contribution-period rule and disability ceiling, Haryana LWF due date and wage definition, and Income-tax Act 2025 section codes.
 
-**Open point:** the Arrears screens are gated by Basic payroll (Copper) in the menu, while the plan map lists Arrears as a Gold feature. One of the two will be aligned.
+**Arrears is a Gold feature** ([ADR 0023](docs/adr/0023-arrears-is-a-gold-feature.md)); the menu already follows, the module services are being aligned.
 
 ## Security model
 - **Tenancy:** every table with a company id has a row-level security policy keyed on the session's company; the app sets the session context at sign-in. A guard script and a database test fail the build if a table lacks a policy.
@@ -293,7 +293,8 @@ dotnet test  Revolution.slnx
 
 ## Testing and CI
 - GitHub Actions (`.github/workflows/ci.yml`) on a Windows runner: drift guards, restore, build and test of every project (the ReportViewer is excluded).
-- Unit tests per module and service; database tests run against a real SQL Server when `HRMS_TEST_CONNECTION` is set (see `tests/Revolution.Database.Tests/README.md`) and otherwise return without checking.
+- A second job, `database`, starts SQL Server in a container, applies every migration (standard and `database/special/biometric`) and runs `tests/Revolution.Database.Tests` for real: tenant isolation, EXECUTE-only access, the agent wrapper and password reset rules.
+- Unit tests per module and service. Locally, database tests need `HRMS_TEST_CONNECTION` (see `tests/Revolution.Database.Tests/README.md`) and otherwise return without checking.
 - `scripts/check-guards.sh` fails the build on drift: SQL outside the migration folders, duplicate migration numbers, a table with a company id and no security policy, and similar rules.
 
 ## Repository layout
@@ -309,7 +310,7 @@ scripts/    guard checks
 
 ## Documentation
 - Plan and phases: [`docs/PLAN.md`](docs/PLAN.md)
-- Decisions (ADRs 0001 to 0022): [`docs/adr/`](docs/adr)
+- Decisions (ADRs 0001 to 0023): [`docs/adr/`](docs/adr)
 - Module contracts: [`docs/CONTRACT-v0.1.md`](docs/CONTRACT-v0.1.md)
 - Change requests between module and core developers: [`docs/change-requests/`](docs/change-requests)
 - Who owns what: [`docs/OWNERSHIP.md`](docs/OWNERSHIP.md)

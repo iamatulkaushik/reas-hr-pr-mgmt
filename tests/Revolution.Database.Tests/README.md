@@ -9,6 +9,10 @@ Tests that need a real SQL Server: tenant isolation, EXECUTE-only access, compos
 
 Without `HRMS_TEST_CONNECTION` every test returns at once and passes without checking anything. To make that a failure (for CI), also set `HRMS_REQUIRE_DB_TESTS=1`.
 
+To run the biometric special build tests too, also apply `database/special/biometric` (`migrate database/special/biometric`); without it those tests return at once.
+
+CI: the job `database` in `.github/workflows/ci.yml` does all of this on every push and pull request (SQL Server 2022 container, throwaway database `HRMS_Test`).
+
 ## What each test proves
 | Test | Proves |
 |---|---|

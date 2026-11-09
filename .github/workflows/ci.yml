@@ -24,3 +24,40 @@ jobs:
           for p in $projects; do dotnet restore "$p"; done
           for p in $projects; do dotnet build "$p" --no-restore -c Release; done
           for p in $(find tests -name '*.vbproj' | sort); do dotnet test "$p" --no-build -c Release; done
+
+  database:
+    # Runs the tests that need a real SQL Server (tenant isolation, EXECUTE-only access, agent wrapper, password reset rules).
+    # Everything in this job is throwaway: a SQL Server container and an empty database, gone when the job ends.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SA_PASSWORD: "Rv-Ci-Only-2026-x9"
+      HRMS_SETUP_CONNECTION: "Server=localhost,1433;Database=HRMS_Test;User Id=sa;Password=Rv-Ci-Only-2026-x9;Encrypt=True;TrustServerCertificate=True"
+      HRMS_TEST_CONNECTION: "Server=localhost,1433;Database=HRMS_Test;User Id=sa;Password=Rv-Ci-Only-2026-x9;Encrypt=True;TrustServerCertificate=True"
+      HRMS_REQUIRE_DB_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Start SQL Server and create the test database
+        shell: bash
+        run: |
+          set -e
+          docker run -d --name sql -p 1433:1433 -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=$SA_PASSWORD" mcr.microsoft.com/mssql/server:2022-latest
+          ready=0
+          for i in $(seq 1 60); do
+            if docker exec sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$SA_PASSWORD" -Q "SELECT 1" > /dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then docker logs sql; echo "SQL Server did not start"; exit 1; fi
+          docker exec sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$SA_PASSWORD" -b -Q "CREATE DATABASE HRMS_Test"
+      - name: Apply the standard migrations and the biometric special build
+        shell: bash
+        run: |
+          set -e
+          dotnet run --project src/Revolution.Setup -c Release -- migrate
+          dotnet run --project src/Revolution.Setup -c Release -- migrate database/special/biometric
+      - name: Database tests
+        shell: bash
+        run: dotnet test tests/Revolution.Database.Tests -c Release --logger "console;verbosity=normal"
