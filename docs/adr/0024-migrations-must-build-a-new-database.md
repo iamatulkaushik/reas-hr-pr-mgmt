@@ -18,6 +18,8 @@ Status: accepted (Owner, 2026-11-09). Owner: Sigma.
 
 **Same mistake, found by the next run.** The first fix reached further, and the job then stopped at `DENY EXECUTE ON OBJECT::att.usp_Punch_Ingest` in script 0030: the procedure is created by 0502. The script was Sigma's own, written the day before. It is now 0505 (0030 is removed). A permission statement counts like any other change: the object must exist in an earlier script.
 
+**A zip cannot delete a file.** The superseded `0030_att_punch_ingest_deny.sql` stayed in the repository after 0505 was added, so the same error came back. Guard 10 in `scripts/check-guards.sh` now fails the build at once, with the file name, if a file that was removed on purpose is still there.
+
 **Existing databases** (the migration runner refuses a script whose text changed after it was applied). Either create the database again (it holds test data only), or tell the runner the three new texts and then migrate:
 ```
 UPDATE cfg.SchemaVersion SET Checksum = '60bdee5ce43f8b737b3103b3b089c7deedaed5ca4e74c294685b57681d6008d3' WHERE ScriptNumber = '0023';
