@@ -16,6 +16,8 @@ Status: accepted (Owner, 2026-11-09). Owner: Sigma.
 - New 0109 (after 0108) adds the two EPF columns and the check constraint and defines `usp_EmployeeStatutory_Get`, `_SaveFlags` and `usp_EmployeeSeparation_Save` in their final form. New 0315 (after 0302) defines `usp_Policy_Get` and `_Save` in their final form. Both are idempotent and change nothing on a database that already has the final state.
 - This edits three merged scripts (0023, 0028, 0300). It is an exception to "never edit after merge", allowed once because nothing is released and a new database could not be built at all. The rule stands.
 
+**Same mistake, found by the next run.** The first fix reached further, and the job then stopped at `DENY EXECUTE ON OBJECT::att.usp_Punch_Ingest` in script 0030: the procedure is created by 0502. The script was Sigma's own, written the day before. It is now 0505 (0030 is removed). A permission statement counts like any other change: the object must exist in an earlier script.
+
 **Existing databases** (the migration runner refuses a script whose text changed after it was applied). Either create the database again (it holds test data only), or tell the runner the three new texts and then migrate:
 ```
 UPDATE cfg.SchemaVersion SET Checksum = '60bdee5ce43f8b737b3103b3b089c7deedaed5ca4e74c294685b57681d6008d3' WHERE ScriptNumber = '0023';
@@ -27,4 +29,4 @@ then `RevolutionSetup migrate` applies 0109 and 0315.
 **Rules from now on.**
 1. A patch to a table or procedure whose creating script has a higher number than the patch number is a mistake. Put the change in a script numbered after the last script that touches that object.
 2. The last script that defines a procedure decides what a new database gets: a patched procedure must keep its patch in its final definition.
-3. `MigrationOrderTests` (no database needed; runs in both CI jobs) checks rule 1 for tables and rule 2 for the procedures patched so far. The `database` job builds an empty database from every script and runs the database tests.
+3. `MigrationOrderTests` (no database needed; runs in both CI jobs) checks rule 1 for tables, for `GRANT`, `DENY` and `REVOKE` on an object, and for `EXEC` of a procedure outside a procedure body, and rule 2 for the procedures patched so far. The `database` job builds an empty database from every script and runs the database tests.

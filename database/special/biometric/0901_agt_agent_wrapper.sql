@@ -6,7 +6,7 @@
    It is denied to the agent and the app login; the two public procedures call it through the ownership chain.
    The key is the base64 of 32 random bytes (44 characters). The wrapper decodes it, takes SHA-256 and finds an active row by that hash. A key that is not valid base64, not 32 bytes,
    unknown or retired, an unknown device code, a device code of another company and an inactive device all raise the same error 53400. Numbers 53400 to 53409 are reserved for agt.
-   att.usp_Punch_Ingest takes the company as a parameter, so it must never be callable by the app login: the standard migration 0030 denies it to hrms_app in every database.
+   att.usp_Punch_Ingest takes the company as a parameter, so it must never be callable by the app login: the standard migration 0505 denies it to hrms_app in every database.
    Ownership chaining skips the permission check on the chained procedure, so the wrapper still works. */
 SET XACT_ABORT ON;
 GO

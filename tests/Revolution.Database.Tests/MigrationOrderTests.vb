@@ -84,6 +84,40 @@ Public Class MigrationOrderTests
         Assert.True(problems.Count = 0, String.Join(Environment.NewLine, problems))
     End Sub
 
+    <Fact>
+    Public Sub NoPermissionOrCallUsesAnObjectBeforeItIsCreated()
+        Dim created As New HashSet(Of String)()
+        Dim problems As New List(Of String)()
+        For Each script As KeyValuePair(Of String, String) In Scripts()
+            Dim local As New HashSet(Of String)()
+            For Each m As Match In Regex.Matches(script.Value, "CREATE\s+(OR\s+ALTER\s+)?(?:PROCEDURE|FUNCTION|VIEW|TABLE)\s+" & TableName, RegexOptions.IgnoreCase)
+                local.Add(Plain(m.Groups(2).Value))
+            Next
+            For Each batch As String In Batches(script.Value)
+                Dim isDefinition As Boolean = Regex.IsMatch(batch, "CREATE\s+(OR\s+ALTER\s+)?(PROCEDURE|FUNCTION|VIEW|TRIGGER)", RegexOptions.IgnoreCase)
+                Dim used As New HashSet(Of String)()
+                For Each m As Match In Regex.Matches(batch, "\b(?:GRANT|DENY|REVOKE)\s+[\w ,]+\s+ON\s+OBJECT::" & TableName, RegexOptions.IgnoreCase)
+                    used.Add(Plain(m.Groups(1).Value))
+                Next
+                If Not isDefinition Then
+                    For Each m As Match In Regex.Matches(batch, "(?<![\w@])EXEC(?:UTE)?\s+" & TableName & "(?=[\s;]|$)", RegexOptions.IgnoreCase)
+                        used.Add(Plain(m.Groups(1).Value))
+                    Next
+                End If
+                For Each target As String In used
+                    If target.StartsWith("sys.", StringComparison.Ordinal) OrElse target.StartsWith("dbo.sp_", StringComparison.Ordinal) Then
+                        Continue For
+                    End If
+                    If Not created.Contains(target) AndAlso Not local.Contains(target) Then
+                        problems.Add(script.Key & " uses " & target & " before a script creates it")
+                    End If
+                Next
+            Next
+            created.UnionWith(local)
+        Next
+        Assert.True(problems.Count = 0, String.Join(Environment.NewLine, problems))
+    End Sub
+
     ''' <summary>The last script that defines a procedure decides what a new database gets. These procedures were patched early and defined again later.</summary>
     <Theory>
     <InlineData("mst.usp_EmployeeStatutory_Get", "EpfOnHigherWage")>

@@ -4,7 +4,7 @@ Imports Xunit
 
 ''' <summary>
 ''' Change requests 0023 and 0025 in a real database: the punch agent reaches the server only through the agt procedures, with a key bound to one company, and the
-''' ingest procedure is closed to the app login (migration 0030, and database/special/biometric 0900 and 0901). Needs HRMS_TEST_CONNECTION (see Db).
+''' ingest procedure is closed to the app login (migration 0505, and database/special/biometric 0900 and 0901). Needs HRMS_TEST_CONNECTION (see Db).
 ''' The tests that need the special build return at once when it is not installed (ADR 0021); the app-login denial is checked either way.
 ''' </summary>
 <Collection("Agent wrapper")>
