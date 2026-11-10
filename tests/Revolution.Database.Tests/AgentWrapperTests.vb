@@ -15,30 +15,36 @@ Public Class AgentWrapperTests
     Private Const NotAllowed As Integer = 53410
     Private Const ExecuteDenied As Integer = 229
 
+    Private Shared ReadOnly SetupLock As New Object()
+    Private Shared _isReady As Boolean
     Private ReadOnly _seed As SeedFixture
-    Private _ownerA As Integer
-    Private _ownerB As Integer
-    Private _operatorA As Integer
-    Private _keyA As String
-    Private _keyAId As Integer
-    Private _deviceA As Integer
-    Private _deviceB As Integer
+    Private Shared _ownerA As Integer
+    Private Shared _ownerB As Integer
+    Private Shared _operatorA As Integer
+    Private Shared _keyA As String
+    Private Shared _keyAId As Integer
+    Private Shared _deviceA As Integer
+    Private Shared _deviceB As Integer
 
     Public Sub New(seed As SeedFixture)
         _seed = seed
-        If Not Installed Then Return
-        Dim tag = Guid.NewGuid().ToString("N").Substring(0, 8)
-        Using admin = Db.Open()
-            Db.Execute(admin, "IF DATABASE_PRINCIPAL_ID('rv_test_agent') IS NULL CREATE USER rv_test_agent WITHOUT LOGIN; ALTER ROLE hrms_agent ADD MEMBER rv_test_agent;")
-            _ownerA = NewUser(admin, "agentowner_a_" & tag, 2, _seed.CompanyA)
-            _ownerB = NewUser(admin, "agentowner_b_" & tag, 2, _seed.CompanyB)
-            _operatorA = NewUser(admin, "agentop_a_" & tag, 4, _seed.CompanyA)
-        End Using
-        Dim issuedA = Issue(_seed.CompanyA, _ownerA, "Works PC A")
-        _keyAId = issuedA.Id
-        _keyA = issuedA.Key
-        _deviceA = MakeDevice(_seed.CompanyA, _seed.FactoryA, "ADEV")
-        _deviceB = MakeDevice(_seed.CompanyB, _seed.FactoryB, "BDEV")
+        SyncLock SetupLock
+            If _isReady OrElse Not Installed Then Return
+            ' xUnit makes a new instance of this class for every test; the users, keys and devices are created once per class.
+            Dim tag = Guid.NewGuid().ToString("N").Substring(0, 8)
+            Using admin = Db.Open()
+                Db.Execute(admin, "IF DATABASE_PRINCIPAL_ID('rv_test_agent') IS NULL CREATE USER rv_test_agent WITHOUT LOGIN; ALTER ROLE hrms_agent ADD MEMBER rv_test_agent;")
+                _ownerA = NewUser(admin, "agentowner_a_" & tag, 2, _seed.CompanyA)
+                _ownerB = NewUser(admin, "agentowner_b_" & tag, 2, _seed.CompanyB)
+                _operatorA = NewUser(admin, "agentop_a_" & tag, 4, _seed.CompanyA)
+            End Using
+            Dim issuedA = Issue(_seed.CompanyA, _ownerA, "Works PC A")
+            _keyAId = issuedA.Id
+            _keyA = issuedA.Key
+            _deviceA = MakeDevice(_seed.CompanyA, _seed.FactoryA, "ADEV")
+            _deviceB = MakeDevice(_seed.CompanyB, _seed.FactoryB, "BDEV")
+            _isReady = True
+        End SyncLock
     End Sub
 
     ''' <summary>True when a database is configured and the biometric special build (schema agt, table sec.AgentRegistration) is applied to it.</summary>

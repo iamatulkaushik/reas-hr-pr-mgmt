@@ -14,29 +14,35 @@ Public Class UserPasswordResetTests
     Private Const OwnPassword As Integer = 50061
     Private Const NotAllowed As Integer = 50062
 
+    Private Shared ReadOnly SetupLock As New Object()
+    Private Shared _isReady As Boolean
     Private ReadOnly _seed As SeedFixture
-    Private _developer As Integer
-    Private _associateA As Integer
-    Private _associateB As Integer
-    Private _ownerA As Integer
-    Private _ownerB As Integer
-    Private _operatorA As Integer
-    Private _operatorB As Integer
+    Private Shared _developer As Integer
+    Private Shared _associateA As Integer
+    Private Shared _associateB As Integer
+    Private Shared _ownerA As Integer
+    Private Shared _ownerB As Integer
+    Private Shared _operatorA As Integer
+    Private Shared _operatorB As Integer
 
     Public Sub New(seed As SeedFixture)
         _seed = seed
-        If Not Db.Available Then Return
-        Dim tag = Guid.NewGuid().ToString("N").Substring(0, 8)
-        Using admin = Db.Open()
-            _developer = NewUser(admin, "pwdev_" & tag, 1, Nothing)
-            _associateA = NewUser(admin, "pwassoc_a_" & tag, 3, _seed.CompanyA)
-            _associateB = NewUser(admin, "pwassoc_b_" & tag, 3, _seed.CompanyB)
-            Db.Execute(admin, "INSERT sec.UserCompany (UserID, CompanyID) VALUES (" & _associateA & ", " & _seed.CompanyA & "), (" & _associateB & ", " & _seed.CompanyB & ")")
-            _ownerA = NewUser(admin, "pwowner_a_" & tag, 2, _seed.CompanyA)
-            _ownerB = NewUser(admin, "pwowner_b_" & tag, 2, _seed.CompanyB)
-            _operatorA = NewUser(admin, "pwop_a_" & tag, 4, _seed.CompanyA)
-            _operatorB = NewUser(admin, "pwop_b_" & tag, 4, _seed.CompanyB)
-        End Using
+        SyncLock SetupLock
+            If _isReady OrElse Not Db.Available Then Return
+            ' xUnit makes a new instance of this class for every test; the users, keys and devices are created once per class.
+            Dim tag = Guid.NewGuid().ToString("N").Substring(0, 8)
+            Using admin = Db.Open()
+                _developer = NewUser(admin, "pwdev_" & tag, 1, Nothing)
+                _associateA = NewUser(admin, "pwassoc_a_" & tag, 3, _seed.CompanyA)
+                _associateB = NewUser(admin, "pwassoc_b_" & tag, 3, _seed.CompanyB)
+                Db.Execute(admin, "INSERT sec.UserCompany (UserID, CompanyID) VALUES (" & _associateA & ", " & _seed.CompanyA & "), (" & _associateB & ", " & _seed.CompanyB & ")")
+                _ownerA = NewUser(admin, "pwowner_a_" & tag, 2, _seed.CompanyA)
+                _ownerB = NewUser(admin, "pwowner_b_" & tag, 2, _seed.CompanyB)
+                _operatorA = NewUser(admin, "pwop_a_" & tag, 4, _seed.CompanyA)
+                _operatorB = NewUser(admin, "pwop_b_" & tag, 4, _seed.CompanyB)
+            End Using
+            _isReady = True
+        End SyncLock
     End Sub
 
     Private Shared Function NewUser(admin As SqlConnection, userName As String, roleId As Integer, companyId As Integer?) As Integer
