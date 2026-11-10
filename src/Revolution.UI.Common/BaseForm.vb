@@ -197,22 +197,30 @@ Public MustInherit Class BaseForm
     Private Sub BuildHeader(title As String, subtitle As String)
         _header.Tag = ThemeStyler.SkipTag
         _header.Dock = DockStyle.Top
-        _header.Height = Theme.Space3 * 3
-        _header.BackColor = Theme.Accent
+        _header.Height = If(String.IsNullOrEmpty(subtitle), Theme.Space3 * 2 + Theme.Space1, Theme.Space3 * 3)
+        _header.BackColor = Theme.Surface
         _header.Padding = New Padding(Theme.Space2, Theme.Space1, Theme.Space2, Theme.Space1)
         _titleLabel.Text = title
         _titleLabel.Font = Theme.TitleFont
-        _titleLabel.ForeColor = Theme.AccentText
+        _titleLabel.ForeColor = Theme.Text
         _titleLabel.Dock = DockStyle.Fill
         _titleLabel.TextAlign = ContentAlignment.MiddleLeft
         _subtitleLabel.Text = subtitle
         _subtitleLabel.Font = Theme.SmallFont
-        _subtitleLabel.ForeColor = Theme.AccentText
+        _subtitleLabel.ForeColor = Theme.TextMuted
         _subtitleLabel.Dock = DockStyle.Bottom
         _subtitleLabel.Height = Theme.Space3
         _subtitleLabel.Visible = Not String.IsNullOrEmpty(subtitle)
         _header.Controls.Add(_titleLabel)
         _header.Controls.Add(_subtitleLabel)
+        AddHandler _header.Paint, AddressOf OnHeaderPaint
+    End Sub
+
+    ''' <summary>Thin line under the light header.</summary>
+    Private Sub OnHeaderPaint(sender As Object, e As PaintEventArgs)
+        Using linePen As New Pen(Theme.BorderSoft)
+            e.Graphics.DrawLine(linePen, 0, _header.Height - 1, _header.Width, _header.Height - 1)
+        End Using
     End Sub
 
     Private Sub BuildToolbar()
@@ -237,6 +245,7 @@ Public MustInherit Class BaseForm
         _validationLabel.AutoSize = True
         _validationLabel.Padding = New Padding(Theme.Space2, Theme.Space1, Theme.Space2, Theme.Space1)
         _validationLabel.ForeColor = Theme.Danger
+        _validationLabel.BackColor = Theme.DangerSoft
         _validationLabel.Visible = False
     End Sub
 End Class

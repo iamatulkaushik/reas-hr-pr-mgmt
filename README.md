@@ -229,7 +229,7 @@ Roadmap by phase (full gates in [`docs/PLAN.md`](docs/PLAN.md)). "Implemented" m
 | 9 | Assets and expenses, plus the ReportStudio checks on real data | Planned |
 | 10 | Hardening: installer, licence enforcement, SQL Agent backups, security review, pilot month | Planned |
 
-**Planned screens** (already in the menu, disabled): company basic and statutory profile, daily wages, shut days; multiple and bulk-import employee entry; employee education, disable or retire, delete; multiple and import attendance entry, attendance delete; career promotion, increment, transfer; Form 20 CL, LWF challan, Forms 34, V, IV and D; salary sheet, abstract, bonus, career history, loans and advances, F&F, assets and recoveries, Form 130/168 and the CA reports.
+**Planned screens** (already in the menu, disabled): company basic and statutory profile, daily wages, shut days; multiple and bulk-import employee entry (the shared editable list and file import are built, [ADR 0025](docs/adr/0025-bulk-import-and-multi-row-entry.md); the screens are in [`docs/phase3b-plan-sigma.md`](docs/phase3b-plan-sigma.md)); employee education, disable or retire, delete; multiple and import attendance entry, attendance delete; career promotion, increment, transfer; Form 20 CL, LWF challan, Forms 34, V, IV and D; salary sheet, abstract, bonus, career history, loans and advances, F&F, assets and recoveries, Form 130/168 and the CA reports.
 
 **Statutory points still open** (the CA verification pack, part G): the September 2026 EPF split month, EPS and EDLI eligibility, the ESI contribution-period rule and disability ceiling, Haryana LWF due date and wage definition, and Income-tax Act 2025 section codes.
 
@@ -311,7 +311,7 @@ scripts/    guard checks
 
 ## Documentation
 - Plan and phases: [`docs/PLAN.md`](docs/PLAN.md)
-- Decisions (ADRs 0001 to 0024): [`docs/adr/`](docs/adr)
+- Decisions (ADRs 0001 to 0025): [`docs/adr/`](docs/adr)
 - Module contracts: [`docs/CONTRACT-v0.1.md`](docs/CONTRACT-v0.1.md)
 - Change requests between module and core developers: [`docs/change-requests/`](docs/change-requests)
 - Who owns what: [`docs/OWNERSHIP.md`](docs/OWNERSHIP.md)
