@@ -2,6 +2,9 @@ Imports Microsoft.Data.SqlClient
 
 ''' <summary>Two companies, each with a factory and an employee, made once through the real procedures as the app role.</summary>
 Public NotInheritable Class SeedFixture
+    ''' <summary>Test classes in different collections build this fixture at the same time. Creating the two test users must not race: both would see "missing" and the second CREATE USER would fail.</summary>
+    Private Shared ReadOnly PrincipalGate As New Object()
+
     Public Property CompanyA As Integer
     Public Property CompanyB As Integer
     Public Property FactoryA As Integer
@@ -14,8 +17,10 @@ Public NotInheritable Class SeedFixture
             Return
         End If
         Using admin = Db.Open()
-            Db.Execute(admin, "IF DATABASE_PRINCIPAL_ID('rv_test_app') IS NULL CREATE USER rv_test_app WITHOUT LOGIN; ALTER ROLE hrms_app ADD MEMBER rv_test_app;")
-            Db.Execute(admin, "IF DATABASE_PRINCIPAL_ID('rv_test_reader') IS NULL CREATE USER rv_test_reader WITHOUT LOGIN; GRANT SELECT ON SCHEMA::mst TO rv_test_reader; GRANT SELECT ON SCHEMA::att TO rv_test_reader;")
+            SyncLock PrincipalGate
+                Db.Execute(admin, "IF DATABASE_PRINCIPAL_ID('rv_test_app') IS NULL CREATE USER rv_test_app WITHOUT LOGIN; ALTER ROLE hrms_app ADD MEMBER rv_test_app;")
+                Db.Execute(admin, "IF DATABASE_PRINCIPAL_ID('rv_test_reader') IS NULL CREATE USER rv_test_reader WITHOUT LOGIN; GRANT SELECT ON SCHEMA::mst TO rv_test_reader; GRANT SELECT ON SCHEMA::att TO rv_test_reader;")
+            End SyncLock
             Dim tag = Guid.NewGuid().ToString("N").Substring(0, 8)
             CompanyA = CInt(Db.Proc(admin, "mst.usp_Company_Create", ("@CompanyName", "Leak test A " & tag), ("@PlanTierID", CByte(4)))(0))
             CompanyB = CInt(Db.Proc(admin, "mst.usp_Company_Create", ("@CompanyName", "Leak test B " & tag), ("@PlanTierID", CByte(4)))(0))
