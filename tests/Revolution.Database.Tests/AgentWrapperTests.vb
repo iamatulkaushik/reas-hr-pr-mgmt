@@ -138,7 +138,8 @@ Public Class AgentWrapperTests
             Dim received = CInt(Db.Proc(conn, "agt.usp_Agent_Ingest", ("@AgentKey", _keyA), ("@DeviceCode", "ADEV"), ("@PunchesJson", OnePunch()))(0))
             Assert.Equal(1, received)
         End Using
-        Using admin = Db.Open()
+        ' Row-level security hides every att.Punch row from a connection without a company; a Developer session sees all companies, so the counts below are real.
+        Using admin = Db.Open(developer:=True)
             Assert.True(CInt(Db.Scalar(admin, "SELECT COUNT(*) FROM att.Punch WHERE CompanyID = " & _seed.CompanyA & " AND DeviceID = " & _deviceA)) >= 1)
             Assert.Equal(0, CInt(Db.Scalar(admin, "SELECT COUNT(*) FROM att.Punch WHERE CompanyID = " & _seed.CompanyB & " AND DeviceID = " & _deviceA)))
         End Using
@@ -150,7 +151,7 @@ Public Class AgentWrapperTests
         Using conn = AsAgent()
             Assert.Equal(Refused, Assert.Throws(Of SqlException)(Sub() Db.Proc(conn, "agt.usp_Agent_Ingest", ("@AgentKey", _keyA), ("@DeviceCode", "BDEV"), ("@PunchesJson", OnePunch()))).Number)
         End Using
-        Using admin = Db.Open()
+        Using admin = Db.Open(developer:=True)
             Assert.Equal(0, CInt(Db.Scalar(admin, "SELECT COUNT(*) FROM att.Punch WHERE DeviceID = " & _deviceB)))
         End Using
     End Sub
