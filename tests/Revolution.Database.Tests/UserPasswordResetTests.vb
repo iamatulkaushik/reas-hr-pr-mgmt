@@ -5,10 +5,13 @@ Imports Xunit
 ''' ADR 0022 in a real database: who may reset whose password (sec.fn_ResettableUsers, sec.usp_User_ListResettable, sec.usp_User_ResetPassword).
 ''' Developer resets an Associate; an Associate resets the Owner of the open company that the Associate works on; an Owner resets an Operator of the own company.
 ''' Needs HRMS_TEST_CONNECTION (see Db).
+''' Same collection as the Associate tests: the trial allows one active Associate without a licence (migration 0027), so these classes must not run at the same time,
+''' and this class deactivates its own Associates when it is done (PasswordResetCleanup).
 ''' </summary>
-<Collection("User password reset")>
+<Collection("Associate provisioning")>
 Public Class UserPasswordResetTests
     Implements IClassFixture(Of SeedFixture)
+    Implements IClassFixture(Of PasswordResetCleanup)
 
     Private Const NotSignedIn As Integer = 50060
     Private Const OwnPassword As Integer = 50061
@@ -173,6 +176,18 @@ Public Class UserPasswordResetTests
         Using conn = Db.Open(_seed.CompanyB, runAs:="rv_test_app", userId:=_ownerB)
             Assert.DoesNotContain(_operatorB, Listed(conn))
             AssertRefused(conn, _operatorB, NotAllowed)
+        End Using
+    End Sub
+End Class
+
+''' <summary>Runs once when the class is finished: the Associates this class added directly (no licence) must not take the trial's one place from later tests.</summary>
+Public NotInheritable Class PasswordResetCleanup
+    Implements IDisposable
+
+    Public Sub Dispose() Implements IDisposable.Dispose
+        If Not Db.Available Then Return
+        Using admin = Db.Open()
+            Db.Execute(admin, "UPDATE sec.[User] SET IsActive = 0 WHERE RoleID = 3 AND IsActive = 1 AND UserName LIKE 'pwassoc[_]%'")
         End Using
     End Sub
 End Class
