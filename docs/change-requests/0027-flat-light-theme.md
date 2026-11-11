@@ -11,4 +11,9 @@
   - ADR 0006: add one line, "Look: modern flat light (CR 0027). Grids and menus are styled by ThemeStyler."
 - Workaround until done: none needed; the current look keeps working.
 - Not compiled or run here (WinForms). Please build on Windows and check: login, shell menu, a grid screen (Payroll run), a dialog, a 150 percent DPI monitor.
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted, 2026-11-11.** Reviewed in the repository (Theme.vb, ThemeStyler.vb, BaseForm.vb, FlatColorTable.vb, FlatToolStripRenderer.vb); not run (WinForms, no Windows here).
+1. **Why it is accepted:** old `Theme` members keep their names, so no form changes; the new members are additions; the look stays native WinForms with a custom theme, so ADR 0006 stands. `ThemeStyler` now styles every `DataGridView`, so the shared `BulkEntryForm` list gets the flat grid too. Field errors use `ErrorProvider`, so the focus tint in `TintOnFocus` does not hide them.
+2. **DPI:** the app runs PerMonitorV2, so scaling the 32 and 36 pixel grid sizes with `DeviceDpi` is right.
+3. **Small points for Brave, no change needed to accept:** `TintOnFocus` sets the control back to `Theme.Surface` on leave, which also repaints a read-only box that was `SurfaceAlt`; keep read-only boxes in `SurfaceAlt` after focus or skip them. `RowTemplate.Height` only affects rows added after styling, which is the case for every grid built in a form constructor.
+4. **ADR 0006:** the line "Look: modern flat light (CR 0027). Grids and menus are styled by ThemeStyler." is added.
+5. **Gate for this change** (Brave and Owner, on Windows): login, shell menu, a grid screen (Payroll run), a dialog, and a 150 percent DPI monitor, each screenshotted. Sigma cannot do this part from here.

@@ -243,6 +243,10 @@ Friend NotInheritable Class FakeAttendanceRepository
         Saved.Add(Tuple.Create(employeeId, record, shiftId, workedMinutes))
     End Sub
 
+    Public Sub DeleteDay(employeeId As Integer, day As Date, userId As Integer?) Implements IAttendanceRepository.DeleteDay
+        Throw New NotSupportedException()
+    End Sub
+
     Public Sub CloseMonth(monthKey As Integer, userId As Integer?) Implements IAttendanceRepository.CloseMonth
         Throw New NotSupportedException()
     End Sub

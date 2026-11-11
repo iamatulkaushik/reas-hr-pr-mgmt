@@ -55,7 +55,7 @@ One database holds all companies; row-level security keeps each company's data a
 - A setup tool for migrations, first company and users, key management, and emergency password reset.
 
 ## Roles and access
-Screens never check a role name. They ask `IPermissionService` (what the role may do in a module) and `IEntitlementService` (what the plan and licence include). A menu entry shows only when the user has View on its module and the plan includes its feature. The grants below are the seeded defaults (migrations 0004, 0008, 0013, 0014, 0032); change them with a new migration, never by editing an old one.
+Screens never check a role name. They ask `IPermissionService` (what the role may do in a module) and `IEntitlementService` (what the plan and licence include). A menu entry shows only when the user has View on its module and the plan includes its feature. The grants below are the seeded defaults (migrations 0004, 0008, 0013, 0014, 0032, 0034); change them with a new migration, never by editing an old one.
 
 | Module | Developer | Owner | Associate | Operator |
 |---|---|---|---|---|
@@ -66,8 +66,8 @@ Screens never check a role name. They ask `IPermissionService` (what the role ma
 | Statutory | - | all | View, Create, Edit, Export | - |
 | Reports | - | View, Export | View, Export | - |
 | Biometric (special build) | - | View, Create, Edit | View, Create, Edit | - |
-| Assets | - | all | View, Create, Edit | View |
-| Expenses | - | all | View, Create, Edit, Export | View, Create |
+| Assets | - | all | - | - |
+| Expenses | - | all | - | View, Create |
 | Security | View, Create, Edit | View, Create, Edit | View, Create, Edit | - |
 | Licence | View, Create, Edit | - | - | - |
 | Audit | View, Export | View, Export | - | - |
@@ -197,7 +197,7 @@ Generated from the menu layout in `src/Revolution.App/MenuLayoutModule.vb`. **Av
 | Reports > Detailed | Career History | Planned | Copper | Owner, Associate |
 | Reports > Detailed | Loans and Advances | Planned | Silver | Owner, Associate |
 | Reports > Detailed | F&F | Planned | Gold | Owner, Associate |
-| Reports > Detailed | Assets and Recoveries | Planned | Platinum | Owner, Associate |
+| Reports > Detailed | Assets and Recoveries | Planned | Platinum | Owner |
 | Reports > Detailed | Form 130/168 | Planned | Gold | Owner, Associate |
 | Reports > CA Reports | Disbursement Annual | Planned | Copper | Owner, Associate |
 | Reports > CA Reports | Statutory EPF/ESI | Planned | Silver | Owner, Associate |

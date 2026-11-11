@@ -32,8 +32,8 @@ Public NotInheritable Class Theme
     Public Shared ReadOnly GridAltRow As Color = Color.FromArgb(248, 250, 252)
     Public Shared ReadOnly InputFocus As Color = Color.FromArgb(239, 246, 255)
 
-    Public Shared ReadOnly BaseFont As New Font("Segoe UI", 10.0F)
-    Public Shared ReadOnly SmallFont As New Font("Segoe UI", 9.0F)
-    Public Shared ReadOnly HeaderFont As New Font("Segoe UI Semibold", 10.0F)
-    Public Shared ReadOnly TitleFont As New Font("Segoe UI Semibold", 14.0F)
+    Public Shared ReadOnly BaseFont As New Font("Ubuntu", 10.0F)
+    Public Shared ReadOnly SmallFont As New Font("Ubuntu", 9.0F)
+    Public Shared ReadOnly HeaderFont As New Font("Ubuntu", 10.0F)
+    Public Shared ReadOnly TitleFont As New Font("Ubuntu", 14.0F)
 End Class

@@ -99,9 +99,7 @@ Friend NotInheritable Class MatrixSpec
         Add(grants, role, ModuleKey.Statutory, View, Create, Edit, Export)
         Add(grants, role, ModuleKey.Reports, View, Export)
         Add(grants, role, ModuleKey.Biometric, View, Create, Edit)
-        Add(grants, role, ModuleKey.Assets, View, Create, Edit)
-        Add(grants, role, ModuleKey.Expenses, View, Create, Edit, Export)
-        Add(grants, role, ModuleKey.Security, View, Create)
+        Add(grants, role, ModuleKey.Security, View, Create, Edit)
     End Sub
 
     ''' <summary>Operator: data entry only.</summary>
@@ -110,7 +108,6 @@ Friend NotInheritable Class MatrixSpec
         Add(grants, role, ModuleKey.Masters, View)
         Add(grants, role, ModuleKey.Employees, View, Create, Edit)
         Add(grants, role, ModuleKey.Attendance, View, Create, Edit)
-        Add(grants, role, ModuleKey.Assets, View)
         Add(grants, role, ModuleKey.Expenses, View, Create)
     End Sub
 End Class

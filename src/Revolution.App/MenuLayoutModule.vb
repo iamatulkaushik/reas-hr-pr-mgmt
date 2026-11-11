@@ -180,7 +180,7 @@ Public NotInheritable Class MenuLayoutModule
         AddPlanned("reports.detailed.careerhistory", DetailedGroup, "Career History", ModuleKey.Reports, PlanFeature.Employees, 740)
         AddPlanned("reports.detailed.loans", DetailedGroup, "Loans and Advances", ModuleKey.Reports, PlanFeature.Loans, 750)
         AddPlanned("reports.detailed.fnf", DetailedGroup, "F&F", ModuleKey.Reports, PlanFeature.FullAndFinal, 760)
-        AddPlanned("reports.detailed.assets", DetailedGroup, "Assets and Recoveries", ModuleKey.Reports, PlanFeature.AssetsAndExpenses, 770)
+        AddPlanned("reports.detailed.assets", DetailedGroup, "Assets and Recoveries", ModuleKey.Assets, PlanFeature.AssetsAndExpenses, 770)
         AddPlanned("reports.detailed.form130168", DetailedGroup, "Form 130/168", ModuleKey.Reports, PlanFeature.Form16And24Q, 780)
     End Sub
 
