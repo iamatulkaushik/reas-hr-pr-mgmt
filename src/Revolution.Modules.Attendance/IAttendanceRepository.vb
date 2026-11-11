@@ -7,6 +7,9 @@ Public Interface IAttendanceRepository
 
     Sub SaveDay(employeeId As Integer, record As DayRecord, shiftId As Integer?, workedMinutes As Integer, userId As Integer?)
 
+    ''' <summary>Removes one marked day. Refused for a closed month.</summary>
+    Sub DeleteDay(employeeId As Integer, day As Date, userId As Integer?)
+
     Sub CloseMonth(monthKey As Integer, userId As Integer?)
 
     ''' <summary>Unlocks the month and writes the history row in one transaction.</summary>

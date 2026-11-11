@@ -59,6 +59,15 @@ Public NotInheritable Class SqlAttendanceRepository
                 End Sub)
     End Sub
 
+    Public Sub DeleteDay(employeeId As Integer, day As Date, userId As Integer?) Implements IAttendanceRepository.DeleteDay
+        Execute("att.usp_Attendance_Delete",
+                Sub(cmd)
+                    cmd.Parameters.Add("@EmployeeID", SqlDbType.Int).Value = employeeId
+                    cmd.Parameters.Add("@WorkDate", SqlDbType.Date).Value = day.Date
+                    cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = StoredProcedure.DbValue(userId)
+                End Sub)
+    End Sub
+
     Public Sub CloseMonth(monthKey As Integer, userId As Integer?) Implements IAttendanceRepository.CloseMonth
         Execute("att.usp_Month_Close",
                 Sub(cmd)

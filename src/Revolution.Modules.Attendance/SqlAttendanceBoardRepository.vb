@@ -54,6 +54,24 @@ Public NotInheritable Class SqlAttendanceBoardRepository
         Return rows
     End Function
 
+    Public Function ListEmployeeMonth(employeeId As Integer, year As Integer, month As Integer) As IReadOnlyList(Of EmployeeDayRow) Implements IAttendanceBoardRepository.ListEmployeeMonth
+        Dim rows As New List(Of EmployeeDayRow)()
+        Using conn = _factory.Open()
+            Using cmd = StoredProcedure.CreateCommand(conn, "att.usp_Attendance_ListMonthRows")
+                cmd.Parameters.Add("@EmployeeID", SqlDbType.Int).Value = employeeId
+                cmd.Parameters.Add("@Year", SqlDbType.Int).Value = year
+                cmd.Parameters.Add("@Month", SqlDbType.Int).Value = month
+                Using reader = cmd.ExecuteReader()
+                    While reader.Read()
+                        rows.Add(New EmployeeDayRow(reader.GetDateTime(0), CType(CInt(reader.GetByte(1)), AttendanceStatus),
+                                                    StoredProcedure.ReadNullableInt(reader, "ShiftID"), CInt(reader.GetInt16(3)), CInt(reader.GetInt16(4))))
+                    End While
+                End Using
+            End Using
+        End Using
+        Return rows
+    End Function
+
     Public Function ListMonthEvents(monthKey As Integer) As IReadOnlyList(Of MonthLockEntry) Implements IAttendanceBoardRepository.ListMonthEvents
         Dim rows As New List(Of MonthLockEntry)()
         Using conn = _factory.Open()

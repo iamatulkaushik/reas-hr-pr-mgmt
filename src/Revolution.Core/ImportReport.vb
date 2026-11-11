@@ -36,6 +36,7 @@ Public NotInheritable Class ImportReport
             Return _results.Where(Function(r) r.Outcome = ImportOutcome.Rejected).Count()
         End Get
     End Property
+
     ''' <summary>One sentence for the status line, for example "12 rows: 10 saved, 2 rejected."</summary>
     Public Function Summary() As String
         Dim parts As New List(Of String)()

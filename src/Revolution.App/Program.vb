@@ -56,7 +56,7 @@ Public Module Program
         Dim employees = EmployeesModule.Compose(services.Host)
         Dim sources As New List(Of IShellModule) From {
             New EmployeesShellModule(employees, services.Permissions),
-            New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions),
+            New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions, New ExcelTableImporter(), services.Host.Exporter, services.Session),
             New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions),
             New ArrearsShellModule(ArrearsModule.Compose(services.Host, employees.Export))}
         Dim layout As New MenuLayoutModule(sources)

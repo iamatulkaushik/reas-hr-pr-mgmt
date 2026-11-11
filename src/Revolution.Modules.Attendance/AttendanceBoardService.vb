@@ -103,6 +103,74 @@ Public NotInheritable Class AttendanceBoardService
         Return OperationResult(Of Integer).Fail($"{saved} saved, {errors.Count} not saved:{Environment.NewLine}{shown}")
     End Function
 
+    ''' <summary>Deletes the marked day of each chosen employee on one day. Returns how many were deleted. Needs the Delete permission.</summary>
+    Public Function DeleteDays(day As Date, employeeIds As IEnumerable(Of Integer)) As OperationResult(Of Integer)
+        If employeeIds Is Nothing Then Throw New ArgumentNullException(NameOf(employeeIds))
+        If Not _permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Delete) Then
+            Return OperationResult(Of Integer).Fail(NotAllowed)
+        End If
+        Dim ids = employeeIds.Distinct().ToList()
+        If ids.Count = 0 Then Return OperationResult(Of Integer).Fail("Tick at least one day to delete.")
+        Dim codes = _board.ListDay(day.Date).GroupBy(Function(r) r.EmployeeId).ToDictionary(Function(g) g.Key, Function(g) g.First().EmpCode)
+        Dim errors As New List(Of String)()
+        Dim deleted As Integer = 0
+        For Each id In ids
+            Dim result = _attendance.DeleteDay(id, day.Date)
+            If result.Succeeded Then
+                deleted += 1
+            Else
+                Dim code As String = Nothing
+                If Not codes.TryGetValue(id, code) Then code = "?"
+                errors.Add($"{code}: {result.Message}")
+            End If
+        Next
+        If errors.Count = 0 Then Return OperationResult(Of Integer).Ok(deleted)
+        Dim shown = String.Join(Environment.NewLine, errors.Take(MaxErrorsShown))
+        If errors.Count > MaxErrorsShown Then shown &= Environment.NewLine & $"...and {errors.Count - MaxErrorsShown} more."
+        Return OperationResult(Of Integer).Fail($"{deleted} deleted, {errors.Count} not deleted:{Environment.NewLine}{shown}")
+    End Function
+
+    ''' <summary>One employee's marked days in a month, with shift and worked minutes.</summary>
+    Public Function LoadEmployeeMonth(employeeId As Integer, year As Integer, month As Integer) As OperationResult(Of IReadOnlyList(Of EmployeeDayRow))
+        If Not _permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.View) Then
+            Return OperationResult(Of IReadOnlyList(Of EmployeeDayRow)).Fail(NotAllowed)
+        End If
+        If employeeId <= 0 Then Return OperationResult(Of IReadOnlyList(Of EmployeeDayRow)).Fail("Pick an employee.")
+        If month < 1 OrElse month > 12 OrElse year < 1 OrElse year > 9999 Then
+            Return OperationResult(Of IReadOnlyList(Of EmployeeDayRow)).Fail("Month or year is not valid.")
+        End If
+        Return OperationResult(Of IReadOnlyList(Of EmployeeDayRow)).Ok(_board.ListEmployeeMonth(employeeId, year, month))
+    End Function
+
+    ''' <summary>Saves the given days of one employee, keeping each day's shift and worked minutes. Stops listing after a few errors.</summary>
+    Public Function SaveEmployeeMonth(employeeId As Integer, rows As IEnumerable(Of EmployeeDayRow)) As OperationResult
+        If rows Is Nothing Then Throw New ArgumentNullException(NameOf(rows))
+        Dim errors As New List(Of String)()
+        Dim saved As Integer = 0
+        For Each row In rows
+            Dim result = _attendance.MarkDay(employeeId, row.Day, row.Status, row.WorkedMinutes, row.OvertimeMinutes, row.ShiftId)
+            If result.Succeeded Then
+                saved += 1
+            Else
+                errors.Add($"{row.Day.ToString(DateFormat, CultureInfo.InvariantCulture)}: {result.Message}")
+            End If
+        Next
+        If errors.Count = 0 Then Return OperationResult.Ok()
+        Dim shown = String.Join(Environment.NewLine, errors.Take(MaxErrorsShown))
+        If errors.Count > MaxErrorsShown Then shown &= Environment.NewLine & $"...and {errors.Count - MaxErrorsShown} more."
+        Return OperationResult.Fail($"{saved} saved, {errors.Count} not saved:{Environment.NewLine}{shown}")
+    End Function
+
+    ''' <summary>The row handler for the Multiple and Import list (ADR 0025).</summary>
+    Public Function CreateBulkHandler() As IBulkRowHandler
+        Return New AttendanceBulkHandler(_board, _attendance, _permissions, _today)
+    End Function
+
+    ''' <summary>The columns of the Multiple and Import list.</summary>
+    Public Shared Function BulkTemplate() As ImportTemplate
+        Return AttendanceBulkTemplate.Create()
+    End Function
+
     Public Function LoadCloseSheet(year As Integer, month As Integer) As OperationResult(Of CloseSheet)
         If Not _permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.View) Then
             Return OperationResult(Of CloseSheet).Fail(NotAllowed)

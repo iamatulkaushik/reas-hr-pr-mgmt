@@ -32,6 +32,10 @@ Public NotInheritable Class MenuLayoutModule
     Private Const DesignationScreen As String = "masters.designation"
     Private Const DailyAttendanceScreen As String = "attendance.daily"
     Private Const MultipleAttendanceScreen As String = "attendance.multiple"
+    Private Const BulkMultipleScreen As String = "attendance.bulk.multiple"
+    Private Const BulkImportScreen As String = "attendance.bulk.import"
+    Private Const DeleteAttendanceScreen As String = "attendance.deleteday"
+    Private Const MonthViewScreen As String = "attendance.monthview"
     Private Const MonthCloseScreen As String = "attendance.monthclose"
     Private Const ShiftScreen As String = "attendance.roster.shifts"
     Private Const HolidayScreen As String = "attendance.roster.holidays"
@@ -107,11 +111,13 @@ Public NotInheritable Class MenuLayoutModule
     Private Sub AddAttendance()
         Dim feature As PlanFeature? = PlanFeature.Attendance
         AddScreen("attendance.insert.single", InsertAttendanceGroup, "Single", ModuleKey.Attendance, feature, 300, DailyAttendanceScreen)
-        AddScreen("attendance.insert.multiple", InsertAttendanceGroup, "Multiple", ModuleKey.Attendance, feature, 310, MultipleAttendanceScreen)
-        AddPlanned("attendance.insert.import", InsertAttendanceGroup, "Import", ModuleKey.Attendance, feature, 320)
+        AddScreen("attendance.insert.multiple", InsertAttendanceGroup, "Multiple", ModuleKey.Attendance, feature, 310, BulkMultipleScreen)
+        AddScreen("attendance.insert.range", InsertAttendanceGroup, "Range", ModuleKey.Attendance, feature, 315, MultipleAttendanceScreen)
+        AddScreen("attendance.insert.import", InsertAttendanceGroup, "Import", ModuleKey.Attendance, feature, 320, BulkImportScreen)
         AddScreen("attendance.update", AttendanceGroup, "Update", ModuleKey.Attendance, feature, 330, DailyAttendanceScreen)
         ' Delete is for the Associate only, and only before the month is locked: the permission and the lock check come with the screen.
-        AddPlanned("attendance.delete", AttendanceGroup, "Delete", ModuleKey.Attendance, feature, 335)
+        AddScreen("attendance.delete", AttendanceGroup, "Delete", ModuleKey.Attendance, feature, 335, DeleteAttendanceScreen)
+        AddScreen("attendance.monthview", AttendanceGroup, "Month view", ModuleKey.Attendance, feature, 337, MonthViewScreen)
         ' Not in the agreed list, kept because payroll needs the month lock.
         AddScreen("attendance.monthclose", AttendanceGroup, "Month close", ModuleKey.Attendance, feature, 340, MonthCloseScreen)
         ' Not in the agreed list either: the screens exist and the roster needs them (weekly off days, and who works which shift).

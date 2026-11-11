@@ -68,6 +68,12 @@ Friend NotInheritable Class FakeBoardRepository
         Return Me.Month
     End Function
 
+    Public ReadOnly EmployeeMonth As New List(Of EmployeeDayRow)()
+
+    Public Function ListEmployeeMonth(employeeId As Integer, year As Integer, month As Integer) As IReadOnlyList(Of EmployeeDayRow) Implements IAttendanceBoardRepository.ListEmployeeMonth
+        Return EmployeeMonth
+    End Function
+
     Public Function ListMonthEvents(monthKey As Integer) As IReadOnlyList(Of MonthLockEntry) Implements IAttendanceBoardRepository.ListMonthEvents
         Return New List(Of MonthLockEntry)()
     End Function

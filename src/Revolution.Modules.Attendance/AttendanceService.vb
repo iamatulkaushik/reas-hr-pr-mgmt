@@ -55,6 +55,26 @@ Public NotInheritable Class AttendanceService
                                             $"Status {status}; worked {workedMinutes} min; overtime {overtimeMinutes} min"))
     End Function
 
+    ''' <summary>Deletes one marked day. Needs the Delete permission; refused for a closed month.</summary>
+    Public Function DeleteDay(employeeId As Integer, day As Date) As OperationResult
+        If Not _permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Delete) Then
+            Return OperationResult.Fail(NotAllowed)
+        End If
+        If employeeId <= 0 Then
+            Return OperationResult.Fail("Pick an employee.")
+        End If
+        Try
+            If MonthLockPolicy.IsLocked(day, _repository.ListLockedMonths()) Then
+                Return OperationResult.Fail("The month is closed.")
+            End If
+            _repository.DeleteDay(employeeId, day, CurrentUserId())
+        Catch ex As AttendanceRuleException
+            Return OperationResult.Fail(ex.Message)
+        End Try
+        Return _audit.Record(New AuditEntry(ModuleKey.Attendance, "DeleteDay", "AttendanceDaily",
+                                            $"{employeeId.ToString(CultureInfo.InvariantCulture)}:{day.ToString(DateFormat, CultureInfo.InvariantCulture)}", "Day deleted"))
+    End Function
+
     ''' <summary>Month summary for one employee, built from the marked days.</summary>
     Public Function LoadMonth(employeeId As Integer, year As Integer, month As Integer) As OperationResult(Of MonthSummary)
         If Not _permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.View) Then

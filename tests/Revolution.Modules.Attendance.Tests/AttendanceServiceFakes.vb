@@ -25,6 +25,13 @@ Friend NotInheritable Class FakeAttendanceRepository
         Saved.Add(record)
     End Sub
 
+    Public ReadOnly Deleted As New List(Of Date)()
+
+    Public Sub DeleteDay(employeeId As Integer, day As Date, userId As Integer?) Implements IAttendanceRepository.DeleteDay
+        ThrowIfFailing()
+        Deleted.Add(day)
+    End Sub
+
     Public Sub CloseMonth(monthKey As Integer, userId As Integer?) Implements IAttendanceRepository.CloseMonth
         ThrowIfFailing()
         ClosedKey = monthKey
