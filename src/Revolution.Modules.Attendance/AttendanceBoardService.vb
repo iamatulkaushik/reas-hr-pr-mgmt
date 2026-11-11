@@ -5,6 +5,8 @@ Imports Revolution.Core
 Public NotInheritable Class AttendanceBoardService
     Private Const NotAllowed As String = "You are not allowed to do this."
     Private Const MaxErrorsShown As Integer = 5
+    Private Const MaxRangeDays As Integer = 31
+    Private Const DateFormat As String = "dd-MM-yyyy"
 
     Private ReadOnly _board As IAttendanceBoardRepository
     Private ReadOnly _attendance As AttendanceService
@@ -50,6 +52,55 @@ Public NotInheritable Class AttendanceBoardService
         Dim shown = String.Join(Environment.NewLine, errors.Take(MaxErrorsShown))
         If errors.Count > MaxErrorsShown Then shown &= Environment.NewLine & $"...and {errors.Count - MaxErrorsShown} more."
         Return OperationResult.Fail($"{saved} saved, {errors.Count} not saved:{Environment.NewLine}{shown}")
+    End Function
+
+    ''' <summary>
+    ''' Marks the same status for several employees over a date range (at most 31 days). Employees not on the roll that day are skipped.
+    ''' A day that is already marked stays as it is unless overwrite is set; an overwritten day keeps its shift and worked minutes.
+    ''' Returns the number of days saved. A closed month is refused once per month, not once per employee.
+    ''' </summary>
+    Public Function MarkMultiple(fromDay As Date, toDay As Date, employeeIds As IEnumerable(Of Integer), status As AttendanceStatus,
+                                 overtimeMinutes As Integer, overwrite As Boolean) As OperationResult(Of Integer)
+        If employeeIds Is Nothing Then Throw New ArgumentNullException(NameOf(employeeIds))
+        If Not _permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit) Then
+            Return OperationResult(Of Integer).Fail(NotAllowed)
+        End If
+        Dim ids = employeeIds.Distinct().ToList()
+        If ids.Count = 0 Then Return OperationResult(Of Integer).Fail("Select at least one employee.")
+        If fromDay.Date > toDay.Date Then Return OperationResult(Of Integer).Fail("From date is after To date.")
+        If toDay.Date > _today().Date Then Return OperationResult(Of Integer).Fail("You cannot mark a future day.")
+        Dim span = (toDay.Date - fromDay.Date).Days
+        If span >= MaxRangeDays Then Return OperationResult(Of Integer).Fail($"Pick at most {MaxRangeDays} days.")
+
+        Dim locked = _repository.ListLockedMonths()
+        Dim refused As New HashSet(Of Integer)()
+        Dim errors As New List(Of String)()
+        Dim saved As Integer = 0
+        For offset As Integer = 0 To span
+            Dim day = fromDay.Date.AddDays(offset)
+            If MonthLockPolicy.IsLocked(day, locked) Then
+                If refused.Add(MonthLockPolicy.KeyOf(day)) Then errors.Add($"{day.ToString("MM-yyyy", CultureInfo.InvariantCulture)}: The month is closed.")
+                Continue For
+            End If
+            Dim roll = _board.ListDay(day).GroupBy(Function(r) r.EmployeeId).ToDictionary(Function(g) g.Key, Function(g) g.First())
+            For Each id In ids
+                Dim row As AttendanceSheetRow = Nothing
+                If Not roll.TryGetValue(id, row) Then Continue For
+                If row.Status.HasValue AndAlso Not overwrite Then Continue For
+                Dim shiftId As Integer? = If(row.Status.HasValue, row.ShiftId, CType(Nothing, Integer?))
+                Dim worked As Integer = If(row.Status.HasValue, row.WorkedMinutes, 0)
+                Dim result = _attendance.MarkDay(id, day, status, worked, overtimeMinutes, shiftId)
+                If result.Succeeded Then
+                    saved += 1
+                Else
+                    errors.Add($"{row.EmpCode} {day.ToString(DateFormat, CultureInfo.InvariantCulture)}: {result.Message}")
+                End If
+            Next
+        Next
+        If errors.Count = 0 Then Return OperationResult(Of Integer).Ok(saved)
+        Dim shown = String.Join(Environment.NewLine, errors.Take(MaxErrorsShown))
+        If errors.Count > MaxErrorsShown Then shown &= Environment.NewLine & $"...and {errors.Count - MaxErrorsShown} more."
+        Return OperationResult(Of Integer).Fail($"{saved} saved, {errors.Count} not saved:{Environment.NewLine}{shown}")
     End Function
 
     Public Function LoadCloseSheet(year As Integer, month As Integer) As OperationResult(Of CloseSheet)

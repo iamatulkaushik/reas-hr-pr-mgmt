@@ -26,6 +26,7 @@ Friend Module MenuIconMap
         {"Attendance", AppIcon.Attendance},
         {"Attendance|Insert", AppIcon.Add},
         {"attendance.insert.single", AppIcon.Present},
+        {"attendance.insert.multiple", AppIcon.Present},
         {"attendance.update", AppIcon.Edit},
         {"attendance.monthclose", AppIcon.Lock},
         {"attendance.weeklyoff", AppIcon.Calendar},

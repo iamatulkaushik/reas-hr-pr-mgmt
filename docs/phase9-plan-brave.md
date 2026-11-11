@@ -18,14 +18,14 @@ The plan text says nothing more about what these two modules do. The design belo
 - Export for the Associate: approved and paid claims by month.
 
 ## Questions for the Owner
-1. Assets: what is issued (laptop, mobile, tools, uniform, safety items, ID card)? Do you track the purchase value of each item?
-2. When an item is lost or damaged, is the recovery the full value, a depreciated value, or an amount the Owner types each time?
-3. Should unreturned assets stop the full and final settlement or only appear on it as a deduction?
-4. Expenses: do employees claim themselves from their own login, or does the Associate enter claims on their behalf?
-5. Who approves: the Owner only, or the Associate first and the Owner after?
-6. Are claims reimbursed through the payroll run as a non-taxable payslip line, or paid separately in cash or by bank?
-7. Are bills or receipts to be attached (this needs a place to keep files) or only noted by number?
-8. Are there limits per category, per claim or per month?
+1. Assets: what is issued (laptop, mobile, tools, uniform, safety items, ID card)? Do you track the purchase value of each item? No
+2. When an item is lost or damaged, is the recovery the full value, a depreciated value, or an amount the Owner types each time? Depraciated Value
+3. Should unreturned assets stop the full and final settlement or only appear on it as a deduction? Yes Stop Full and Final Settlment
+4. Expenses: do employees claim themselves from their own login, or does the Associate enter claims on their behalf? Operator Enter on their Behalf
+5. Who approves: the Owner only, or the Associate first and the Owner after? Owner Only
+6. Are claims reimbursed through the payroll run as a non-taxable payslip line, or paid separately in cash or by bank? Paid Separately in cash or bank
+7. Are bills or receipts to be attached (this needs a place to keep files) or only noted by number? noted by number and details in remarks
+8. Are there limits per category, per claim or per month? no
 
 ## Steps once answered
 | Step | What |

@@ -7,6 +7,7 @@ Public NotInheritable Class AttendanceShellModule
 
     Private Const AttendanceGroup As String = "Attendance"
     Private Const DailySort As Integer = 10
+    Private Const MultipleSort As Integer = 15
     Private Const MonthCloseSort As Integer = 20
     Private Const ShiftSort As Integer = 50
     Private Const HolidaySort As Integer = 60
@@ -21,6 +22,8 @@ Public NotInheritable Class AttendanceShellModule
         _items = New List(Of ShellItem) From {
             New ShellItem(New MenuEntry("attendance.daily", AttendanceGroup, "Daily attendance", ModuleKey.Attendance, PlanFeature.Attendance, DailySort),
                           Function() CType(New DailyAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form)),
+            New ShellItem(New MenuEntry("attendance.multiple", AttendanceGroup, "Multiple attendance", ModuleKey.Attendance, PlanFeature.Attendance, MultipleSort),
+                          Function() CType(New MultipleAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form)),
             New ShellItem(New MenuEntry("attendance.monthclose", AttendanceGroup, "Month close", ModuleKey.Attendance, PlanFeature.Attendance, MonthCloseSort),
                           Function() CType(New MonthCloseForm(services,
                                                               permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Approve),

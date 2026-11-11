@@ -21,22 +21,21 @@ Public NotInheritable Class ImportReport
 
     Public ReadOnly Property ValidCount As Integer
         Get
-            Return _results.Count(Function(r) r.Outcome = ImportOutcome.Valid)
+            Return _results.Where(Function(r) r.Outcome = ImportOutcome.Valid).Count()
         End Get
     End Property
 
     Public ReadOnly Property SavedCount As Integer
         Get
-            Return _results.Count(Function(r) r.Outcome = ImportOutcome.Saved)
+            Return _results.Where(Function(r) r.Outcome = ImportOutcome.Saved).Count()
         End Get
     End Property
 
     Public ReadOnly Property RejectedCount As Integer
         Get
-            Return _results.Count(Function(r) r.Outcome = ImportOutcome.Rejected)
+            Return _results.Where(Function(r) r.Outcome = ImportOutcome.Rejected).Count()
         End Get
     End Property
-
     ''' <summary>One sentence for the status line, for example "12 rows: 10 saved, 2 rejected."</summary>
     Public Function Summary() As String
         Dim parts As New List(Of String)()

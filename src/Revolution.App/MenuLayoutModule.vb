@@ -31,6 +31,7 @@ Public NotInheritable Class MenuLayoutModule
     Private Const DepartmentScreen As String = "masters.department"
     Private Const DesignationScreen As String = "masters.designation"
     Private Const DailyAttendanceScreen As String = "attendance.daily"
+    Private Const MultipleAttendanceScreen As String = "attendance.multiple"
     Private Const MonthCloseScreen As String = "attendance.monthclose"
     Private Const ShiftScreen As String = "attendance.roster.shifts"
     Private Const HolidayScreen As String = "attendance.roster.holidays"
@@ -106,7 +107,7 @@ Public NotInheritable Class MenuLayoutModule
     Private Sub AddAttendance()
         Dim feature As PlanFeature? = PlanFeature.Attendance
         AddScreen("attendance.insert.single", InsertAttendanceGroup, "Single", ModuleKey.Attendance, feature, 300, DailyAttendanceScreen)
-        AddPlanned("attendance.insert.multiple", InsertAttendanceGroup, "Multiple", ModuleKey.Attendance, feature, 310)
+        AddScreen("attendance.insert.multiple", InsertAttendanceGroup, "Multiple", ModuleKey.Attendance, feature, 310, MultipleAttendanceScreen)
         AddPlanned("attendance.insert.import", InsertAttendanceGroup, "Import", ModuleKey.Attendance, feature, 320)
         AddScreen("attendance.update", AttendanceGroup, "Update", ModuleKey.Attendance, feature, 330, DailyAttendanceScreen)
         ' Delete is for the Associate only, and only before the month is locked: the permission and the lock check come with the screen.
