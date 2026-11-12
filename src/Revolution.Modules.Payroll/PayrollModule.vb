@@ -17,7 +17,7 @@ Public NotInheritable Class PayrollModule
         Dim tdsProjection As New TdsProjectionService(host.Rates)
         Dim runRepository As New SqlPayrollRunRepository(host.Factory)
         Dim runs As New PayrollRunService(runRepository, salaryRepository, host.Rates, host.Approvals, host.Permissions, host.Entitlements, host.Audit, host.Session,
-                                          New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection, New SqlArrearsRecoveryLedger(host.Factory), New SqlRunDirectory(host.Factory))
+                                          New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection, New CompositeRecoveryLedger(New SqlArrearsRecoveryLedger(host.Factory), New SqlAssetRecoveryLedger(host.Factory)), New SqlRunDirectory(host.Factory))
         Dim bonus As New BonusRunService(New SqlBonusSource(host.Factory), runRepository, salaryRepository, host.Rates, host.Permissions, host.Entitlements, host.Audit, host.Session,
                                       New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection)
         Dim loans As New LoanService(New SqlLoanRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session)
@@ -26,7 +26,7 @@ Public NotInheritable Class PayrollModule
         Dim leave As New LeaveService(leaveRepository, host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim leaveAccrual As New LeaveAccrualService(New SqlLeaveAccrualSource(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session)
         Dim fnf As New FnfService(New SqlFnfRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session,
-                                  New SqlFnfFactsSource(host.Factory), host.Rates, leaveRepository, New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection)
+                                  New SqlFnfFactsSource(host.Factory), host.Rates, leaveRepository, New SqlRunTaxSource(host.Factory, tdsRepository), tdsProjection, New SqlFnfAssetSource(host.Factory))
         Dim repository As New SqlPayrollFileRepository(host.Factory)
         Dim releaser As New EmployeeExportReleaser(export)
         Dim source As New PayrollFileSource(repository, releaser)

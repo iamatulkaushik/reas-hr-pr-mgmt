@@ -8,6 +8,7 @@ Imports Revolution.Core
 Public NotInheritable Class FnfService
     Private Const NotAllowed As String = "You are not allowed to do this."
     Private Const NoSettlement As String = "Calculate the settlement first."
+    Private Const AssetLineText As String = "Asset recovery"
 
     Private ReadOnly _repository As IFnfRepository
     Private ReadOnly _permissions As IPermissionService
@@ -19,10 +20,11 @@ Public NotInheritable Class FnfService
     Private ReadOnly _leave As ILeaveRepository
     Private ReadOnly _tax As IRunTaxSource
     Private ReadOnly _projection As TdsProjectionService
+    Private ReadOnly _assets As IFnfAssetSource
 
     Public Sub New(repository As IFnfRepository, permissions As IPermissionService, entitlements As IEntitlementService,
                    audit As IAuditService, session As ISessionContext, Optional source As IFnfFactsSource = Nothing, Optional rates As IStatutoryRateService = Nothing,
-                   Optional leave As ILeaveRepository = Nothing, Optional tax As IRunTaxSource = Nothing, Optional projection As TdsProjectionService = Nothing)
+                   Optional leave As ILeaveRepository = Nothing, Optional tax As IRunTaxSource = Nothing, Optional projection As TdsProjectionService = Nothing, Optional assets As IFnfAssetSource = Nothing)
         If repository Is Nothing Then Throw New ArgumentNullException(NameOf(repository))
         If permissions Is Nothing Then Throw New ArgumentNullException(NameOf(permissions))
         If entitlements Is Nothing Then Throw New ArgumentNullException(NameOf(entitlements))
@@ -38,6 +40,7 @@ Public NotInheritable Class FnfService
         _leave = leave
         _tax = tax
         _projection = projection
+        _assets = assets
     End Sub
 
     ''' <summary>The settlement for a separation. Succeeds with Nothing when none is saved yet.</summary>
@@ -65,7 +68,23 @@ Public NotInheritable Class FnfService
         If Not tds.Succeeded Then Return OperationResult(Of FnfPlan).Fail(tds.Message)
         Dim planned As OperationResult(Of FnfPlan) = FnfPlanner.Plan(BuildFacts(src, choices, tds.Value, extra))
         If Not planned.Succeeded Then Return planned
-        Return OperationResult(Of FnfPlan).Ok(New FnfPlan(planned.Value.Lines, planned.Value.Totals, planned.Value.DueWindow, extra.Concat(planned.Value.Notes).ToList()))
+        Dim notes As List(Of String) = extra.Concat(planned.Value.Notes).ToList()
+        Dim lines As IReadOnlyList(Of FnfLine) = planned.Value.Lines
+        Dim totals As FnfTotals = planned.Value.Totals
+        If AssetsApply() Then
+            Dim held As FnfAssetFacts
+            Try
+                held = _assets.Load(src.EmployeeId, Nothing)
+            Catch ex As PayrollRuleException
+                Return OperationResult(Of FnfPlan).Fail(ex.Message)
+            End Try
+            If held.RecoveryTotal > 0D Then
+                lines = lines.Concat({New FnfLine(FnfComponentKind.OtherDeduction, AssetLineText, held.RecoveryTotal)}).ToList()
+                totals = FnfCalculator.Total(lines)
+            End If
+            If held.Uncleared.Count > 0 Then notes.Add($"Assets not cleared: {String.Join(", ", held.Uncleared)}. Return them or record their recovery before approving.")
+        End If
+        Return OperationResult(Of FnfPlan).Ok(New FnfPlan(lines, totals, planned.Value.DueWindow, notes))
     End Function
 
     Private Function BuildFacts(src As FnfSourceFacts, choices As FnfPrepareOptions, tdsAdjustment As Decimal, notes As List(Of String)) As FnfFacts
@@ -189,13 +208,62 @@ Public NotInheritable Class FnfService
         If target = FnfStatus.Approved AndAlso (Not userId.HasValue OrElse Not FnfTransition.CanApprove(current.MakerUserId, userId.Value)) Then
             Return OperationResult.Fail("The person who calculated the settlement cannot approve it.")
         End If
+        Dim assetsHeld As Boolean = False
+        If target = FnfStatus.Approved AndAlso AssetsApply() Then
+            Dim blocked As String = HoldAssets(current, assetsHeld)
+            If blocked.Length > 0 Then Return OperationResult.Fail(blocked)
+        End If
         Try
             _repository.ChangeStatus(current.FnfId, target)
         Catch ex As PayrollRuleException
+            If assetsHeld Then ReleaseAssets(current.FnfId)
             Return OperationResult.Fail(ex.Message)
         End Try
+        If target = FnfStatus.Calculated AndAlso _assets IsNot Nothing Then
+            Try
+                _assets.Release(current.FnfId)
+            Catch ex As PayrollRuleException
+                Return OperationResult.Fail($"The settlement was reopened, but its asset recoveries could not be released: {ex.Message}")
+            End Try
+        End If
         Return _audit.Record(New AuditEntry(ModuleKey.Payroll, auditAction, "FnfSettlement", current.FnfId.ToString(CultureInfo.InvariantCulture), String.Empty))
     End Function
+
+    Private Function AssetsApply() As Boolean
+        Return _assets IsNot Nothing AndAlso _entitlements.IsEnabled(PlanFeature.AssetsAndExpenses)
+    End Function
+
+    ''' <summary>
+    ''' Before approval: assets the employee still holds, with no recovery and not written off, block the settlement. The lines must carry exactly the open recoveries as one Asset recovery deduction;
+    ''' then the recoveries are held for this settlement. Returns the reason to refuse, or an empty text when approval may go on (held says whether recoveries were taken).</summary>
+    Private Function HoldAssets(current As FnfSettlementView, ByRef held As Boolean) As String
+        Dim facts As FnfAssetFacts
+        Try
+            facts = _assets.Load(current.EmployeeId, current.FnfId)
+        Catch ex As PayrollRuleException
+            Return ex.Message
+        End Try
+        If facts.Uncleared.Count > 0 Then Return $"Assets are not cleared: {String.Join(", ", facts.Uncleared)}. Return them or record their recovery first."
+        Dim onLines As Decimal = current.Lines.Where(Function(l) l.Kind = FnfComponentKind.OtherDeduction AndAlso l.Description = AssetLineText).Sum(Function(l) l.Amount)
+        If onLines <> facts.RecoveryTotal Then Return "The asset recoveries changed. Calculate the settlement again."
+        If facts.RecoveryTotal = 0D Then Return String.Empty
+        Try
+            _assets.Reserve(current.FnfId, current.EmployeeId, facts.RecoveryTotal)
+        Catch ex As PayrollRuleException
+            Return ex.Message
+        End Try
+        held = True
+        Return String.Empty
+    End Function
+
+    Private Sub ReleaseAssets(fnfId As Integer)
+        Dim refused As PayrollRuleException = Nothing
+        Try
+            _assets.Release(fnfId)
+        Catch ex As PayrollRuleException
+            refused = ex
+        End Try
+    End Sub
 
     Private Function CheckAccess(action As PermissionAction) As OperationResult
         If Not _entitlements.IsEnabled(PlanFeature.FullAndFinal) Then

@@ -7,6 +7,9 @@ Public NotInheritable Class AssetsModule
 
     Public Shared Function Compose(host As ModuleHost) As AssetsServices
         If host Is Nothing Then Throw New ArgumentNullException(NameOf(host))
-        Return New AssetsServices(New AssetService(New SqlAssetRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session, Function() Date.Today))
+        Dim today As Func(Of Date) = Function() Date.Today
+        Return New AssetsServices(
+            New AssetService(New SqlAssetRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session, today),
+            New AssetRecoveryService(New SqlAssetRecoveryRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, host.Session, today))
     End Function
 End Class
