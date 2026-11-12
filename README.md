@@ -38,7 +38,7 @@ One database holds all companies; row-level security keeps each company's data a
 - Aadhaar, PAN, UAN, ESI IP number, bank account and document numbers are **encrypted in the application** (AES-256-GCM) and shown masked; showing one in clear needs the Reveal permission and is logged.
 
 **Attendance**
-- Daily attendance entry and update, weekly off, shift assignment, month-close lock.
+- Month-close lock, weekly off and holidays. Daily attendance entry (shifts, shift assignment) exists today and becomes the Platinum extra; every plan gets monthly attendance, one row per employee per month with bulk import, next ([ADR 0026](docs/adr/0026-monthly-attendance.md), [`docs/phase4b-plan-sigma.md`](docs/phase4b-plan-sigma.md)).
 
 **Payroll**
 - Monthly payroll run, lock, and reopen (an Owner reopens a locked run with a written reason).
@@ -98,6 +98,7 @@ Four plans; each includes everything in the plan below it. The plan of a company
 | Dual approval (maker-checker) | - | - | - | yes |
 | Full audit trail | - | - | - | yes |
 | Assets and expenses | - | - | - | yes |
+| Daily attendance (shifts, shift assignment, range entry) | - | - | - | yes |
 | Multi-company | - | - | - | yes |
 
 **Companies per Associate:** Copper 5, Silver 15, Gold 35, Platinum 90 (enforced in the database; a licence can raise one Associate's cap, never above 500).
@@ -311,7 +312,7 @@ scripts/    guard checks
 
 ## Documentation
 - Plan and phases: [`docs/PLAN.md`](docs/PLAN.md)
-- Decisions (ADRs 0001 to 0025): [`docs/adr/`](docs/adr)
+- Decisions (ADRs 0001 to 0026): [`docs/adr/`](docs/adr)
 - Module contracts: [`docs/CONTRACT-v0.1.md`](docs/CONTRACT-v0.1.md)
 - Change requests between module and core developers: [`docs/change-requests/`](docs/change-requests)
 - Who owns what: [`docs/OWNERSHIP.md`](docs/OWNERSHIP.md)

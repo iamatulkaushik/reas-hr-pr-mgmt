@@ -17,6 +17,7 @@ CI green on a Windows runner, tests pass, the screens were actually run and scre
 | 2 | Security, roles, plans: login, lockout, forced password change, 4 roles, 4 plans, audit trail, row-level tenancy | Sigma, Brave tests | Role x plan x screen matrix passes. |
 | 3 | Masters and employees, encrypted IDs | Brave | |
 | 4 | Attendance: shifts, half/full day rules, OT and LOP, month-close lock | Brave | |
+| 4b | Monthly attendance on every plan (one row per employee per month, bulk import); daily attendance only on Platinum (ADR 0026) | Brave | |
 | 5 | Payroll core: salary structure, EPF and ESI, PT (19+ states), loans and EMI, payslip run, dual approval, payslip reports | Brave, Sigma for approval hooks | Known-answer tests verified by a CA. |
 | 6 | Tax: TDS (both regimes), declarations, Form 16 and Form 24Q (Form 130 and Form 138 under the Income-tax Act 2025) | Brave | |
 | 7 | Arrears, full and final, bank files, ECR and challans | Brave | |

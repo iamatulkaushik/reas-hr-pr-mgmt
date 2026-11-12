@@ -46,7 +46,7 @@ Friend NotInheritable Class MatrixSpec
                                 PlanFeature.Biometric, PlanFeature.ShiftOtLop})
         End If
         If plan >= PlanTier.Platinum Then
-            features.UnionWith({PlanFeature.DualApproval, PlanFeature.FullAuditTrail, PlanFeature.AssetsAndExpenses, PlanFeature.MultiCompany})
+            features.UnionWith({PlanFeature.DualApproval, PlanFeature.FullAuditTrail, PlanFeature.AssetsAndExpenses, PlanFeature.MultiCompany, PlanFeature.DailyAttendance})
         End If
         Return features
     End Function

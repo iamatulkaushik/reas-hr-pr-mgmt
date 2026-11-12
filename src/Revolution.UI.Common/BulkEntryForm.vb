@@ -25,8 +25,9 @@ Public NotInheritable Class BulkEntryForm
     Private _lastRows As IReadOnlyList(Of ImportRow)
 
     ''' <param name="startWithFile">True opens the file chooser as soon as the screen shows (the Import screen); False starts with blank rows (the Multiple screen).</param>
+    ''' <param name="initialRows">Rows to show at the start instead of blank rows, for example every employee of the company for the month with the saved values (ADR 0026).</param>
     Public Sub New(title As String, template As ImportTemplate, handler As IBulkRowHandler, importer As ITableImporter, exporter As ITableExporter,
-                   startWithFile As Boolean, signedInUserName As String)
+                   startWithFile As Boolean, signedInUserName As String, Optional initialRows As IReadOnlyList(Of ImportRow) = Nothing)
         MyBase.New(title, signedInUserName)
         If template Is Nothing Then Throw New ArgumentNullException(NameOf(template))
         If handler Is Nothing Then Throw New ArgumentNullException(NameOf(handler))
@@ -38,7 +39,9 @@ Public NotInheritable Class BulkEntryForm
         _exporter = exporter
         _startWithFile = startWithFile
         BuildLayout()
-        If Not startWithFile Then
+        If initialRows IsNot Nothing Then
+            Fill(initialRows)
+        ElseIf Not startWithFile Then
             AddBlankRows(BlankRowsToStart)
         End If
     End Sub

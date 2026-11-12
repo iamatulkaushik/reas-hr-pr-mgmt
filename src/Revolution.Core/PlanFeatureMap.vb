@@ -13,7 +13,7 @@ Public NotInheritable Class PlanFeatureMap
                  PlanFeature.Biometric, PlanFeature.ShiftOtLop
                 Return PlanTier.Gold
             Case PlanFeature.DualApproval, PlanFeature.FullAuditTrail, PlanFeature.AssetsAndExpenses,
-                 PlanFeature.MultiCompany
+                 PlanFeature.MultiCompany, PlanFeature.DailyAttendance
                 Return PlanTier.Platinum
             Case Else
                 Throw New ArgumentOutOfRangeException(NameOf(feature), feature, "Unknown plan feature.")

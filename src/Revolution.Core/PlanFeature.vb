@@ -18,4 +18,6 @@ Public Enum PlanFeature
     FullAuditTrail = 16
     AssetsAndExpenses = 17
     MultiCompany = 18
+    ''' <summary>Daily attendance (ADR 0026): attendance entered day by day, with shifts, weekly off and punches. Every plan has monthly attendance; this is the Platinum extra.</summary>
+    DailyAttendance = 19
 End Enum

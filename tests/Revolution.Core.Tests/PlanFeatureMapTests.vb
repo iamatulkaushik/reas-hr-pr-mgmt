@@ -26,6 +26,13 @@ Public Class PlanFeatureMapTests
     End Sub
 
     <Fact>
+    Public Sub DailyAttendance_IsPlatinumOnly_WhileMonthlyAttendanceIsInEveryPlan()
+        Assert.True(PlanFeatureMap.IsIncluded(PlanTier.Copper, PlanFeature.Attendance))
+        Assert.False(PlanFeatureMap.IsIncluded(PlanTier.Gold, PlanFeature.DailyAttendance))
+        Assert.True(PlanFeatureMap.IsIncluded(PlanTier.Platinum, PlanFeature.DailyAttendance))
+    End Sub
+
+    <Fact>
     Public Sub UnknownFeature_Throws()
         Assert.Throws(Of ArgumentOutOfRangeException)(Function() PlanFeatureMap.MinimumTier(CType(999, PlanFeature)))
     End Sub
