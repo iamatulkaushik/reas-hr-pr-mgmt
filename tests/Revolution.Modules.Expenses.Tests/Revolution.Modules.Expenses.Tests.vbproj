@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Revolution.Modules.Expenses.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
+      <PrivateExpenses>all</PrivateExpenses>
+      <IncludeExpenses>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeExpenses>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Revolution.Modules.Expenses\Revolution.Modules.Expenses.vbproj" />
+    <ProjectReference Include="..\..\src\Revolution.Core\Revolution.Core.vbproj" />
+  </ItemGroup>
+</Project>

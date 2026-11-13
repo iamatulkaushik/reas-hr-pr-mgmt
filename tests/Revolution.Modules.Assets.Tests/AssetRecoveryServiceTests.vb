@@ -27,8 +27,7 @@ Friend NotInheritable Class FakeAssetRecoveryRepository
     End Sub
 
     Public Function List(employeeId As Integer?, status As AssetRecoveryStatus?) As IReadOnlyList(Of AssetRecoveryItem) Implements IAssetRecoveryRepository.List
-        Return Items.Where(Function(i) (Not employeeId.HasValue OrElse i.EmployeeId = employeeId.Value) AndAlso
-                                   (Not status.HasValue OrElse i.Status = status.Value)).ToList()
+        Return Items.Where(Function(i) (Not employeeId.HasValue OrElse i.EmployeeId = employeeId) AndAlso (Not status.HasValue OrElse i.Status = status.Value)).ToList()
     End Function
 End Class
 

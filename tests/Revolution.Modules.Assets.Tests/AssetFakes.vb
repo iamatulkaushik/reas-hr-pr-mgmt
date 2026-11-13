@@ -29,9 +29,8 @@ Friend NotInheritable Class FakeAssetRepository
 
     Public Function ListAssets(status As AssetStatus?, employeeId As Integer?, heldOnly As Boolean) As IReadOnlyList(Of AssetItem) Implements IAssetRepository.ListAssets
         Return Assets.Where(Function(a) (Not status.HasValue OrElse a.Status = status.Value) AndAlso
-                                    (Not employeeId.HasValue OrElse
-                                        (a.HolderEmployeeId.HasValue AndAlso a.HolderEmployeeId.Value = employeeId.Value)) AndAlso
-                                    (Not heldOnly OrElse a.HolderEmployeeId.HasValue)).ToList()
+                                        (Not employeeId.HasValue OrElse a.HolderEmployeeId = employeeId) AndAlso
+                                        (Not heldOnly OrElse a.HolderEmployeeId.HasValue)).ToList()
     End Function
 
     Public Function AddAsset(asset As AssetWrite, userId As Integer?) As Integer Implements IAssetRepository.AddAsset

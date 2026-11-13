@@ -7,6 +7,7 @@
     <Project Path="src/Revolution.Modules.Arrears/Revolution.Modules.Arrears.vbproj" />
     <Project Path="src/Revolution.Modules.Arrears.UI/Revolution.Modules.Arrears.UI.vbproj" />
     <Project Path="src/Revolution.Modules.Assets/Revolution.Modules.Assets.vbproj" />
+    <Project Path="src/Revolution.Modules.Expenses/Revolution.Modules.Expenses.vbproj" />
     <Project Path="src/Revolution.Modules.Attendance/Revolution.Modules.Attendance.vbproj" />
     <Project Path="src/Revolution.Modules.Attendance.UI/Revolution.Modules.Attendance.UI.vbproj" />
     <Project Path="src/Revolution.Modules.Biometric/Revolution.Modules.Biometric.vbproj" />
@@ -27,6 +28,7 @@
     <Project Path="tests/Revolution.Database.Tests/Revolution.Database.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Arrears.Tests/Revolution.Modules.Arrears.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Assets.Tests/Revolution.Modules.Assets.Tests.vbproj" />
+    <Project Path="tests/Revolution.Modules.Expenses.Tests/Revolution.Modules.Expenses.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Attendance.Tests/Revolution.Modules.Attendance.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Biometric.Tests/Revolution.Modules.Biometric.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
