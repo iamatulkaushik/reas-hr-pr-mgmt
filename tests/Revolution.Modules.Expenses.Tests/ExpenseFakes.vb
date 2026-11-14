@@ -34,7 +34,7 @@ Friend NotInheritable Class FakeExpenseRepository
     End Function
 
     Public Function ListClaims(employeeId As Integer?, status As ExpenseClaimStatus?, fromDate As Date?, toDate As Date?) As IReadOnlyList(Of ExpenseClaimItem) Implements IExpenseRepository.ListClaims
-        Return Claims.Where(Function(c) (Not employeeId.HasValue OrElse c.EmployeeId = employeeId) AndAlso (Not status.HasValue OrElse c.Status = status.Value)).ToList()
+        Return Claims.Where(Function(c) (Not employeeId.HasValue OrElse c.EmployeeId = employeeId.Value) AndAlso (Not status.HasValue OrElse c.Status = status.Value)).ToList()
     End Function
 
     Public Sub Decide(claimId As Integer, approve As Boolean, reason As String, userId As Integer?) Implements IExpenseRepository.Decide
