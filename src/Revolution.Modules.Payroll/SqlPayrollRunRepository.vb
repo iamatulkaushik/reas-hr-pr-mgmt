@@ -125,8 +125,8 @@ Public NotInheritable Class SqlPayrollRunRepository
                         Dim lines As List(Of SalaryLineView) = Nothing
                         salaries.TryGetValue(r.EmployeeId, lines)
                         facts.Add(New RunEmployeeFacts(r.EmployeeId, r.FactoryId, r.EmpCode, r.IsDailyWage, r.GenderId, r.PtStateId, r.IsEpfMember,
-                                                       r.EpfOnHigherWage, r.EpsOnHigherWage, r.IsEsiMember, False, r.PaidDays, r.OvertimeHours,
-                                                       r.HoursPerDay, r.UnmarkedDays, r.CarryForwardIn, 0D, lines, installments(r.EmployeeId).ToList()))
+                                                       r.EpfOnHigherWage, r.EpsOnHigherWage, r.IsEsiMember, r.EsiStayEligible, r.PaidDays, r.OvertimeHours,
+                                                       r.HoursPerDay, r.UnmarkedDays, r.CarryForwardIn, 0D, lines, installments(r.EmployeeId).ToList(), r.EsiHigherCeiling))
                     Next
                 End Using
             End Using
@@ -209,6 +209,8 @@ Public NotInheritable Class SqlPayrollRunRepository
         Public EpfOnHigherWage As Boolean
         Public EpsOnHigherWage As Boolean
         Public IsEsiMember As Boolean
+        Public EsiHigherCeiling As Boolean
+        Public EsiStayEligible As Boolean
         Public PaidDays As Decimal
         Public OvertimeHours As Decimal
         Public HoursPerDay As Decimal?
@@ -230,6 +232,8 @@ Public NotInheritable Class SqlPayrollRunRepository
             .EpfOnHigherWage = reader.GetBoolean(reader.GetOrdinal("EpfOnHigherWage")),
             .EpsOnHigherWage = reader.GetBoolean(reader.GetOrdinal("EpsOnHigherWage")),
             .IsEsiMember = reader.GetBoolean(reader.GetOrdinal("IsEsiMember")),
+            .EsiHigherCeiling = reader.GetBoolean(reader.GetOrdinal("EsiHigherCeiling")),
+            .EsiStayEligible = reader.GetBoolean(reader.GetOrdinal("EsiStayEligible")),
             .PaidDays = reader.GetDecimal(reader.GetOrdinal("PaidDays")),
             .OvertimeHours = reader.GetDecimal(reader.GetOrdinal("OvertimeHours")),
             .HoursPerDay = If(reader.IsDBNull(hoursOrdinal), CType(Nothing, Decimal?), reader.GetDecimal(hoursOrdinal)),

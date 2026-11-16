@@ -23,6 +23,9 @@ Public NotInheritable Class StatutoryFlagsValidator
         If If(flags.PfNumber, String.Empty).Trim().Length > MaximumPfNumberLength Then
             problems.Add("PF number is too long.")
         End If
+        If flags.EsiHigherCeiling AndAlso Not flags.IsEsiMember Then
+            problems.Add("The higher ESI wage ceiling needs ESI membership.")
+        End If
         If If(flags.EsiDispensary, String.Empty).Trim().Length > MaximumDispensaryLength Then
             problems.Add("ESI dispensary name is too long.")
         End If

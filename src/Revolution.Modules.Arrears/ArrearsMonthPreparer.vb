@@ -35,7 +35,7 @@ Public NotInheritable Class ArrearsMonthPreparer
         Dim month As New Date(period.PeriodTo.Year, period.PeriodTo.Month, 1)
         Return OperationResult(Of ArrearsMonthInput).Ok(New ArrearsMonthInput(month, Breakdown(paid, codes), Breakdown(due.Value, codes), rates, dailyWage,
                                                                               dueFacts.EsiStayEligible, dueFacts.EpfOnHigherWage, dueFacts.EpsOnHigherWage,
-                                                                              dueFacts.IsEpfMember, dueFacts.IsEsiMember, ids))
+                                                                              dueFacts.IsEpfMember, dueFacts.IsEsiMember, ids, dueFacts.EsiHigherCeiling))
     End Function
 
     Private Shared Function Breakdown(line As RunLineResult, codes As Dictionary(Of Integer, String)) As WageBreakdown

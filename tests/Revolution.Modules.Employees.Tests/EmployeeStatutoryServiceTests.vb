@@ -46,6 +46,19 @@ Public Class EmployeeStatutoryServiceTests
         Assert.True(_service.SaveFlags(101, New StatutoryFlags With {.IsEpfMember = True, .HigherWageOption = True}).Succeeded)
     End Sub
 
+    <Fact>
+    Public Sub SaveFlags_HigherEsiCeilingWithoutEsiMembership_IsRefused()
+        Dim r = _service.SaveFlags(101, New StatutoryFlags With {.EsiHigherCeiling = True})
+        Assert.False(r.Succeeded)
+        Assert.Contains("ESI", r.Message)
+        Assert.Empty(_repo.Rows)
+    End Sub
+
+    <Fact>
+    Public Sub SaveFlags_HigherEsiCeilingWithEsiMembership_IsAccepted()
+        Assert.True(_service.SaveFlags(101, New StatutoryFlags With {.IsEsiMember = True, .EsiHigherCeiling = True}).Succeeded)
+    End Sub
+
     <Theory>
     <InlineData(0)>
     <InlineData(3)>

@@ -11,8 +11,8 @@ Friend NotInheritable Class StatutoryTestRates
         Return New EpfRate(Start, 12D, 3.67D, 8.33D, 0.5D, 0.5D, 0D, 15000D, 15000D, True, "test")
     End Function
 
-    Friend Shared Function Esi(Optional rounding As RateRounding = RateRounding.Up, Optional dailyExemption As Decimal = 0D) As EsiRate
-        Return New EsiRate(Start, 0.75D, 3.25D, 21000D, dailyExemption, rounding, True, "test")
+    Friend Shared Function Esi(Optional rounding As RateRounding = RateRounding.Up, Optional dailyExemption As Decimal = 0D, Optional disabledCeiling As Decimal? = Nothing) As EsiRate
+        Return New EsiRate(Start, 0.75D, 3.25D, 21000D, dailyExemption, rounding, True, "test", disabledCeiling)
     End Function
 
     Friend Shared Function CodeWage(Optional floorPct As Decimal = 50D) As WageRule

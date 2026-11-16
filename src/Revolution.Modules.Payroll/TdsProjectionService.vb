@@ -77,7 +77,7 @@ Public NotInheritable Class TdsProjectionService
 
     Private Shared Function RentFor(rents As IReadOnlyList(Of TdsRentView), monthKey As Integer) As TdsRentView
         For Each rent As TdsRentView In rents
-            If monthKey >= rent.FromMonthKey AndAlso monthKey <= rent.ToMonthKey Then Return rent
+            If monthKey >= rent.FromMonthKey AndAlso monthKey <= rent.ToMonthKey Then Return If(rent.ExemptionAllowed, rent, Nothing)
         Next
         Return Nothing
     End Function

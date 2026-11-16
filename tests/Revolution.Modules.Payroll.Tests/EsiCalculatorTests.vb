@@ -60,6 +60,39 @@ Public Class EsiCalculatorTests
         Assert.False(EsiCalculator.Calculate(0D, 0D, StatutoryTestRates.Esi(), True).Eligible)
     End Sub
 
+    ''' <summary>CR 0030: the ESI ceiling for a person with a disability is 25,000 (ESIC coverage page). Known answer C06 in known_answer_cases_2026-27.xlsx.</summary>
+    <Fact>
+    Public Sub HigherCeiling_Flagged_24000_IsEligible()
+        Dim r As EsiResult = EsiCalculator.Calculate(24000D, 800D, StatutoryTestRates.Esi(RateRounding.Up, 0D, 25000D), False, True)
+        Assert.True(r.Eligible)
+        Assert.Equal(180D, r.EmployeeShare)
+        Assert.Equal(780D, r.EmployerShare)
+    End Sub
+
+    <Fact>
+    Public Sub HigherCeiling_Flagged_AtAndAboveLimit()
+        Dim rate As EsiRate = StatutoryTestRates.Esi(RateRounding.Up, 0D, 25000D)
+        Assert.True(EsiCalculator.Calculate(25000D, 800D, rate, False, True).Eligible)
+        Assert.False(EsiCalculator.Calculate(25001D, 800D, rate, False, True).Eligible)
+    End Sub
+
+    <Fact>
+    Public Sub HigherCeiling_NotFlagged_24000_IsNotEligible()
+        Assert.False(EsiCalculator.Calculate(24000D, 800D, StatutoryTestRates.Esi(RateRounding.Up, 0D, 25000D), False, False).Eligible)
+    End Sub
+
+    <Fact>
+    Public Sub HigherCeiling_FlaggedAndStayEligible_AboveLimit_StaysIn()
+        Assert.True(EsiCalculator.Calculate(26000D, 800D, StatutoryTestRates.Esi(RateRounding.Up, 0D, 25000D), True, True).Eligible)
+    End Sub
+
+    <Fact>
+    Public Sub HigherCeiling_RowWithoutDisabledCeiling_UsesNormalCeiling()
+        Dim rate As EsiRate = StatutoryTestRates.Esi()
+        Assert.True(EsiCalculator.Calculate(21000D, 700D, rate, False, True).Eligible)
+        Assert.False(EsiCalculator.Calculate(21001D, 700D, rate, False, True).Eligible)
+    End Sub
+
     <Fact>
     Public Sub NullRate_Throws()
         Assert.Throws(Of ArgumentNullException)(Function() EsiCalculator.Calculate(1D, 1D, Nothing, False))

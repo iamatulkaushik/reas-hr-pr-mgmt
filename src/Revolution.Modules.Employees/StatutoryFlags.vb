@@ -10,6 +10,8 @@ Public NotInheritable Class StatutoryFlags
     Public Property HigherWageOption As Boolean
     Public Property IsEsiMember As Boolean
     Public Property EsiDispensary As String = String.Empty
+    ''' <summary>The ESI wage ceiling for a person with a disability applies (CR 0030). A flag only: no certificate or disability detail is kept.</summary>
+    Public Property EsiHigherCeiling As Boolean
     Public Property PtApplicable As Boolean = True
     Public Property LwfApplicable As Boolean = True
     ''' <summary>1 old regime, 2 new regime.</summary>

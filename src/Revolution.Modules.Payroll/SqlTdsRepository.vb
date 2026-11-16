@@ -101,7 +101,7 @@ Public NotInheritable Class SqlTdsRepository
                                                   reader.GetInt32(reader.GetOrdinal("ToMonthKey")), reader.GetDecimal(reader.GetOrdinal("MonthlyRent")),
                                                   reader.GetString(reader.GetOrdinal("City")), reader.GetString(reader.GetOrdinal("LandlordName")),
                                                   reader.GetString(reader.GetOrdinal("LandlordRelationship")), ReadText(reader, "LandlordAddress"),
-                                                  ReadText(reader, "LandlordPanLast4")))
+                                                  ReadText(reader, "LandlordPanLast4"), CType(reader.GetByte(reader.GetOrdinal("PanOption")), TdsLandlordPanOption)))
                     End While
                 End Using
             End Using
@@ -116,7 +116,7 @@ Public NotInheritable Class SqlTdsRepository
                                .City = write.Rent.City, .Landlord = write.Rent.LandlordName, .Relationship = write.Rent.LandlordRelationship,
                                .Address = write.Rent.LandlordAddress,
                                .PanEnc = If(write.PanEnc Is Nothing, Nothing, Convert.ToBase64String(write.PanEnc)),
-                               .PanLast4 = write.PanLast4, .KeyVersion = CInt(write.KeyVersion)})
+                               .PanLast4 = write.PanLast4, .KeyVersion = CInt(write.KeyVersion), .PanOption = CInt(write.Rent.PanOption)})
         Next
         Dim json As String = JsonSerializer.Serialize(rows)
         Execute("pay.usp_TdsHraRent_Replace",

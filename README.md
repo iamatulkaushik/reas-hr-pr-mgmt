@@ -226,6 +226,7 @@ Roadmap by phase (full gates in [`docs/PLAN.md`](docs/PLAN.md)). "Implemented" m
 | 5 | Payroll core, maker-checker, payslips | Implemented |
 | 6 | Tax: TDS both regimes, declarations; Form 16 and Form 24Q (Form 130 and Form 138 under the Income-tax Act 2025) | TDS implemented, Form 16 and Form 24Q planned |
 | 7 | Arrears, full and final, bank files, ECR and challans | Implemented (ECR, ESIC sheet, bank file), challans and some forms planned |
+| 7b | Monthly Pack: the month's EPF, ESIC, professional tax, TDS and labour welfare in one screen, with due dates, one-click files and filing records; then one overview of all the Associate's companies ([ADR 0027](docs/adr/0027-monthly-pack.md)) | Planned |
 | 8 | Biometric and RFID punches | **Special build per customer**, not in the standard product ([ADR 0021](docs/adr/0021-biometric-is-a-special-build.md)): built once a customer gives the device make, model and support type |
 | 9 | Assets and expenses, plus the ReportStudio checks on real data | Planned |
 | 10 | Hardening: installer, licence enforcement, SQL Agent backups, security review, pilot month | Planned |
@@ -312,7 +313,7 @@ scripts/    guard checks
 
 ## Documentation
 - Plan and phases: [`docs/PLAN.md`](docs/PLAN.md)
-- Decisions (ADRs 0001 to 0026): [`docs/adr/`](docs/adr)
+- Decisions (ADRs 0001 to 0027): [`docs/adr/`](docs/adr)
 - Module contracts: [`docs/CONTRACT-v0.1.md`](docs/CONTRACT-v0.1.md)
 - Change requests between module and core developers: [`docs/change-requests/`](docs/change-requests)
 - Who owns what: [`docs/OWNERSHIP.md`](docs/OWNERSHIP.md)

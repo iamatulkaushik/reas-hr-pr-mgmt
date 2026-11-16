@@ -74,6 +74,13 @@ Public NotInheritable Class TdsDeclarationValidator
         If Not String.IsNullOrWhiteSpace(rent.LandlordPan) AndAlso Not PanValidator.IsValid(rent.LandlordPan) Then
             Return OperationResult.Fail("The landlord PAN is not valid.")
         End If
+        If Not [Enum].IsDefined(GetType(TdsLandlordPanOption), rent.PanOption) Then Return OperationResult.Fail("The landlord PAN option is not valid.")
+        If Not String.IsNullOrWhiteSpace(rent.LandlordPan) AndAlso rent.PanOption <> TdsLandlordPanOption.PanGiven Then
+            Return OperationResult.Fail("A rent row with a landlord PAN cannot also use a no-PAN option.")
+        End If
+        If rent.PanOption = TdsLandlordPanOption.NoPanDeclared AndAlso String.IsNullOrWhiteSpace(rent.LandlordAddress) Then
+            Return OperationResult.Fail("The landlord address is needed when the landlord has no PAN.")
+        End If
         Return OperationResult.Ok()
     End Function
 
@@ -83,8 +90,9 @@ Public NotInheritable Class TdsDeclarationValidator
             yearly(rent.LandlordName) = yearly.GetValueOrDefault(rent.LandlordName) + rent.MonthlyRent * MonthCount(rent.FromMonthKey, rent.ToMonthKey)
         Next
         For Each rent As TdsRentInput In rents
-            If yearly(rent.LandlordName) > LandlordPanRentThreshold AndAlso String.IsNullOrWhiteSpace(rent.LandlordPan) Then
-                Return OperationResult.Fail("The landlord PAN is needed when yearly rent to one landlord is above " & LandlordPanRentThreshold.ToString("N0", CultureInfo.InvariantCulture) & ".")
+            If yearly(rent.LandlordName) > LandlordPanRentThreshold AndAlso String.IsNullOrWhiteSpace(rent.LandlordPan) AndAlso rent.PanOption = TdsLandlordPanOption.PanGiven Then
+                Return OperationResult.Fail("The landlord PAN is needed when yearly rent to one landlord is above " & LandlordPanRentThreshold.ToString("N0", CultureInfo.InvariantCulture) &
+                                            ". Enter the PAN, choose 'Landlord has no PAN' (with the landlord's written declaration), or choose 'Do not claim HRA exemption'.")
             End If
         Next
         Return OperationResult.Ok()

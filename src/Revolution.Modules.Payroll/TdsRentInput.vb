@@ -1,7 +1,8 @@
 ''' <summary>Rent for a range of months as the Associate types it (Form 124). The landlord PAN is plain here; the service encrypts it before it reaches the repository.</summary>
 Public NotInheritable Class TdsRentInput
     Public Sub New(fromMonthKey As Integer, toMonthKey As Integer, monthlyRent As Decimal, city As String, landlordName As String,
-                   landlordRelationship As String, landlordAddress As String, landlordPan As String)
+                   landlordRelationship As String, landlordAddress As String, landlordPan As String,
+                   Optional panOption As TdsLandlordPanOption = TdsLandlordPanOption.PanGiven)
         Me.FromMonthKey = fromMonthKey
         Me.ToMonthKey = toMonthKey
         Me.MonthlyRent = monthlyRent
@@ -10,6 +11,7 @@ Public NotInheritable Class TdsRentInput
         Me.LandlordRelationship = If(landlordRelationship, String.Empty).Trim()
         Me.LandlordAddress = landlordAddress
         Me.LandlordPan = landlordPan
+        Me.PanOption = panOption
     End Sub
 
     ''' <summary>YYYYMM.</summary>
@@ -21,4 +23,6 @@ Public NotInheritable Class TdsRentInput
     Public ReadOnly Property LandlordRelationship As String
     Public ReadOnly Property LandlordAddress As String
     Public ReadOnly Property LandlordPan As String
+    ''' <summary>The choice when no PAN is given: see TdsLandlordPanOption.</summary>
+    Public ReadOnly Property PanOption As TdsLandlordPanOption
 End Class

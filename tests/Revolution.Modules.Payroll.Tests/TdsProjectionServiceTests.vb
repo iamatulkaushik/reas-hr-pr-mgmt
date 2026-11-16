@@ -65,6 +65,21 @@ Public Class TdsProjectionServiceTests
     End Sub
 
     <Fact>
+    Public Sub OldRegime_RentRowWithExemptionNotClaimed_GivesNoHra()
+        Dim rents As New List(Of TdsRentView) From {New TdsRentView(1, 202604, 202703, 30000D, "Delhi", "A Kumar", "Friend", Nothing, Nothing, TdsLandlordPanOption.ExemptionNotClaimed)}
+        Dim r = _service.Project(Input(Year(120000D, 60000D, 24000D), 202604, 0D, Bundle(TdsRegime.Old, New List(Of TdsItem)(), rents, Nothing)))
+        Assert.True(r.Succeeded)
+        Assert.Equal(0D, r.Value.HraExempt)
+    End Sub
+
+    <Fact>
+    Public Sub OldRegime_RentRowWithNoPanDeclared_StillGivesHra()
+        Dim rents As New List(Of TdsRentView) From {New TdsRentView(1, 202604, 202703, 30000D, "Delhi", "A Kumar", "Friend", "12 MG Road", Nothing, TdsLandlordPanOption.NoPanDeclared)}
+        Dim r = _service.Project(Input(Year(120000D, 60000D, 24000D), 202604, 0D, Bundle(TdsRegime.Old, New List(Of TdsItem)(), rents, Nothing)))
+        Assert.Equal(288000D, r.Value.HraExempt)
+    End Sub
+
+    <Fact>
     Public Sub OldRegime_HraAndCappedDeduction()
         Dim items As New List(Of TdsItem) From {New TdsItem("80C", "", "PF", 100000D, Nothing, Nothing), New TdsItem("80C", "", "LIC", 80000D, Nothing, Nothing)}
         Dim r = _service.Project(Input(Year(120000D, 60000D, 24000D), 202604, 0D, Bundle(TdsRegime.Old, items, FullYearRent(), Nothing)))

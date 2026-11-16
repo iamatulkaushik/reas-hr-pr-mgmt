@@ -41,7 +41,8 @@ Public NotInheritable Class SqlStatutoryRateRepository
                                        r.GetDecimal(r.GetOrdinal("EmployerPct")), r.GetDecimal(r.GetOrdinal("WageCeiling")),
                                        r.GetDecimal(r.GetOrdinal("DailyWageExemption")),
                                        CType(CInt(r.GetByte(r.GetOrdinal("RoundingID"))), RateRounding),
-                                       r.GetBoolean(r.GetOrdinal("Verified")), Text(r, "SourceRef"))
+                                       r.GetBoolean(r.GetOrdinal("Verified")), Text(r, "SourceRef"),
+                                       If(r.IsDBNull(r.GetOrdinal("DisabledWageCeiling")), CType(Nothing, Decimal?), r.GetDecimal(r.GetOrdinal("DisabledWageCeiling"))))
                 End Using
             End Using
         End Using

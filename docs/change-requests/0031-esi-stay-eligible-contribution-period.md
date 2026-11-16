@@ -1,0 +1,18 @@
+# Change request 0031: stay-eligible value for the ESI contribution-period rule
+
+- Requested by: Brave, found while building CR 0030 (2026-11-14). Owner direction: ESI follows the standard rules.
+- Needed by module / phase: Phase 5 gate (known-answer cases C05, C06, C08). Payroll lane 0300-0399. Sigma reviews the migration.
+- What is missing or wrong in the shared code: `PayrollRunCalculator` passes `facts.EsiStayEligible` to `EsiCalculator`, but `SqlPayrollRunRepository` builds every `RunEmployeeFacts` with `esiStayEligible = False`. The ESI rule is that an employee covered at the start of a contribution period stays covered until that period ends, even if wages rise above the ceiling during it. Contribution periods are 1 April to 30 September and 1 October to 31 March. Today an employee whose pay crosses 21,000 (or 25,000 with the CR 0030 flag) in the second or later month of a period drops out at once and ESI stops early. The same gap hits arrears, which copy the run facts. It also decides the overtime case (C08): with `OtInEsiWage` on, an employee on 20,000 plus 2,000 overtime tests as 22,000 and drops out in the month the overtime is paid.
+- Proposed signature or schema change (no new table):
+  1. `pay.usp_RunInput_List` (re-create, 0345): add `EsiStayEligible BIT` to the first result set. True when the employee has a Locked or Paid run line (arrears runs left out) in the same contribution period as `@PeriodTo`, from the period start up to but not including `@PeriodFrom`, with `EsiEmployer > 0`. `EsiEmployer > 0` is the proof of cover because the employer share is rounded up and is always above zero for a covered employee with wages.
+  2. `SqlPayrollRunRepository`: read the column and pass it instead of `False`. `RunEmployeeFacts` already has the argument. Nothing changes in `EsiCalculator`, the run calculator or the arrears code.
+  3. The contribution period is worked from the month of `PeriodTo`: April to September is period 1, October to March is period 2. A pay cycle of 26th to 25th falls in the period of its end date. Period start for the lookup: 1 April or 1 October.
+  4. An employee who joins part way through a period is covered from the join date if eligible then; the lookup finds no earlier line, so the rule does not apply in the first month, which is correct (the first month tests the wage normally).
+- Tests to add: `SqlPayrollRunRepository` has no fake, so the rule goes in a small pure helper `EsiContributionPeriod` (period start for a date, and whether two dates share a period) with tests for 31 Mar, 1 Apr, 30 Sep, 1 Oct and a 26-25 cycle ending 25 Apr. The proc is checked in the Windows SQL run.
+- Built 2026-11-14 (not compiled, not run on SQL Server): migration 0345 (run after 0344), `EsiContributionPeriod` helper with 12 test cases, `SqlPayrollRunRepository` reads `EsiStayEligible`. The helper is the tested statement of the rule; the SQL repeats the same April/October CASE. Arrears runs (RunNo 2 and above) are left out of the lookup.
+- Workaround until done: none that is correct. Ticking a stay-eligible value by hand does not exist; do not edit run lines.
+- Open for the CA:
+  - Confirm the 1 April and 1 October periods and that the rule is "eligible in an earlier month of this period".
+  - An employee over the ceiling at the start of a period whose wages later fall to the ceiling: covered from the next period, or from that month? This CR keeps them out until the next period.
+  - Is overtime left out of the ceiling test? If yes, `OtInEsiWage` alone is not enough: the calculator needs a separate ceiling-test wage (a further CR).
+- Sigma's decision (accepted / changed / rejected) and date:

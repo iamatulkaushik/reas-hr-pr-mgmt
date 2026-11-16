@@ -42,7 +42,7 @@ Public NotInheritable Class PayrollRunCalculator
         If facts.IsEsiMember Then
             Dim monthly As Decimal = facts.Salary.Sum(Function(l) l.Amount)
             Dim dailyWage As Decimal = monthly / If(facts.IsDailyWage, policy.DailyWageDivisor, CDec(period.Days))
-            esi = EsiCalculator.Calculate(wage.EsiWage, dailyWage, rates.Esi, facts.EsiStayEligible)
+            esi = EsiCalculator.Calculate(wage.EsiWage, dailyWage, rates.Esi, facts.EsiStayEligible, facts.EsiHigherCeiling)
         End If
 
         Dim professionalTax As Decimal = 0D

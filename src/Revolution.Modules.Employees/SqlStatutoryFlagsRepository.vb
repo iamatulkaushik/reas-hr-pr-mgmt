@@ -42,6 +42,7 @@ Public NotInheritable Class SqlStatutoryFlagsRepository
                                 cmd.Parameters.Add("@HigherWageOption", SqlDbType.Bit).Value = flags.HigherWageOption
                                 cmd.Parameters.Add("@IsEsiMember", SqlDbType.Bit).Value = flags.IsEsiMember
                                 cmd.Parameters.Add("@EsiDispensary", SqlDbType.NVarChar, 100).Value = OptionalText(flags.EsiDispensary)
+                                cmd.Parameters.Add("@EsiHigherCeiling", SqlDbType.Bit).Value = flags.EsiHigherCeiling
                                 cmd.Parameters.Add("@PtApplicable", SqlDbType.Bit).Value = flags.PtApplicable
                                 cmd.Parameters.Add("@LwfApplicable", SqlDbType.Bit).Value = flags.LwfApplicable
                                 cmd.Parameters.Add("@TaxRegimeID", SqlDbType.TinyInt).Value = CByte(flags.TaxRegimeId)
@@ -63,6 +64,7 @@ Public NotInheritable Class SqlStatutoryFlagsRepository
             .HigherWageOption = reader.GetBoolean(reader.GetOrdinal("HigherWageOption")),
             .IsEsiMember = reader.GetBoolean(reader.GetOrdinal("IsEsiMember")),
             .EsiDispensary = EmployeeSql.OptText(reader, "EsiDispensary"),
+            .EsiHigherCeiling = reader.GetBoolean(reader.GetOrdinal("EsiHigherCeiling")),
             .PtApplicable = reader.GetBoolean(reader.GetOrdinal("PtApplicable")),
             .LwfApplicable = reader.GetBoolean(reader.GetOrdinal("LwfApplicable")),
             .TaxRegimeId = reader.GetByte(reader.GetOrdinal("TaxRegimeID")),

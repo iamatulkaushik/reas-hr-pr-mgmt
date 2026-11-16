@@ -4,7 +4,8 @@ Public NotInheritable Class RunEmployeeFacts
                    ptStateId As Integer?, isEpfMember As Boolean, epfOnHigherWage As Boolean, epsOnHigherWage As Boolean,
                    isEsiMember As Boolean, esiStayEligible As Boolean, paidDays As Decimal, overtimeHours As Decimal, hoursPerDay As Decimal?,
                    unmarkedDays As Integer, carryForwardIn As Decimal, otherDeductions As Decimal,
-                   salary As IReadOnlyList(Of SalaryLineView), installments As IReadOnlyList(Of OpenInstallment))
+                   salary As IReadOnlyList(Of SalaryLineView), installments As IReadOnlyList(Of OpenInstallment),
+                   Optional esiHigherCeiling As Boolean = False)
         Me.EmployeeId = employeeId
         Me.FactoryId = factoryId
         Me.EmpCode = empCode
@@ -16,6 +17,7 @@ Public NotInheritable Class RunEmployeeFacts
         Me.EpsOnHigherWage = epsOnHigherWage
         Me.IsEsiMember = isEsiMember
         Me.EsiStayEligible = esiStayEligible
+        Me.EsiHigherCeiling = esiHigherCeiling
         Me.PaidDays = paidDays
         Me.OvertimeHours = overtimeHours
         Me.HoursPerDay = hoursPerDay
@@ -40,6 +42,8 @@ Public NotInheritable Class RunEmployeeFacts
     Public ReadOnly Property IsEsiMember As Boolean
     ''' <summary>The employee stays in ESI to the end of the contribution period. Not tracked yet: the data source returns False.</summary>
     Public ReadOnly Property EsiStayEligible As Boolean
+    ''' <summary>The employee's disability flag: the ESI ceiling for this employee is the row's higher one (CR 0030).</summary>
+    Public ReadOnly Property EsiHigherCeiling As Boolean
     Public ReadOnly Property PaidDays As Decimal
     Public ReadOnly Property OvertimeHours As Decimal
     ''' <summary>Full-day hours of the employee's shift, or Nothing when no shift is assigned.</summary>
@@ -55,6 +59,6 @@ Public NotInheritable Class RunEmployeeFacts
     ''' <summary>The same facts with other deductions set to the given amount (for example with an arrears recovery added).</summary>
     Public Function WithOtherDeductions(amount As Decimal) As RunEmployeeFacts
         Return New RunEmployeeFacts(EmployeeId, FactoryId, EmpCode, IsDailyWage, GenderId, PtStateId, IsEpfMember, EpfOnHigherWage, EpsOnHigherWage, IsEsiMember, EsiStayEligible,
-                                    PaidDays, OvertimeHours, HoursPerDay, UnmarkedDays, CarryForwardIn, amount, Salary, Installments)
+                                    PaidDays, OvertimeHours, HoursPerDay, UnmarkedDays, CarryForwardIn, amount, Salary, Installments, EsiHigherCeiling)
     End Function
 End Class

@@ -1,3 +1,4 @@
+Imports Revolution.Core
 Imports Revolution.Modules.Payroll
 Imports Xunit
 
@@ -84,6 +85,43 @@ Public Class TdsDeclarationValidatorTests
     Public Sub Rents_SameLandlordTwoRows_AddedTogether()
         Dim list As IReadOnlyList(Of TdsRentInput) = Rents(Rent(202604, 202609, 9000D, "a kumar"), Rent(202610, 202703, 9000D, "A KUMAR"))
         Assert.False(TdsDeclarationValidator.ValidateRents(list, 2026).Succeeded)
+    End Sub
+
+    Private Shared Function RentWithOption(panChoice As TdsLandlordPanOption, Optional address As String = Nothing, Optional pan As String = Nothing) As TdsRentInput
+        Return New TdsRentInput(202604, 202703, 25000D, "Pune", "A Kumar", "Friend", address, pan, panChoice)
+    End Function
+
+    <Fact>
+    Public Sub Rents_AboveThreshold_NoPan_DefaultOption_FailsAndNamesTheOptions()
+        Dim r As OperationResult = TdsDeclarationValidator.ValidateRents(Rents(Rent(202604, 202703, 25000D)), 2026)
+        Assert.False(r.Succeeded)
+        Assert.Contains("no PAN", r.Message)
+        Assert.Contains("Do not claim", r.Message)
+    End Sub
+
+    <Fact>
+    Public Sub Rents_AboveThreshold_NoPanDeclared_WithAddress_Passes()
+        Assert.True(TdsDeclarationValidator.ValidateRents(Rents(RentWithOption(TdsLandlordPanOption.NoPanDeclared, "12 MG Road, Pune")), 2026).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Rents_AboveThreshold_NoPanDeclared_WithoutAddress_Fails()
+        Assert.False(TdsDeclarationValidator.ValidateRents(Rents(RentWithOption(TdsLandlordPanOption.NoPanDeclared)), 2026).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Rents_AboveThreshold_ExemptionNotClaimed_Passes()
+        Assert.True(TdsDeclarationValidator.ValidateRents(Rents(RentWithOption(TdsLandlordPanOption.ExemptionNotClaimed)), 2026).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Rents_PanGivenAndNoPanOption_Fails()
+        Assert.False(TdsDeclarationValidator.ValidateRents(Rents(RentWithOption(TdsLandlordPanOption.ExemptionNotClaimed, Nothing, "ABCDE1234F")), 2026).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Rents_UnknownOption_Fails()
+        Assert.False(TdsDeclarationValidator.ValidateRents(Rents(RentWithOption(CType(9, TdsLandlordPanOption))), 2026).Succeeded)
     End Sub
 
     <Fact>

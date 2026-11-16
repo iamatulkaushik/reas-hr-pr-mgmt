@@ -4,7 +4,7 @@ Imports Revolution.Core
 Public NotInheritable Class ArrearsMonthInput
     Public Sub New(wageMonth As Date, paid As WageBreakdown, due As WageBreakdown, rates As RunRates, dailyWage As Decimal, stayEsiEligible As Boolean, Optional epfOnActualWage As Boolean = False, Optional pensionOnActualWage As Boolean = False,
                    Optional isEpfMember As Boolean = True, Optional isEsiMember As Boolean = True,
-                   Optional componentIds As IReadOnlyDictionary(Of String, Integer) = Nothing)
+                   Optional componentIds As IReadOnlyDictionary(Of String, Integer) = Nothing, Optional esiHigherCeiling As Boolean = False)
         If paid Is Nothing Then Throw New ArgumentNullException(NameOf(paid))
         If due Is Nothing Then Throw New ArgumentNullException(NameOf(due))
         If rates Is Nothing Then Throw New ArgumentNullException(NameOf(rates))
@@ -14,6 +14,7 @@ Public NotInheritable Class ArrearsMonthInput
         Me.Rates = rates
         Me.DailyWage = dailyWage
         Me.StayEsiEligible = stayEsiEligible
+        Me.EsiHigherCeiling = esiHigherCeiling
         Me.EpfOnActualWage = epfOnActualWage
         Me.PensionOnActualWage = pensionOnActualWage
         Me.IsEpfMember = isEpfMember
@@ -29,6 +30,8 @@ Public NotInheritable Class ArrearsMonthInput
     Public ReadOnly Property Rates As RunRates
     Public ReadOnly Property DailyWage As Decimal
     Public ReadOnly Property StayEsiEligible As Boolean
+    ''' <summary>The employee's disability flag for the ESI ceiling (CR 0030). Both the paid and the due side use it.</summary>
+    Public ReadOnly Property EsiHigherCeiling As Boolean
     Public ReadOnly Property EpfOnActualWage As Boolean
     Public ReadOnly Property PensionOnActualWage As Boolean
     ''' <summary>False when the employee is not an EPF member: no EPF wages or contributions are worked, as in the regular run.</summary>
