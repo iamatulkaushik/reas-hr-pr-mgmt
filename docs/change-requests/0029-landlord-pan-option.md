@@ -16,4 +16,8 @@
   - The 1,00,000 threshold is still a code constant until CR 0018's `LANDLORD_PAN_RENT` row is read by the validator.
   - CA to confirm what the no-PAN declaration must hold (Form 124 supporting documents) and whether the app should store a reference to it.
   - Owner to confirm the PAN rule applies in Haryana.
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted, 2026-11-16.** Reviewed migrations 0343 and 0344 and the code; screen column done by Sigma.
+1. **Migrations:** the ordering rule of ADR 0024 holds. The last definitions of `pay.usp_TdsHraRent_List` and `_Replace` keep the new `PanOption`, and the test `TheLastDefinitionOfAPatchedProcedureKeepsThePatch` now checks both. The check that a PAN is not stored together with option 1 or 2 is the right place for the rule.
+2. **Screen:** the rent grid of `TdsDeclarationForm` has a new last column, "If there is no PAN", a list with three choices: PAN given, No PAN with the landlord's declaration held, Do not claim HRA exemption. Rows load with their saved choice. A row that has a PAN typed and a choice other than "PAN given" is refused with a message that says which to change. The form is still the plain test version; the restyle keeps this column.
+3. **For the CA** (listed in `docs/ca-signoff/pending-2026-11-16.md`): confirm that a landlord declaration without a PAN keeps the HRA exemption, the yearly rent above which the landlord's PAN is needed, and the wording the employee must be shown.
+4. **Brave:** keep the tax calculation test for each of the three choices (the third treats the months as no rent paid), and the Form 124 text for the employee screen when it exists.

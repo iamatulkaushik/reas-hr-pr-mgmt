@@ -15,4 +15,9 @@
   - Confirm the 1 April and 1 October periods and that the rule is "eligible in an earlier month of this period".
   - An employee over the ceiling at the start of a period whose wages later fall to the ceiling: covered from the next period, or from that month? This CR keeps them out until the next period.
   - Is overtime left out of the ceiling test? If yes, `OtInEsiWage` alone is not enough: the calculator needs a separate ceiling-test wage (a further CR).
-- Sigma's decision (accepted / changed / rejected) and date:
+- Sigma's decision (accepted / changed / rejected) and date: **Accepted, 2026-11-16.** Reviewed migration 0345 and the rule.
+1. **The rule as built** (an employee who was covered by ESI earlier in the same contribution period stays covered to its end, found from a Locked or Paid run line of that period with an employer ESI amount) reads the law's "continues till the end of the period" correctly. Arrears runs are left out, as they should be.
+2. **Ordering and patches:** fine; see CR 0030 point 3 for the rule about the next patch of `usp_RunInput_List`.
+3. **Tests Brave should have:** joins in the period already above the ceiling (not covered); covered in month 1 and above the ceiling in month 3 (stays); the next period starts and the wage is still above (drops out); exit and rejoin in the same period; a reopened run whose line is no longer Locked (does not count).
+4. **For the CA** (`docs/ca-signoff/pending-2026-11-16.md`): whether wages that cross the ceiling only by overtime or a bonus in one month count, and the contribution period dates (April to September, October to March) the code uses.
+5. **Speed:** the lookup runs for every employee of the run; check the plan with 5,000 employees in the Phase 10 load test, and index the run line by company, employee and period if it scans.

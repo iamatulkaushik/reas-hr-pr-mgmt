@@ -50,6 +50,7 @@ Friend NotInheritable Class TdsDeclarationForm
         _tabs.Dock = DockStyle.Fill
         _tabs.TabPages.Add(GridPage("Items", _items, {"Section", "Sub-limit key", "Description", "Declared", "Proof reference", "Verified (blank if not)"}))
         _tabs.TabPages.Add(GridPage("Rent", _rents, {"From month (yyyymm)", "To month (yyyymm)", "Monthly rent", "City", "Landlord", "Relationship", "Address", "Landlord PAN"}))
+        _rents.Columns.Add(PanOptionColumn())
         _tabs.TabPages.Add(PrevPage())
         Content.Controls.Add(_tabs)
 
@@ -157,7 +158,7 @@ Friend NotInheritable Class TdsDeclarationForm
             _items.Rows.Add(item.SectionCode, item.SubLimitKey, item.Description, Amount(item.DeclaredAmount), item.ProofRef, If(item.VerifiedAmount.HasValue, Amount(item.VerifiedAmount.Value), String.Empty))
         Next
         For Each rent As TdsRentView In bundle.Rents
-            _rents.Rows.Add(rent.FromMonthKey, rent.ToMonthKey, Amount(rent.MonthlyRent), rent.City, rent.LandlordName, rent.LandlordRelationship, rent.LandlordAddress, String.Empty)
+            _rents.Rows.Add(rent.FromMonthKey, rent.ToMonthKey, Amount(rent.MonthlyRent), rent.City, rent.LandlordName, rent.LandlordRelationship, rent.LandlordAddress, String.Empty, PanOptionText(rent.PanOption))
         Next
         ShowPrev(bundle.Prev)
         Dim withPan As Integer = bundle.Rents.Where(Function(r) r.HasPan).Count()
@@ -210,7 +211,9 @@ Friend NotInheritable Class TdsDeclarationForm
             If Not Integer.TryParse(CellText(row, 0), NumberStyles.None, CultureInfo.InvariantCulture, fromKey) Then Return Fail("Rent", row, "from month")
             If Not Integer.TryParse(CellText(row, 1), NumberStyles.None, CultureInfo.InvariantCulture, toKey) Then Return Fail("Rent", row, "to month")
             If Not TryMoney(row, 2, rent) Then Return Fail("Rent", row, "monthly rent")
-            rents.Add(New TdsRentInput(fromKey, toKey, rent, CellText(row, 3), CellText(row, 4), CellText(row, 5), CellText(row, 6), CellText(row, 7)))
+            Dim choice As TdsLandlordPanOption = PanOptionFrom(CellText(row, 8))
+            If CellText(row, 7).Length > 0 AndAlso choice <> TdsLandlordPanOption.PanGiven Then Return Fail("Rent", row, "landlord PAN setting (clear the PAN, or choose 'PAN given')")
+            rents.Add(New TdsRentInput(fromKey, toKey, rent, CellText(row, 3), CellText(row, 4), CellText(row, 5), CellText(row, 6), CellText(row, 7), choice))
         Next
         Return True
     End Function
@@ -218,6 +221,26 @@ Friend NotInheritable Class TdsDeclarationForm
     Private Function Fail(tab As String, row As DataGridViewRow, what As String) As Boolean
         ShowError($"{tab}, row {(row.Index + 1).ToString(CultureInfo.InvariantCulture)}: enter a valid {what}.")
         Return False
+    End Function
+
+    ''' <summary>What the employee chose when the landlord has no PAN (CR 0029, Form 124): the row's PAN, or a declaration, or no HRA exemption for these months.</summary>
+    Private Shared ReadOnly PanOptionTexts As String() = {"PAN given", "No PAN, landlord declaration held", "Do not claim HRA exemption"}
+
+    Private Shared Function PanOptionColumn() As DataGridViewComboBoxColumn
+        Dim column As New DataGridViewComboBoxColumn()
+        column.HeaderText = "If there is no PAN"
+        column.FlatStyle = FlatStyle.Flat
+        column.Items.AddRange(PanOptionTexts)
+        Return column
+    End Function
+
+    Private Shared Function PanOptionText(choice As TdsLandlordPanOption) As String
+        Return PanOptionTexts(CInt(choice))
+    End Function
+
+    Private Shared Function PanOptionFrom(text As String) As TdsLandlordPanOption
+        Dim index As Integer = Array.IndexOf(PanOptionTexts, text)
+        Return If(index < 0, TdsLandlordPanOption.PanGiven, CType(index, TdsLandlordPanOption))
     End Function
 
     Private Shared Function CellText(row As DataGridViewRow, column As Integer) As String

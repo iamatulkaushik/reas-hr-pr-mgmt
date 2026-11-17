@@ -122,6 +122,13 @@ Public Class MigrationOrderTests
     <Theory>
     <InlineData("mst.usp_EmployeeStatutory_Get", "EpfOnHigherWage")>
     <InlineData("mst.usp_EmployeeStatutory_SaveFlags", "EpfOnHigherWage")>
+    <InlineData("mst.usp_EmployeeStatutory_Get", "EsiHigherCeiling")>
+    <InlineData("mst.usp_EmployeeStatutory_SaveFlags", "EsiHigherCeiling")>
+    <InlineData("pay.usp_RunInput_List", "EsiHigherCeiling")>
+    <InlineData("pay.usp_RunInput_List", "EsiStayEligible")>
+    <InlineData("pay.usp_TdsHraRent_List", "PanOption")>
+    <InlineData("pay.usp_TdsHraRent_Replace", "PanOption")>
+    <InlineData("stat.usp_EsiRate_Get", "DisabledWageCeiling")>
     <InlineData("mst.usp_EmployeeSeparation_Save", "51008")>
     <InlineData("pay.usp_Policy_Get", "AbsenceDeductionDivisor")>
     <InlineData("pay.usp_Policy_Save", "AbsenceDeductionDivisor")>
