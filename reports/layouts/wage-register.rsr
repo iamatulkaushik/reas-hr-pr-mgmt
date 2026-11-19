@@ -1,0 +1,1162 @@
+{
+  "FormatVersion": 1,
+  "Name": "WageRegister",
+  "Title": "Wage register",
+  "Page": {
+    "Width": 1123,
+    "Height": 794,
+    "MarginLeft": 30,
+    "MarginRight": 30,
+    "MarginTop": 30,
+    "MarginBottom": 30
+  },
+  "DataSource": {
+    "Provider": "Host",
+    "ConnectionString": "",
+    "Query": "",
+    "CommandTimeoutSeconds": 60,
+    "Fields": [
+      {
+        "Name": "CompanyName",
+        "Type": "Text"
+      },
+      {
+        "Name": "FactoryName",
+        "Type": "Text"
+      },
+      {
+        "Name": "EmpCode",
+        "Type": "Text"
+      },
+      {
+        "Name": "FullName",
+        "Type": "Text"
+      },
+      {
+        "Name": "DesignationName",
+        "Type": "Text"
+      },
+      {
+        "Name": "RunID",
+        "Type": "Number"
+      },
+      {
+        "Name": "RunStatusID",
+        "Type": "Number"
+      },
+      {
+        "Name": "FactoryID",
+        "Type": "Number"
+      },
+      {
+        "Name": "EmployeeID",
+        "Type": "Number"
+      },
+      {
+        "Name": "PayTypeID",
+        "Type": "Number"
+      },
+      {
+        "Name": "PaidDays",
+        "Type": "Number"
+      },
+      {
+        "Name": "OvertimeHours",
+        "Type": "Number"
+      },
+      {
+        "Name": "OvertimeAmount",
+        "Type": "Number"
+      },
+      {
+        "Name": "GrossEarnings",
+        "Type": "Number"
+      },
+      {
+        "Name": "EpfWage",
+        "Type": "Number"
+      },
+      {
+        "Name": "EsiWage",
+        "Type": "Number"
+      },
+      {
+        "Name": "EpfEmployee",
+        "Type": "Number"
+      },
+      {
+        "Name": "EpfEmployerEpf",
+        "Type": "Number"
+      },
+      {
+        "Name": "EpfEmployerEps",
+        "Type": "Number"
+      },
+      {
+        "Name": "Edli",
+        "Type": "Number"
+      },
+      {
+        "Name": "EpfAdmin",
+        "Type": "Number"
+      },
+      {
+        "Name": "EsiEmployee",
+        "Type": "Number"
+      },
+      {
+        "Name": "EsiEmployer",
+        "Type": "Number"
+      },
+      {
+        "Name": "ProfessionalTax",
+        "Type": "Number"
+      },
+      {
+        "Name": "TdsAmount",
+        "Type": "Number"
+      },
+      {
+        "Name": "LoanEmi",
+        "Type": "Number"
+      },
+      {
+        "Name": "LoanEmiDeferred",
+        "Type": "Number"
+      },
+      {
+        "Name": "OtherDeductions",
+        "Type": "Number"
+      },
+      {
+        "Name": "CarryForwardIn",
+        "Type": "Number"
+      },
+      {
+        "Name": "CarryForwardOut",
+        "Type": "Number"
+      },
+      {
+        "Name": "TotalDeductions",
+        "Type": "Number"
+      },
+      {
+        "Name": "NetPay",
+        "Type": "Number"
+      },
+      {
+        "Name": "PeriodFrom",
+        "Type": "Date"
+      },
+      {
+        "Name": "PeriodTo",
+        "Type": "Date"
+      }
+    ]
+  },
+  "Parameters": [
+    {
+      "Name": "CompanyName",
+      "Prompt": "Company name",
+      "Type": "Text",
+      "DefaultValue": ""
+    },
+    {
+      "Name": "PeriodText",
+      "Prompt": "Period",
+      "Type": "Text",
+      "DefaultValue": ""
+    },
+    {
+      "Name": "IsDraft",
+      "Prompt": "Run not approved",
+      "Type": "Boolean",
+      "DefaultValue": "false"
+    },
+    {
+      "Name": "ShowTds",
+      "Prompt": "Show income tax column",
+      "Type": "Boolean",
+      "DefaultValue": "false"
+    }
+  ],
+  "Groups": [
+    {
+      "Expression": "FactoryName",
+      "StartNewPage": false,
+      "RestartPageNumbers": false,
+      "Header": {
+        "Kind": "GroupHeader",
+        "Name": "",
+        "Height": 22,
+        "Items": [
+          {
+            "Kind": "Text",
+            "X": 0,
+            "Y": 2,
+            "Width": 1063,
+            "Height": 18,
+            "Text": "Factory: {FactoryName}",
+            "FontSize": 9.5,
+            "Bold": true,
+            "HAlign": "Left",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true
+          }
+        ]
+      },
+      "Footer": {
+        "Kind": "GroupFooter",
+        "Name": "",
+        "Height": 24,
+        "Items": [
+          {
+            "Kind": "Line",
+            "X": 0,
+            "Y": 1,
+            "Width": 1063,
+            "Height": 0,
+            "ForeColor": "#9CA3AF",
+            "BorderColor": "#9CA3AF",
+            "BorderWidth": 1
+          },
+          {
+            "Kind": "Text",
+            "X": 0,
+            "Y": 3,
+            "Width": 298.0,
+            "Height": 18,
+            "Text": "Factory total",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Left",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true
+          },
+          {
+            "Kind": "Text",
+            "X": 301.0,
+            "Y": 3,
+            "Width": 44,
+            "Height": 18,
+            "Text": "{Sum(PaidDays)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "0.##"
+          },
+          {
+            "Kind": "Text",
+            "X": 348.0,
+            "Y": 3,
+            "Width": 44,
+            "Height": 18,
+            "Text": "{Sum(OvertimeHours)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "0.##"
+          },
+          {
+            "Kind": "Text",
+            "X": 395.0,
+            "Y": 3,
+            "Width": 84,
+            "Height": 18,
+            "Text": "{Sum(GrossEarnings)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          },
+          {
+            "Kind": "Text",
+            "X": 482.0,
+            "Y": 3,
+            "Width": 72,
+            "Height": 18,
+            "Text": "{Sum(EpfEmployee)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          },
+          {
+            "Kind": "Text",
+            "X": 557.0,
+            "Y": 3,
+            "Width": 66,
+            "Height": 18,
+            "Text": "{Sum(EsiEmployee)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          },
+          {
+            "Kind": "Text",
+            "X": 626.0,
+            "Y": 3,
+            "Width": 56,
+            "Height": 18,
+            "Text": "{Sum(ProfessionalTax)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          },
+          {
+            "Kind": "Text",
+            "X": 685.0,
+            "Y": 3,
+            "Width": 66,
+            "Height": 18,
+            "Text": "{Sum(TdsAmount)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2",
+            "VisibleWhen": "@ShowTds"
+          },
+          {
+            "Kind": "Text",
+            "X": 754.0,
+            "Y": 3,
+            "Width": 66,
+            "Height": 18,
+            "Text": "{Sum(LoanEmi)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          },
+          {
+            "Kind": "Text",
+            "X": 823.0,
+            "Y": 3,
+            "Width": 66,
+            "Height": 18,
+            "Text": "{Sum(OtherDeductions)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          },
+          {
+            "Kind": "Text",
+            "X": 892.0,
+            "Y": 3,
+            "Width": 82,
+            "Height": 18,
+            "Text": "{Sum(TotalDeductions)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          },
+          {
+            "Kind": "Text",
+            "X": 977.0,
+            "Y": 3,
+            "Width": 86,
+            "Height": 18,
+            "Text": "{Sum(NetPay)}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Right",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true,
+            "Format": "N2"
+          }
+        ]
+      }
+    }
+  ],
+  "SortBy": [
+    "FactoryName",
+    "EmpCode"
+  ],
+  "ReportHeader": {
+    "Kind": "ReportHeader",
+    "Name": "",
+    "Height": 0,
+    "Items": []
+  },
+  "PageHeader": {
+    "Kind": "PageHeader",
+    "Name": "",
+    "Height": 78,
+    "Items": [
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 0,
+        "Width": 800,
+        "Height": 22,
+        "Text": "{@CompanyName}",
+        "FontSize": 14,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F3A5F",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 940,
+        "Y": 0,
+        "Width": 123,
+        "Height": 22,
+        "Text": "DRAFT",
+        "FontSize": 14,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#B91C1C",
+        "WordWrap": true,
+        "VisibleWhen": "@IsDraft"
+      },
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 24,
+        "Width": 1063,
+        "Height": 18,
+        "Text": "Wage register for the period {@PeriodText}",
+        "FontSize": 10.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Line",
+        "X": 0,
+        "Y": 44,
+        "Width": 1063,
+        "Height": 0,
+        "ForeColor": "#9CA3AF",
+        "BorderColor": "#9CA3AF",
+        "BorderWidth": 1
+      },
+      {
+        "Kind": "Text",
+        "X": 0.0,
+        "Y": 54,
+        "Width": 54,
+        "Height": 20,
+        "Text": "Code",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 57.0,
+        "Y": 54,
+        "Width": 138,
+        "Height": 20,
+        "Text": "Name",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 198.0,
+        "Y": 54,
+        "Width": 100,
+        "Height": 20,
+        "Text": "Designation",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 301.0,
+        "Y": 54,
+        "Width": 44,
+        "Height": 20,
+        "Text": "Days",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 348.0,
+        "Y": 54,
+        "Width": 44,
+        "Height": 20,
+        "Text": "OT hrs",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 395.0,
+        "Y": 54,
+        "Width": 84,
+        "Height": 20,
+        "Text": "Gross",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 482.0,
+        "Y": 54,
+        "Width": 72,
+        "Height": 20,
+        "Text": "EPF",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 557.0,
+        "Y": 54,
+        "Width": 66,
+        "Height": 20,
+        "Text": "ESI",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 626.0,
+        "Y": 54,
+        "Width": 56,
+        "Height": 20,
+        "Text": "PT",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 685.0,
+        "Y": 54,
+        "Width": 66,
+        "Height": 20,
+        "Text": "TDS",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "VisibleWhen": "@ShowTds"
+      },
+      {
+        "Kind": "Text",
+        "X": 754.0,
+        "Y": 54,
+        "Width": 66,
+        "Height": 20,
+        "Text": "Loan",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 823.0,
+        "Y": 54,
+        "Width": 66,
+        "Height": 20,
+        "Text": "Other",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 892.0,
+        "Y": 54,
+        "Width": 82,
+        "Height": 20,
+        "Text": "Total ded.",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 977.0,
+        "Y": 54,
+        "Width": 86,
+        "Height": 20,
+        "Text": "Net pay",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      }
+    ]
+  },
+  "Detail": {
+    "Kind": "Detail",
+    "Name": "",
+    "Height": 18,
+    "Items": [
+      {
+        "Kind": "Text",
+        "X": 0.0,
+        "Y": 0,
+        "Width": 54,
+        "Height": 18,
+        "Text": "{EmpCode}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 57.0,
+        "Y": 0,
+        "Width": 138,
+        "Height": 18,
+        "Text": "{FullName}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 198.0,
+        "Y": 0,
+        "Width": 100,
+        "Height": 18,
+        "Text": "{DesignationName}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 301.0,
+        "Y": 0,
+        "Width": 44,
+        "Height": 18,
+        "Text": "{PaidDays}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "0.##"
+      },
+      {
+        "Kind": "Text",
+        "X": 348.0,
+        "Y": 0,
+        "Width": 44,
+        "Height": 18,
+        "Text": "{OvertimeHours}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "0.##"
+      },
+      {
+        "Kind": "Text",
+        "X": 395.0,
+        "Y": 0,
+        "Width": 84,
+        "Height": 18,
+        "Text": "{GrossEarnings}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 482.0,
+        "Y": 0,
+        "Width": 72,
+        "Height": 18,
+        "Text": "{EpfEmployee}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 557.0,
+        "Y": 0,
+        "Width": 66,
+        "Height": 18,
+        "Text": "{EsiEmployee}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 626.0,
+        "Y": 0,
+        "Width": 56,
+        "Height": 18,
+        "Text": "{ProfessionalTax}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 685.0,
+        "Y": 0,
+        "Width": 66,
+        "Height": 18,
+        "Text": "{TdsAmount}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2",
+        "VisibleWhen": "@ShowTds"
+      },
+      {
+        "Kind": "Text",
+        "X": 754.0,
+        "Y": 0,
+        "Width": 66,
+        "Height": 18,
+        "Text": "{LoanEmi}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 823.0,
+        "Y": 0,
+        "Width": 66,
+        "Height": 18,
+        "Text": "{OtherDeductions}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 892.0,
+        "Y": 0,
+        "Width": 82,
+        "Height": 18,
+        "Text": "{TotalDeductions}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 977.0,
+        "Y": 0,
+        "Width": 86,
+        "Height": 18,
+        "Text": "{NetPay}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "N2"
+      }
+    ]
+  },
+  "ReportFooter": {
+    "Kind": "ReportFooter",
+    "Name": "",
+    "Height": 48,
+    "Items": [
+      {
+        "Kind": "Line",
+        "X": 0,
+        "Y": 2,
+        "Width": 1063,
+        "Height": 0,
+        "ForeColor": "#1F2937",
+        "BorderColor": "#1F2937",
+        "BorderWidth": 1
+      },
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 5,
+        "Width": 298.0,
+        "Height": 20,
+        "Text": "Grand total",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 301.0,
+        "Y": 5,
+        "Width": 44,
+        "Height": 20,
+        "Text": "{Sum(PaidDays)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "0.##"
+      },
+      {
+        "Kind": "Text",
+        "X": 348.0,
+        "Y": 5,
+        "Width": 44,
+        "Height": 20,
+        "Text": "{Sum(OvertimeHours)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "0.##"
+      },
+      {
+        "Kind": "Text",
+        "X": 395.0,
+        "Y": 5,
+        "Width": 84,
+        "Height": 20,
+        "Text": "{Sum(GrossEarnings)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 482.0,
+        "Y": 5,
+        "Width": 72,
+        "Height": 20,
+        "Text": "{Sum(EpfEmployee)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 557.0,
+        "Y": 5,
+        "Width": 66,
+        "Height": 20,
+        "Text": "{Sum(EsiEmployee)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 626.0,
+        "Y": 5,
+        "Width": 56,
+        "Height": 20,
+        "Text": "{Sum(ProfessionalTax)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 685.0,
+        "Y": 5,
+        "Width": 66,
+        "Height": 20,
+        "Text": "{Sum(TdsAmount)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2",
+        "VisibleWhen": "@ShowTds"
+      },
+      {
+        "Kind": "Text",
+        "X": 754.0,
+        "Y": 5,
+        "Width": 66,
+        "Height": 20,
+        "Text": "{Sum(LoanEmi)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 823.0,
+        "Y": 5,
+        "Width": 66,
+        "Height": 20,
+        "Text": "{Sum(OtherDeductions)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 892.0,
+        "Y": 5,
+        "Width": 82,
+        "Height": 20,
+        "Text": "{Sum(TotalDeductions)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 977.0,
+        "Y": 5,
+        "Width": 86,
+        "Height": 20,
+        "Text": "{Sum(NetPay)}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2",
+        "Format": "N2"
+      },
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 28,
+        "Width": 1063,
+        "Height": 16,
+        "Text": "Employees: {Count(EmployeeID)}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#555555",
+        "WordWrap": true
+      }
+    ]
+  },
+  "PageFooter": {
+    "Kind": "PageFooter",
+    "Name": "",
+    "Height": 20,
+    "Items": [
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 2,
+        "Width": 400,
+        "Height": 16,
+        "Text": "Generated on {Format(Today(), 'dd-MM-yyyy')}",
+        "FontSize": 8,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#555555",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 663,
+        "Y": 2,
+        "Width": 400,
+        "Height": 16,
+        "Text": "Page {Page} of {PageCount}",
+        "FontSize": 8,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#555555",
+        "WordWrap": true
+      }
+    ]
+  }
+}
