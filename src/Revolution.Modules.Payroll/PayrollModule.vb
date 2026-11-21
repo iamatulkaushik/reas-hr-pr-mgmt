@@ -33,6 +33,8 @@ Public NotInheritable Class PayrollModule
         Dim payslips As New PayslipService(New SqlPayslipRepository(host.Factory), releaser, host.Permissions, host.Entitlements, host.Audit)
         Dim files As New PayrollFileService(source, host.Permissions, host.Audit, repository)
         Dim writers As New List(Of IBankFileWriter) From {New SbiFileWriter()}
-        Return New PayrollServices(salary, runs, payslips, loans, tds, tdsProjection, files, host.Rates, host.Exporter, writers, leave, fnf, leaveAccrual, bonus)
+        Dim pack As New MonthlyPackService(New SqlMonthlyPackRepository(host.Factory), New PayrollPackFiles(files, host.Rates), New FolderPackFileWriter(host.Exporter),
+                                           host.Permissions, host.Entitlements, host.Audit, host.Session, Function() Date.Today)
+        Return New PayrollServices(salary, runs, payslips, loans, tds, tdsProjection, files, host.Rates, host.Exporter, writers, leave, fnf, leaveAccrual, bonus, pack)
     End Function
 End Class

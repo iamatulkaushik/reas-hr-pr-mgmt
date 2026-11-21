@@ -1,3 +1,4 @@
+Imports System.ComponentModel
 Imports System.Drawing
 Imports System.Windows.Forms
 
@@ -41,6 +42,7 @@ Public NotInheritable Class FieldGrid
     End Sub
 
     ''' <summary>The most columns used, however wide the window is.</summary>
+    <Browsable(False), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property MaxColumns As Integer
         Get
             Return _maxColumns
@@ -53,6 +55,7 @@ Public NotInheritable Class FieldGrid
     End Property
 
     ''' <summary>The narrowest a column may get, in pixels at 96 dpi. A column count that would make columns narrower than this is not used.</summary>
+    <Browsable(False), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property MinColumnWidth As Integer
         Get
             Return _minColumnWidth

@@ -3,7 +3,7 @@ Imports Revolution.Core
 ''' <summary>The services of the Payroll module that screens use. Grows as screens ship.</summary>
 Public NotInheritable Class PayrollServices
     Public Sub New(salary As SalaryService, runs As PayrollRunService, payslips As PayslipService, loans As LoanService, tds As TdsDeclarationService, tdsProjection As TdsProjectionService, files As PayrollFileService, rates As IStatutoryRateService, exporter As ITableExporter, bankWriters As IReadOnlyList(Of IBankFileWriter),
-                   leave As LeaveService, fnf As FnfService, Optional leaveAccrual As LeaveAccrualService = Nothing, Optional bonus As BonusRunService = Nothing)
+                   leave As LeaveService, fnf As FnfService, Optional leaveAccrual As LeaveAccrualService = Nothing, Optional bonus As BonusRunService = Nothing, Optional pack As IMonthlyPackService = Nothing)
         If salary Is Nothing Then Throw New ArgumentNullException(NameOf(salary))
         If runs Is Nothing Then Throw New ArgumentNullException(NameOf(runs))
         If payslips Is Nothing Then Throw New ArgumentNullException(NameOf(payslips))
@@ -30,6 +30,7 @@ Public NotInheritable Class PayrollServices
         Me.Fnf = fnf
         Me.LeaveAccrual = leaveAccrual
         Me.Bonus = bonus
+        Me.Pack = pack
     End Sub
 
     ''' <summary>Company pay policy, salary components and effective-dated employee salary.</summary>
@@ -73,4 +74,6 @@ Public NotInheritable Class PayrollServices
 
     ''' <summary>The annual bonus run: preview what each employee is due for an accounting year, and make the run. Needs the BasicPayroll plan feature.</summary>
     Public ReadOnly Property Bonus As BonusRunService
+    ''' <summary>The Monthly Pack (ADR 0027): the month's statutory items, their files and their filing records.</summary>
+    Public ReadOnly Property Pack As IMonthlyPackService
 End Class

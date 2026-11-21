@@ -138,6 +138,7 @@ Public Class MigrationOrderTests
     <InlineData("pay.usp_RunInput_List", "OtHoursPerDay")>
     <InlineData("pay.usp_LeaveAccrual_Present", "fn_MonthAttendance")>
     <InlineData("att.usp_Attendance_Save", "53602")>
+    <InlineData("pay.usp_Pack_Figures", "EsiEmployer")>
     Public Sub TheLastDefinitionOfAPatchedProcedureKeepsThePatch(procedureName As String, token As String)
         Dim lastScript As String = Nothing
         Dim lastBody As String = Nothing

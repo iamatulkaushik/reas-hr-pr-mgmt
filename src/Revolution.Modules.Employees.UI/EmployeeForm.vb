@@ -2,15 +2,15 @@ Imports System.Windows.Forms
 Imports Revolution.Modules.Employees
 
 ''' <summary>
-''' Employee screen: search and list on the left; Details, IDs and Bank tabs on the right.
-''' A new employee is saved on Details first; the IDs, Bank and Nominees tabs open once the employee exists.
+''' Employee screen: search and list on the left; Details, IDs, Bank, Nominees and Statutory tabs on the right.
+''' A new employee is saved on Details first; the other tabs open once the employee exists.
 ''' </summary>
 Friend NotInheritable Class EmployeeForm
     Inherits BaseForm
 
     Private Const ListWidth As Integer = 460
     Private Const FormWidth As Integer = 1100
-    Private Const FormHeight As Integer = 740
+    Private Const FormHeight As Integer = 680
     Private Const DateFormat As String = "dd-MM-yyyy"
     Private Const DefaultAge As Integer = 25
     Private Const DefaultNationality As String = "Indian"
@@ -26,6 +26,7 @@ Friend NotInheritable Class EmployeeForm
     Private ReadOnly _ids As EmployeeIdsPanel
     Private ReadOnly _bank As EmployeeBankPanel
     Private ReadOnly _nominees As EmployeeNomineesPanel
+    Private ReadOnly _statutory As EmployeeStatutoryPanel
     Private ReadOnly _code As New TextBox() With {.ReadOnly = True}
     Private ReadOnly _name As New TextBox() With {.MaxLength = 100}
     Private ReadOnly _father As New TextBox() With {.MaxLength = 100}
@@ -59,14 +60,15 @@ Friend NotInheritable Class EmployeeForm
         _ids = New EmployeeIdsPanel(services, canEdit)
         _bank = New EmployeeBankPanel(services, canEdit)
         _nominees = New EmployeeNomineesPanel(services, canEdit)
+        _statutory = New EmployeeStatutoryPanel(services.Statutory, canEdit)
         ClientSize = New Drawing.Size(FormWidth, FormHeight)
         BuildLayout()
     End Sub
 
     Private Sub BuildLayout()
         Dim detailsPage As New TabPage("Details") With {.AutoScroll = True}
-        Dim layout = FieldLayout.CreateGrid()
-        layout.Padding = New Padding(Theme.Space1)
+        Dim layout = FieldLayout.Create()
+        layout.Padding = New Padding(Theme.Space2)
         FieldLayout.Add(layout, "Employee code", _code)
         FieldLayout.Add(layout, "Full name", _name)
         FieldLayout.Add(layout, "Father / spouse name", _father)
@@ -92,28 +94,32 @@ Friend NotInheritable Class EmployeeForm
         _tabs.TabPages(2).Controls.Add(_bank)
         _tabs.TabPages.Add(New TabPage("Nominees"))
         _tabs.TabPages(3).Controls.Add(_nominees)
+        _tabs.TabPages.Add(New TabPage("Statutory"))
+        _tabs.TabPages(4).Controls.Add(_statutory)
         _nominees.Dock = DockStyle.Fill
+        _statutory.Dock = DockStyle.Fill
         _ids.Dock = DockStyle.Fill
         _bank.Dock = DockStyle.Fill
 
+        Dim listPanel As New Panel With {.Dock = DockStyle.Left, .Width = ListWidth}
         ConfigureGrid()
-        Dim filterBar As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .AutoSize = True, .WrapContents = True, .Margin = New Padding(0, 0, 0, Theme.Space1)}
-        _search.Width = 200
-        _factoryFilter.Width = 180
+        Dim filterBar As New FlowLayoutPanel With {.Dock = DockStyle.Top, .AutoSize = True, .WrapContents = True}
+        _search.Width = 170
+        _factoryFilter.Width = 150
         filterBar.Controls.Add(_search)
         filterBar.Controls.Add(_factoryFilter)
         filterBar.Controls.Add(_showInactive)
-        Dim listPanel As New TableLayoutPanel With {.ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
-        listPanel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        listPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        listPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
-        listPanel.Controls.Add(filterBar, 0, 0)
-        listPanel.Controls.Add(_grid, 0, 1)
+        listPanel.Controls.Add(_grid)
+        listPanel.Controls.Add(filterBar)
 
+        Content.Controls.Add(_tabs)
+        Content.Controls.Add(listPanel)
+        Dim bar = CreateButtonBar()
         _saveButton.Enabled = _canEdit
         _newButton.Enabled = _canEdit
-        ' Tabs and fields on top (58 percent of the height), the employee list below.
-        BuildStandardLayout(_tabs, New Button() {_saveButton, _newButton, _closeButton}, listPanel, 58.0F)
+        bar.Controls.Add(_saveButton)
+        bar.Controls.Add(_newButton)
+        bar.Controls.Add(_closeButton)
         CancelButton = _closeButton
         WireEvents()
     End Sub
@@ -144,6 +150,7 @@ Friend NotInheritable Class EmployeeForm
         AddHandler _ids.Notice, AddressOf OnNotice
         AddHandler _bank.Notice, AddressOf OnNotice
         AddHandler _nominees.Notice, AddressOf OnNotice
+        AddHandler _statutory.Notice, AddressOf OnNotice
     End Sub
 
     Protected Overrides Sub OnLoad(e As EventArgs)
@@ -304,6 +311,7 @@ Friend NotInheritable Class EmployeeForm
         _ids.ShowEmployee(d.EmployeeId)
         _bank.ShowEmployee(d.EmployeeId)
         _nominees.ShowEmployee(d.EmployeeId)
+        _statutory.ShowEmployee(d.EmployeeId)
     End Sub
 
     Private Shared Function ClampDate(picker As DateTimePicker, value As Date) As Date
@@ -340,6 +348,7 @@ Friend NotInheritable Class EmployeeForm
         _ids.ShowEmployee(0)
         _bank.ShowEmployee(0)
         _nominees.ShowEmployee(0)
+        _statutory.ShowEmployee(0)
         _tabs.SelectedIndex = 0
         _name.Focus()
     End Sub

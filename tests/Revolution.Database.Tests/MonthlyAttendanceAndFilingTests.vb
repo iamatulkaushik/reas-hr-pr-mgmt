@@ -107,6 +107,19 @@ Public Class MonthlyAttendanceAndFilingTests
     End Sub
 
     <Fact>
+    Public Sub PackFigures_ForAMonthWithoutARun_ReturnTheCompany_AndLwfStatesRuns()
+        If Not Db.Available Then Return
+        Using conn = Db.Open(_seed.CompanyA, runAs:="rv_test_app")
+            Dim names = Db.Proc(conn, "pay.usp_Pack_Figures", ("@PeriodStart", New Date(1999, 1, 1)))
+            Assert.Single(names)
+            Assert.False(String.IsNullOrWhiteSpace(CStr(names(0))))
+            Db.Proc(conn, "pay.usp_Pack_LwfStates", ("@PeriodStart", New Date(2026, 10, 1)))
+            Dim bad = Assert.Throws(Of SqlException)(Sub() Db.Proc(conn, "pay.usp_Pack_Figures", ("@PeriodStart", New Date(2026, 10, 5))))
+            Assert.Equal(53650, bad.Number)
+        End Using
+    End Sub
+
+    <Fact>
     Public Sub DueDate_UnverifiedRule_GivesNoDate_ButSaysThereIsARule()
         If Not Db.Available Then Return
         Using admin = Db.Open()

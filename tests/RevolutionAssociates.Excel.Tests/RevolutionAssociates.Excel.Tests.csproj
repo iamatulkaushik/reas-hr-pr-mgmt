@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RevolutionAssociates.Excel\RevolutionAssociates.Excel.csproj" />
+    <ProjectReference Include="..\..\src\RevolutionAssociates.Excel\RevolutionAssociates.Excel.csproj" />
   </ItemGroup>
 
 </Project>
