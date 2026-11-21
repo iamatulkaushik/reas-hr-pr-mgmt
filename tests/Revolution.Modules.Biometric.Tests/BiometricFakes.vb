@@ -111,8 +111,10 @@ Friend NotInheritable Class FakeBioAudit
     Implements IAuditService
 
     Public ReadOnly Entries As New List(Of AuditEntry)()
+    Public FailWith As String
 
     Public Function Record(entry As AuditEntry) As OperationResult Implements IAuditService.Record
+        If FailWith IsNot Nothing Then Return OperationResult.Fail(FailWith)
         Entries.Add(entry)
         Return OperationResult.Ok()
     End Function
@@ -281,6 +283,7 @@ Friend NotInheritable Class FakeAgentKeyRepository
     Public ReadOnly Issued As New List(Of String)()
     Public ReadOnly Retired As New List(Of Integer)()
     Public FailWith As String
+    Public FailRetireWith As String
 
     Public Function Issue(label As String) As IssuedAgentKey Implements IAgentKeyRepository.Issue
         If FailWith IsNot Nothing Then Throw New BiometricRuleException(FailWith)
@@ -295,6 +298,7 @@ Friend NotInheritable Class FakeAgentKeyRepository
 
     Public Sub Retire(registrationId As Integer) Implements IAgentKeyRepository.Retire
         If FailWith IsNot Nothing Then Throw New BiometricRuleException(FailWith)
+        If FailRetireWith IsNot Nothing Then Throw New BiometricRuleException(FailRetireWith)
         Retired.Add(registrationId)
     End Sub
 End Class

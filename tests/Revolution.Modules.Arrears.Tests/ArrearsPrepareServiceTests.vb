@@ -65,7 +65,7 @@ Public Class ArrearsPrepareServiceTests
         _perms.Allowed.Remove(PermissionAction.Create)
         Assert.False(_service.Prepare(101, New Date(2026, 10, 1), New Date(2026, 10, 1)).Succeeded)
         _perms.Allowed.Add(PermissionAction.Create)
-        _plan.PayrollEnabled = False
+        _plan.ArrearsEnabled = False
         Assert.False(_service.Prepare(101, New Date(2026, 10, 1), New Date(2026, 10, 1)).Succeeded)
     End Sub
 
@@ -74,5 +74,13 @@ Public Class ArrearsPrepareServiceTests
         Assert.False(_service.Prepare(0, New Date(2026, 10, 1), New Date(2026, 10, 1)).Succeeded)
         Assert.False(_service.Prepare(101, New Date(2026, 10, 1), New Date(2026, 9, 1)).Succeeded)
         Assert.False(_service.Prepare(101, New Date(2020, 1, 1), New Date(2026, 10, 1)).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub PlanWithoutArrears_IsRefused_EvenWithPayroll()
+        _plan.ArrearsEnabled = False
+        Dim r = _service.Prepare(101, New Date(2026, 10, 1), New Date(2026, 10, 1))
+        Assert.False(r.Succeeded)
+        Assert.Equal("Arrears is not part of your plan.", r.Message)
     End Sub
 End Class

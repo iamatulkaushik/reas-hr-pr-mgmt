@@ -8,15 +8,14 @@ Imports System.Windows.Forms
 Friend MustInherit Class MasterFormBase
     Inherits BaseForm
 
-    Private Const ListWidth As Integer = 440
     Private Const FormWidth As Integer = 960
-    Private Const FormHeight As Integer = 560
+    Private Const FormHeight As Integer = 640
     Private Const NotAllowedText As String = "You are not allowed to change this master."
 
     Private ReadOnly _canEdit As Boolean
     Private ReadOnly _grid As New DataGridView()
     Private ReadOnly _showInactive As New CheckBox()
-    Private ReadOnly _editor As New TableLayoutPanel()
+    Private ReadOnly _editor As New FieldGrid()
     Private ReadOnly _saveButton As New Button()
     Private ReadOnly _newButton As New Button()
     Private ReadOnly _closeButton As New Button()
@@ -58,34 +57,26 @@ Friend MustInherit Class MasterFormBase
     End Sub
 
     Private Sub BuildLayout(headers As String())
-        Dim details As New Panel With {.Dock = DockStyle.Fill, .Padding = New Padding(Theme.Space2)}
-        _editor.ColumnCount = 1
-        _editor.Dock = DockStyle.Top
-        _editor.AutoSize = True
-        _editor.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        details.Controls.Add(_editor)
-
-        Dim listPanel As New Panel With {.Dock = DockStyle.Left, .Width = ListWidth}
+        ' Editor on top, then the message line and the buttons, then the list filling the rest of the window.
         ConfigureGrid(headers)
         _showInactive.Text = "Show inactive"
         _showInactive.AutoSize = True
-        _showInactive.Dock = DockStyle.Top
+        _showInactive.Margin = New Padding(0, 0, 0, Theme.Space1)
         AddHandler _showInactive.CheckedChanged, Sub(sender As Object, e As EventArgs) Reload(CurrentId())
-        listPanel.Controls.Add(_grid)
-        listPanel.Controls.Add(_showInactive)
+        Dim listPanel As New TableLayoutPanel With {.ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
+        listPanel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
+        listPanel.Controls.Add(_showInactive, 0, 0)
+        listPanel.Controls.Add(_grid, 0, 1)
 
-        Content.Controls.Add(details)
-        Content.Controls.Add(listPanel)
-        Dim bar = CreateButtonBar()
         _saveButton.Text = "Save"
         _newButton.Text = "New"
         _closeButton.Text = "Close"
         _closeButton.DialogResult = DialogResult.Cancel
         _saveButton.Enabled = _canEdit
         _newButton.Enabled = _canEdit
-        bar.Controls.Add(_saveButton)
-        bar.Controls.Add(_newButton)
-        bar.Controls.Add(_closeButton)
+        BuildStandardLayout(_editor, New Button() {_saveButton, _newButton, _closeButton}, listPanel)
         CancelButton = _closeButton
         AddHandler _saveButton.Click, Sub(sender As Object, e As EventArgs) SaveCurrent()
         AddHandler _newButton.Click, Sub(sender As Object, e As EventArgs) StartNew()

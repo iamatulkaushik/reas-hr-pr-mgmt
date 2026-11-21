@@ -32,10 +32,10 @@ Public NotInheritable Class LoginForm
         _userBox.MaxLength = 100
         _passwordBox.UseSystemPasswordChar = True
         _passwordBox.MaxLength = 128
-        Dim layout = CreateFormLayout()
+        Dim layout = CreateDialogLayout()
         AddField(layout, "User name", _userBox)
         AddField(layout, "Password", _passwordBox)
-        Dim bar = CreateButtonBar()
+        Dim bar = CreateDialogButtonBar()
         _signIn.Text = "Sign in"
         _cancel.Text = "Exit"
         _cancel.DialogResult = DialogResult.Cancel

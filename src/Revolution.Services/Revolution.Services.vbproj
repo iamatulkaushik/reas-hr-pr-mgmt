@@ -11,6 +11,12 @@
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The licence tool's signing code, compiled here too so the Developer's Licence screen can issue licences (ADR 0018, amended). One source, no second copy. -->
+    <Compile Include="..\..\tools\Revolution.LicenceTool\SigningKey.vb" Link="Licensing\SigningKey.vb" />
+    <Compile Include="..\..\tools\Revolution.LicenceTool\LicenceIssuer.vb" Link="Licensing\LicenceIssuer.vb" />
+    <Compile Include="..\..\tools\Revolution.LicenceTool\IssuedLicence.vb" Link="Licensing\IssuedLicence.vb" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
     <ProjectReference Include="..\Revolution.Data\Revolution.Data.vbproj" />
     <ProjectReference Include="..\RevolutionAssociates.Excel\RevolutionAssociates.Excel.csproj" />

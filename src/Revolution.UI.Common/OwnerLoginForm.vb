@@ -30,7 +30,7 @@ Public NotInheritable Class OwnerLoginForm
             box.UseSystemPasswordChar = True
             box.MaxLength = 128
         Next
-        Dim layout = CreateFormLayout()
+        Dim layout = CreateDialogLayout()
         AddField(layout, "Owner user name", _userBox)
         AddField(layout, "Temporary password", _passwordBox)
         AddField(layout, "Confirm temporary password", _confirmBox)
@@ -40,7 +40,7 @@ Public NotInheritable Class OwnerLoginForm
             .MaximumSize = New Size(380, 0),
             .ForeColor = Theme.TextMuted
         })
-        Dim bar = CreateButtonBar()
+        Dim bar = CreateDialogButtonBar()
         _save.Text = "Create"
         _cancel.Text = "Cancel"
         _cancel.DialogResult = DialogResult.Cancel

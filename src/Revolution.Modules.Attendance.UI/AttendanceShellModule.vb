@@ -28,17 +28,22 @@ Public NotInheritable Class AttendanceShellModule
         If session Is Nothing Then Throw New ArgumentNullException(NameOf(session))
         _items = New List(Of ShellItem) From {
             New ShellItem(New MenuEntry("attendance.daily", AttendanceGroup, "Daily attendance", ModuleKey.Attendance, PlanFeature.Attendance, DailySort),
-                          Function() CType(New DailyAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form)),
+                          Function() If(IsMonthly(services), CType(New MonthlySingleForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form),
+                                        CType(New DailyAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form))),
             New ShellItem(New MenuEntry("attendance.multiple", AttendanceGroup, "Multiple attendance", ModuleKey.Attendance, PlanFeature.Attendance, MultipleSort),
                           Function() CType(New MultipleAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form)),
             New ShellItem(New MenuEntry("attendance.bulk.multiple", AttendanceGroup, "Multiple attendance (list)", ModuleKey.Attendance, PlanFeature.Attendance, BulkMultipleSort),
-                          Function() CType(New BulkEntryForm("Multiple attendance", AttendanceBoardService.BulkTemplate(), services.Board.CreateBulkHandler(), importer, exporter, False, UserNameOf(session)), Form)),
+                          Function() If(IsMonthly(services), MonthlyEntry.CreateList(services, importer, exporter, UserNameOf(session), False),
+                                        CType(New BulkEntryForm("Multiple attendance", AttendanceBoardService.BulkTemplate(), services.Board.CreateBulkHandler(), importer, exporter, False, UserNameOf(session)), Form))),
             New ShellItem(New MenuEntry("attendance.bulk.import", AttendanceGroup, "Import attendance", ModuleKey.Attendance, PlanFeature.Attendance, BulkImportSort),
-                          Function() CType(New BulkEntryForm("Import attendance", AttendanceBoardService.BulkTemplate(), services.Board.CreateBulkHandler(), importer, exporter, True, UserNameOf(session)), Form)),
+                          Function() If(IsMonthly(services), MonthlyEntry.CreateList(services, importer, exporter, UserNameOf(session), True),
+                                        CType(New BulkEntryForm("Import attendance", AttendanceBoardService.BulkTemplate(), services.Board.CreateBulkHandler(), importer, exporter, True, UserNameOf(session)), Form))),
             New ShellItem(New MenuEntry("attendance.deleteday", AttendanceGroup, "Delete attendance", ModuleKey.Attendance, PlanFeature.Attendance, DeleteSort),
-                          Function() CType(New DeleteAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Delete)), Form)),
+                          Function() If(IsMonthly(services), CType(New MonthlyDeleteForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Delete)), Form),
+                                        CType(New DeleteAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Delete)), Form))),
             New ShellItem(New MenuEntry("attendance.monthview", AttendanceGroup, "Month attendance", ModuleKey.Attendance, PlanFeature.Attendance, MonthViewSort),
-                          Function() CType(New MonthAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form)),
+                          Function() If(IsMonthly(services), CType(New MonthlyViewForm(services), Form),
+                                        CType(New MonthAttendanceForm(services, permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Edit)), Form))),
             New ShellItem(New MenuEntry("attendance.monthclose", AttendanceGroup, "Month close", ModuleKey.Attendance, PlanFeature.Attendance, MonthCloseSort),
                           Function() CType(New MonthCloseForm(services,
                                                               permissions.IsAllowed(ModuleKey.Attendance, PermissionAction.Approve),
@@ -52,6 +57,15 @@ Public NotInheritable Class AttendanceShellModule
             New ShellItem(RosterEntry("attendance.roster.assign", "Shift assignment", AssignSort),
                           Function() CType(New ShiftAssignForm(services, CanEditRoster(permissions)), Form))}
     End Sub
+
+    ''' <summary>The mode is read each time a screen opens, so a change in the company settings applies at once (ADR 0026). A fault reading it keeps the standard monthly screens.</summary>
+    Private Shared Function IsMonthly(services As AttendanceServices) As Boolean
+        Try
+            Return services.Monthly.CurrentMode() = AttendanceMode.Monthly
+        Catch ex As AttendanceRuleException
+            Return True
+        End Try
+    End Function
 
     Private Shared Function UserNameOf(session As ISessionContext) As String
         Return If(session.Current Is Nothing, String.Empty, session.Current.UserName)

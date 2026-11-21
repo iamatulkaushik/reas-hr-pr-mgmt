@@ -10,7 +10,7 @@ Friend NotInheritable Class EmployeeForm
 
     Private Const ListWidth As Integer = 460
     Private Const FormWidth As Integer = 1100
-    Private Const FormHeight As Integer = 680
+    Private Const FormHeight As Integer = 740
     Private Const DateFormat As String = "dd-MM-yyyy"
     Private Const DefaultAge As Integer = 25
     Private Const DefaultNationality As String = "Indian"
@@ -65,8 +65,8 @@ Friend NotInheritable Class EmployeeForm
 
     Private Sub BuildLayout()
         Dim detailsPage As New TabPage("Details") With {.AutoScroll = True}
-        Dim layout = FieldLayout.Create()
-        layout.Padding = New Padding(Theme.Space2)
+        Dim layout = FieldLayout.CreateGrid()
+        layout.Padding = New Padding(Theme.Space1)
         FieldLayout.Add(layout, "Employee code", _code)
         FieldLayout.Add(layout, "Full name", _name)
         FieldLayout.Add(layout, "Father / spouse name", _father)
@@ -96,25 +96,24 @@ Friend NotInheritable Class EmployeeForm
         _ids.Dock = DockStyle.Fill
         _bank.Dock = DockStyle.Fill
 
-        Dim listPanel As New Panel With {.Dock = DockStyle.Left, .Width = ListWidth}
         ConfigureGrid()
-        Dim filterBar As New FlowLayoutPanel With {.Dock = DockStyle.Top, .AutoSize = True, .WrapContents = True}
-        _search.Width = 170
-        _factoryFilter.Width = 150
+        Dim filterBar As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .AutoSize = True, .WrapContents = True, .Margin = New Padding(0, 0, 0, Theme.Space1)}
+        _search.Width = 200
+        _factoryFilter.Width = 180
         filterBar.Controls.Add(_search)
         filterBar.Controls.Add(_factoryFilter)
         filterBar.Controls.Add(_showInactive)
-        listPanel.Controls.Add(_grid)
-        listPanel.Controls.Add(filterBar)
+        Dim listPanel As New TableLayoutPanel With {.ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
+        listPanel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
+        listPanel.Controls.Add(filterBar, 0, 0)
+        listPanel.Controls.Add(_grid, 0, 1)
 
-        Content.Controls.Add(_tabs)
-        Content.Controls.Add(listPanel)
-        Dim bar = CreateButtonBar()
         _saveButton.Enabled = _canEdit
         _newButton.Enabled = _canEdit
-        bar.Controls.Add(_saveButton)
-        bar.Controls.Add(_newButton)
-        bar.Controls.Add(_closeButton)
+        ' Tabs and fields on top (58 percent of the height), the employee list below.
+        BuildStandardLayout(_tabs, New Button() {_saveButton, _newButton, _closeButton}, listPanel, 58.0F)
         CancelButton = _closeButton
         WireEvents()
     End Sub

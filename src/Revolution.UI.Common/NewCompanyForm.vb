@@ -27,9 +27,9 @@ Public NotInheritable Class NewCompanyForm
         MaximizeBox = False
         MinimizeBox = False
         _nameBox.MaxLength = 200
-        Dim layout = CreateFormLayout()
+        Dim layout = CreateDialogLayout()
         AddField(layout, "Company name", _nameBox)
-        Dim bar = CreateButtonBar()
+        Dim bar = CreateDialogButtonBar()
         _save.Text = "Create"
         _cancel.Text = "Cancel"
         _cancel.DialogResult = DialogResult.Cancel

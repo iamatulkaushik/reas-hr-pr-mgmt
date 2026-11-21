@@ -28,6 +28,7 @@ Public Class ShellForm
         _serverInfo = If(serverInfo, String.Empty)
         StartPosition = FormStartPosition.CenterScreen
         ClientSize = New Size(1100, 700)
+        WindowState = FormWindowState.Maximized
         _banner.Dock = DockStyle.Fill
         _banner.TextAlign = ContentAlignment.MiddleCenter
         _menu.Dock = DockStyle.Top

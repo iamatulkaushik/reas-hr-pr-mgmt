@@ -23,7 +23,7 @@ Public Class ArrearsServiceTests
 
     <Fact>
     Public Sub PlanWithoutPayroll_RefusesEverything()
-        _plan.PayrollEnabled = False
+        _plan.ArrearsEnabled = False
         Assert.False(_service.Create(101, "Revision", TwoMonths()).Succeeded)
         Assert.False(_service.List(Nothing).Succeeded)
         Assert.False(_service.Report(New Date(2026, 5, 1), New Date(2026, 6, 1)).Succeeded)
@@ -122,5 +122,13 @@ Public Class ArrearsServiceTests
         Assert.Equal(New Date(2026, 6, 1), _repo.LastReport.Item2)
         Assert.False(_service.Report(New Date(2026, 6, 1), New Date(2026, 5, 1)).Succeeded)
         Assert.False(_service.Report(New Date(2020, 1, 1), New Date(2026, 1, 1)).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub PlanWithoutArrears_IsRefused_EvenWithPayroll()
+        _plan.ArrearsEnabled = False
+        Dim r = _service.List(Nothing)
+        Assert.False(r.Succeeded)
+        Assert.Equal("Arrears is not part of your plan.", r.Message)
     End Sub
 End Class

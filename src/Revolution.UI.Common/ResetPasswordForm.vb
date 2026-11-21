@@ -32,7 +32,7 @@ Public NotInheritable Class ResetPasswordForm
             box.UseSystemPasswordChar = True
             box.MaxLength = 128
         Next
-        Dim layout = CreateFormLayout()
+        Dim layout = CreateDialogLayout()
         AddField(layout, "User", _users)
         AddField(layout, "Temporary password", _passwordBox)
         AddField(layout, "Confirm temporary password", _confirmBox)
@@ -42,7 +42,7 @@ Public NotInheritable Class ResetPasswordForm
             .MaximumSize = New Size(420, 0),
             .ForeColor = Theme.TextMuted
         })
-        Dim bar = CreateButtonBar()
+        Dim bar = CreateDialogButtonBar()
         _save.Text = "Reset"
         _close.Text = "Close"
         _close.DialogResult = DialogResult.Cancel

@@ -15,9 +15,9 @@ Public NotInheritable Class ArrearsShellModule
     Public Sub New(services As ArrearsServices)
         If services Is Nothing Then Throw New ArgumentNullException(NameOf(services))
         _items = New List(Of ShellItem) From {
-            New ShellItem(New MenuEntry("arrears.list", ProcessGroup, "Arrears", ModuleKey.Payroll, PlanFeature.BasicPayroll, ListSort),
+            New ShellItem(New MenuEntry("arrears.list", ProcessGroup, "Arrears", ModuleKey.Payroll, PlanFeature.Arrears, ListSort),
                           Function() CType(New ArrearsListForm(services), Form)),
-            New ShellItem(New MenuEntry("arrears.report", ReportsGroup, "Arrears report", ModuleKey.Payroll, PlanFeature.BasicPayroll, ReportSort),
+            New ShellItem(New MenuEntry("arrears.report", ReportsGroup, "Arrears report", ModuleKey.Payroll, PlanFeature.Arrears, ReportSort),
                           Function() CType(New ArrearsReportForm(services), Form))}
     End Sub
 

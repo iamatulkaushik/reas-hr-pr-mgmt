@@ -12,7 +12,7 @@ Public NotInheritable Class AppServices
                     permissions As IPermissionService, audit As IAuditService, auth As IAuthService,
                     approvals As IApprovalService, associateAdmin As IAssociateAdminService, rates As IStatutoryRateService, crypto As IFieldCrypto,
                     licence As ILicenceService, licenceAdmin As ILicenceAdminService, exporter As ITableExporter,
-                    userPasswordAdmin As IUserPasswordAdminService)
+                    userPasswordAdmin As IUserPasswordAdminService, licenceIssue As ILicenceIssueService)
         Me.Session = session
         Me.Factory = factory
         Me.Entitlements = entitlements
@@ -25,6 +25,7 @@ Public NotInheritable Class AppServices
         Me.Crypto = crypto
         Me.Licence = licence
         Me.LicenceAdmin = licenceAdmin
+        Me.LicenceIssue = licenceIssue
         Me.UserPasswordAdmin = userPasswordAdmin
         Me.Host = New ModuleHost(factory, session, entitlements, permissions, audit, approvals, rates, crypto, exporter)
     End Sub
@@ -41,6 +42,7 @@ Public NotInheritable Class AppServices
     Public ReadOnly Property Crypto As IFieldCrypto
     Public ReadOnly Property Licence As ILicenceService
     Public ReadOnly Property LicenceAdmin As ILicenceAdminService
+    Public ReadOnly Property LicenceIssue As ILicenceIssueService
     Public ReadOnly Property UserPasswordAdmin As IUserPasswordAdminService
     ''' <summary>What every feature module is composed from. Pass it to a module's composition class.</summary>
     Public ReadOnly Property Host As ModuleHost
@@ -72,11 +74,12 @@ Public NotInheritable Class AppServices
                                     hasher, session, audit, TimeProvider.System)
         Dim approvals As New ApprovalService(New SqlApprovalRepository(factory), session, permissions, entitlements, audit)
         Dim licenceAdmin As New LicenceAdminService(licenceRepository, permissions, LicenceKeys.Trusted, audit)
+        Dim licenceIssue As New LicenceIssueService(licenceAdmin, permissions, session, audit)
         Dim associateAdmin As New AssociateAdminService(New SqlAssociateAdminRepository(factory), permissions, hasher, audit)
         Dim userPasswordAdmin As New UserPasswordAdminService(New SqlUserPasswordAdminRepository(factory), permissions, hasher, audit)
         Dim rates As New StatutoryRateService(New SqlStatutoryRateRepository(factory))
 
-        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence, licenceAdmin, New ExcelTableExporter(), userPasswordAdmin)
+        Dim services As New AppServices(session, factory, entitlements, permissions, audit, auth, approvals, associateAdmin, rates, New AesGcmFieldCrypto(keys), licence, licenceAdmin, New ExcelTableExporter(), userPasswordAdmin, licenceIssue)
         Return OperationResult(Of AppServices).Ok(services)
     End Function
 End Class

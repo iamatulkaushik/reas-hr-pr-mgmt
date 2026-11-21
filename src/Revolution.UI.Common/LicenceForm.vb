@@ -9,26 +9,31 @@ Public NotInheritable Class LicenceForm
     Inherits BaseForm
 
     Private ReadOnly _admin As ILicenceAdminService
+    Private ReadOnly _issuer As ILicenceIssueService
     Private ReadOnly _installationBox As New TextBox()
     Private ReadOnly _grid As New DataGridView()
     Private ReadOnly _copyButton As New Button()
+    Private ReadOnly _issueButton As New Button()
+    Private ReadOnly _keyButton As New Button()
     Private ReadOnly _importButton As New Button()
     Private ReadOnly _revokeButton As New Button()
     Private ReadOnly _reinstateButton As New Button()
     Private ReadOnly _refreshButton As New Button()
     Private ReadOnly _closeButton As New Button()
 
-    Public Sub New(admin As ILicenceAdminService)
+    ''' <param name="issuer">The Developer's licence issuing. Without it the screen can only import licence files.</param>
+    Public Sub New(admin As ILicenceAdminService, Optional issuer As ILicenceIssueService = Nothing)
         MyBase.New("Licences", "Revolution HRMS")
         If admin Is Nothing Then Throw New ArgumentNullException(NameOf(admin))
         _admin = admin
+        _issuer = issuer
         BuildLayout()
     End Sub
 
     Private Sub BuildLayout()
-        ClientSize = New Size(820, 520)
+        ClientSize = New Size(900, 620)
         _installationBox.ReadOnly = True
-        _grid.Height = 280
+        _grid.Dock = DockStyle.Fill
         _grid.ReadOnly = True
         _grid.AllowUserToAddRows = False
         _grid.AllowUserToDeleteRows = False
@@ -42,10 +47,8 @@ Public NotInheritable Class LicenceForm
         AddColumn("Companies", "MaxCompanies")
         AddColumn("Users", "MaxActiveUsers")
         AddColumn("Status", "StatusText")
-        Dim layout = CreateFormLayout()
-        AddField(layout, "Installation id", _installationBox)
-        AddField(layout, "Current licences", _grid)
-        Dim bar = CreateButtonBar()
+        Dim installation As New FieldGrid() With {.MaxColumns = 1}
+        installation.AddField("Installation id", _installationBox)
         _copyButton.Text = "Copy installation id"
         _importButton.Text = "Import licence file..."
         _revokeButton.Text = "Revoke..."
@@ -53,10 +56,23 @@ Public NotInheritable Class LicenceForm
         _refreshButton.Text = "Refresh"
         _closeButton.Text = "Close"
         _closeButton.DialogResult = DialogResult.Cancel
-        For Each actionButton In {_copyButton, _importButton, _revokeButton, _reinstateButton, _refreshButton, _closeButton}
-            actionButton.AutoSize = True
-            bar.Controls.Add(actionButton)
-        Next
+        Dim listPanel As New TableLayoutPanel With {.ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
+        listPanel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
+        listPanel.Controls.Add(New Label With {.Text = "Current licences", .AutoSize = True, .Margin = New Padding(0, 0, 0, 2)}, 0, 0)
+        listPanel.Controls.Add(_grid, 0, 1)
+        ' The buttons run right to left, so Close is at the right end and the actions read left to right.
+        Dim actions As New List(Of Button) From {_closeButton, _refreshButton, _reinstateButton, _revokeButton, _importButton, _copyButton}
+        If _issuer IsNot Nothing Then
+            _issueButton.Text = "Issue licence..."
+            _keyButton.Text = "Create signing key..."
+            actions.Add(_issueButton)
+            actions.Add(_keyButton)
+            AddHandler _issueButton.Click, AddressOf OnIssueClick
+            AddHandler _keyButton.Click, AddressOf OnCreateKeyClick
+        End If
+        BuildStandardLayout(installation, actions, listPanel)
         CancelButton = _closeButton
         AddHandler _copyButton.Click, AddressOf OnCopyClick
         AddHandler _importButton.Click, AddressOf OnImportClick
@@ -72,6 +88,27 @@ Public NotInheritable Class LicenceForm
 
     Private Async Sub OnFormShown(sender As Object, args As EventArgs)
         Await LoadAsync()
+    End Sub
+
+    Private Async Sub OnIssueClick(sender As Object, args As EventArgs)
+        ClearValidation()
+        Dim selected = SelectedLicence()
+        Dim associate As String = If(selected Is Nothing, String.Empty, selected.AssociateUserName)
+        Dim plan As PlanTier = If(selected Is Nothing, PlanTier.Copper, selected.PlanCap)
+        Dim issued As Boolean
+        Using dialog As New IssueLicenceForm(_issuer, associate, plan)
+            issued = dialog.ShowDialog(Me) = DialogResult.OK
+        End Using
+        If issued Then
+            Await LoadAsync()
+            ShowStatus("Licence issued and imported.")
+        End If
+    End Sub
+
+    Private Sub OnCreateKeyClick(sender As Object, args As EventArgs)
+        Using dialog As New CreateSigningKeyForm(_issuer)
+            dialog.ShowDialog(Me)
+        End Using
     End Sub
 
     Private Async Sub OnRefreshClick(sender As Object, args As EventArgs)

@@ -31,7 +31,7 @@ Public NotInheritable Class ChangePasswordForm
             box.UseSystemPasswordChar = True
             box.MaxLength = 128
         Next
-        Dim layout = CreateFormLayout()
+        Dim layout = CreateDialogLayout()
         If _knownCurrent Is Nothing Then
             AddField(layout, "Current password", _currentBox)
         End If
@@ -43,7 +43,7 @@ Public NotInheritable Class ChangePasswordForm
             .MaximumSize = New Size(380, 0),
             .ForeColor = Theme.TextMuted
         })
-        Dim bar = CreateButtonBar()
+        Dim bar = CreateDialogButtonBar()
         _save.Text = "Save"
         _cancel.Text = "Cancel"
         _cancel.DialogResult = DialogResult.Cancel

@@ -29,7 +29,8 @@ Public NotInheritable Class SqlSalaryRepository
                                               reader.GetBoolean(reader.GetOrdinal("OtInEpfWage")),
                                               reader.GetBoolean(reader.GetOrdinal("OtInEsiWage")),
                                               reader.GetDecimal(reader.GetOrdinal("DailyWageDivisor")),
-                                              reader.GetDecimal(reader.GetOrdinal("EmiCapPct")))
+                                              reader.GetDecimal(reader.GetOrdinal("EmiCapPct")),
+                                              reader.GetDecimal(reader.GetOrdinal("OtHoursPerDay")))
                 End Using
             End Using
         End Using
@@ -44,6 +45,7 @@ Public NotInheritable Class SqlSalaryRepository
                     cmd.Parameters.Add("@OtInEsiWage", SqlDbType.Bit).Value = policy.OtInEsiWage
                     AddDecimal(cmd, "@DailyWageDivisor", 7, 2, policy.DailyWageDivisor)
                     AddDecimal(cmd, "@EmiCapPct", 7, 4, policy.EmiCapPct)
+                    AddDecimal(cmd, "@OtHoursPerDay", 4, 2, policy.OtHoursPerDay)
                     cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = StoredProcedure.DbValue(userId)
                 End Sub)
     End Sub

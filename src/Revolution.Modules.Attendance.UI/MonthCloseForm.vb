@@ -88,7 +88,7 @@ Friend NotInheritable Class MonthCloseForm
         ClearValidation()
         Dim year = _month.Value.Year
         Dim month = _month.Value.Month
-        Dim loaded = _services.Board.LoadCloseSheet(year, month)
+        Dim loaded = LoadSheet(year, month)
         _blockers.Items.Clear()
         _history.Items.Clear()
         _closeButton.Enabled = False
@@ -132,7 +132,7 @@ Friend NotInheritable Class MonthCloseForm
                            MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) <> DialogResult.Yes Then
             Return
         End If
-        Dim result = _services.Board.CloseMonth(_month.Value.Year, _month.Value.Month)
+        Dim result = CloseMonthFor(_month.Value.Year, _month.Value.Month)
         If Not result.Succeeded Then
             ShowError(result.Message)
             Return
@@ -167,5 +167,14 @@ Friend NotInheritable Class MonthCloseForm
             dialog.CancelButton = cancel
             Return If(dialog.ShowDialog(Me) = DialogResult.OK, box.Text, Nothing)
         End Using
+    End Function
+
+    ''' <summary>Monthly mode (the default, ADR 0026) reads the month's monthly rows; Daily mode reads the daily marks as before.</summary>
+    Private Function LoadSheet(year As Integer, month As Integer) As OperationResult(Of CloseSheet)
+        Return If(_services.Monthly.CurrentMode() = AttendanceMode.Monthly, _services.Monthly.LoadCloseSheet(year, month), _services.Board.LoadCloseSheet(year, month))
+    End Function
+
+    Private Function CloseMonthFor(year As Integer, month As Integer) As OperationResult
+        Return If(_services.Monthly.CurrentMode() = AttendanceMode.Monthly, _services.Monthly.CloseMonth(year, month), _services.Board.CloseMonth(year, month))
     End Function
 End Class

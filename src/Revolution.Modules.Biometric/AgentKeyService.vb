@@ -4,10 +4,13 @@ Imports Revolution.Core
 ''' <summary>
 ''' Issue, list and retire the keys of the company's punch agents (special build, ADR 0021). Needs the Biometric plan feature; View to list, Create to issue, Edit to retire. The database also checks that
 ''' the user is the Owner or the Associate of the company. The key comes back once, in the result, and is never audited or kept. A lost key is retired and a new one issued.
+''' If the audit entry cannot be written, the new key is retired at once and the call fails, so no active key exists that nobody was given.
 ''' </summary>
 Public NotInheritable Class AgentKeyService
     Public Const MaxLabelLength As Integer = 60
     Private Const NotAllowed As String = "You are not allowed to do this."
+    Private Const AuditFailedUndone As String = "The key was not issued because the audit log could not be written. Try again."
+    Private Const AuditFailedNotUndone As String = "The audit log could not be written and the new key could not be withdrawn. Retire the newest key in the list, then issue again."
 
     Private ReadOnly _repository As IAgentKeyRepository
     Private ReadOnly _permissions As IPermissionService
@@ -48,7 +51,10 @@ Public NotInheritable Class AgentKeyService
             Return OperationResult(Of IssuedAgentKey).Fail(ex.Message)
         End Try
         Dim logged As OperationResult = _audit.Record(New AuditEntry(ModuleKey.Biometric, "AgentKey.Issue", "AgentRegistration", issued.RegistrationId.ToString(CultureInfo.InvariantCulture), "Agent key issued."))
-        If Not logged.Succeeded Then Return OperationResult(Of IssuedAgentKey).Fail(logged.Message)
+        If Not logged.Succeeded Then
+            Dim undone As Boolean = TryRetire(issued.RegistrationId)
+            Return OperationResult(Of IssuedAgentKey).Fail(If(undone, AuditFailedUndone, AuditFailedNotUndone))
+        End If
         Return OperationResult(Of IssuedAgentKey).Ok(issued)
     End Function
 
@@ -62,6 +68,15 @@ Public NotInheritable Class AgentKeyService
             Return OperationResult.Fail(ex.Message)
         End Try
         Return _audit.Record(New AuditEntry(ModuleKey.Biometric, "AgentKey.Retire", "AgentRegistration", registrationId.ToString(CultureInfo.InvariantCulture), "Agent key retired."))
+    End Function
+
+    Private Function TryRetire(registrationId As Integer) As Boolean
+        Try
+            _repository.Retire(registrationId)
+            Return True
+        Catch ex As BiometricRuleException
+            Return False
+        End Try
     End Function
 
     Private Function CheckAccess(action As PermissionAction) As OperationResult

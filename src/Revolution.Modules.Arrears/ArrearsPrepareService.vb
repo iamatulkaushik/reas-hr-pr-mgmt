@@ -36,7 +36,7 @@ Public NotInheritable Class ArrearsPrepareService
     ''' <param name="firstMonth">Any date in the first wage month.</param>
     ''' <param name="lastMonth">Any date in the last wage month.</param>
     Public Function Prepare(employeeId As Integer, firstMonth As Date, lastMonth As Date) As OperationResult(Of ArrearsPreparation)
-        If Not _entitlements.IsEnabled(PlanFeature.BasicPayroll) Then Return OperationResult(Of ArrearsPreparation).Fail("Payroll is not part of your plan.")
+        If Not _entitlements.IsEnabled(PlanFeature.Arrears) Then Return OperationResult(Of ArrearsPreparation).Fail("Arrears is not part of your plan.")
         If Not _permissions.IsAllowed(ModuleKey.Payroll, PermissionAction.Create) Then Return OperationResult(Of ArrearsPreparation).Fail("You are not allowed to do this.")
         If employeeId <= 0 Then Return OperationResult(Of ArrearsPreparation).Fail("Pick an employee.")
         Dim first As New Date(firstMonth.Year, firstMonth.Month, 1)

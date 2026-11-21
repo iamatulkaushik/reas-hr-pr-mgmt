@@ -20,6 +20,12 @@ Public MustInherit Class BaseForm
     Private ReadOnly _content As New Panel()
     Private ReadOnly _errors As New ErrorProvider()
     Private _busy As Boolean
+    Private _messageInline As Boolean
+    Private _messageRoot As Control
+    Private _fitRoot As Control
+    Private _dialogRoot As TableLayoutPanel
+    Private _dialogFields As TableLayoutPanel
+    Private _dialogButtons As FlowLayoutPanel
 
     Protected Sub New(title As String, Optional subtitle As String = "")
         AutoScaleMode = AutoScaleMode.Dpi
@@ -77,7 +83,9 @@ Public MustInherit Class BaseForm
     ''' <summary>Shows a summary error under the content. Cleared by ClearValidation.</summary>
     Protected Sub ShowError(message As String)
         _validationLabel.Text = message
+        _validationLabel.BackColor = Theme.DangerSoft
         _validationLabel.Visible = True
+        FitHeight()
     End Sub
 
     ''' <summary>Marks one field with the error icon and moves focus to it.</summary>
@@ -90,7 +98,13 @@ Public MustInherit Class BaseForm
     Protected Sub ClearValidation()
         _errors.Clear()
         _validationLabel.Text = String.Empty
-        _validationLabel.Visible = False
+        If _messageInline Then
+            ' The line keeps its row, so the fields and buttons never move when an error appears or goes.
+            _validationLabel.BackColor = Color.Transparent
+        Else
+            _validationLabel.Visible = False
+        End If
+        FitHeight()
     End Sub
 
     ''' <summary>Runs long work off the UI thread with a wait cursor, progress bar and the content disabled.</summary>
@@ -127,6 +141,11 @@ Public MustInherit Class BaseForm
     End Function
 
     Protected Shared Sub AddField(layout As TableLayoutPanel, caption As String, input As Control)
+        Dim grid = TryCast(layout, FieldGrid)
+        If grid IsNot Nothing Then
+            grid.AddField(caption, input)
+            Return
+        End If
         layout.Controls.Add(New Label With {
             .Text = caption,
             .AutoSize = True,
@@ -135,6 +154,130 @@ Public MustInherit Class BaseForm
         input.Dock = DockStyle.Fill
         input.Margin = New Padding(0, 0, 0, Theme.Space1)
         layout.Controls.Add(input)
+    End Sub
+
+    ''' <summary>Like AddField, but a field that takes two columns in a FieldGrid (addresses, long names). In any other layout it is an ordinary field.</summary>
+    Protected Shared Sub AddWideField(layout As TableLayoutPanel, caption As String, input As Control)
+        Dim grid = TryCast(layout, FieldGrid)
+        If grid IsNot Nothing Then
+            grid.AddField(caption, input, 2)
+        Else
+            AddField(layout, caption, input)
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' The standard screen: the editor on top, then a message line that keeps its own row, then the buttons, then the list filling the rest.
+    ''' Add the primary button first (the buttons run right to left). editorPercent 0 sizes the editor to its content; a percentage gives it that share of the height.
+    ''' </summary>
+    Protected Function BuildStandardLayout(editor As Control, buttons As IEnumerable(Of Button), list As Control, Optional editorPercent As Single = 0.0F) As TableLayoutPanel
+        Dim root = NewRoot(4)
+        If editorPercent > 0.0F Then
+            root.RowStyles.Add(New RowStyle(SizeType.Percent, editorPercent))
+        Else
+            root.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        End If
+        root.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        root.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        root.RowStyles.Add(New RowStyle(SizeType.Percent, If(editorPercent > 0.0F, 100.0F - editorPercent, 100.0F)))
+        editor.Dock = DockStyle.Fill
+        root.Controls.Add(editor, 0, 0)
+        HostMessageLine(root, 1)
+        Dim bar As New FlowLayoutPanel With {
+            .FlowDirection = FlowDirection.RightToLeft,
+            .Dock = DockStyle.Fill,
+            .AutoSize = True,
+            .WrapContents = True,
+            .Margin = New Padding(0, 0, 0, Theme.Space1)
+        }
+        For Each actionButton In buttons
+            actionButton.AutoSize = True
+            bar.Controls.Add(actionButton)
+        Next
+        root.Controls.Add(bar, 0, 2)
+        list.Dock = DockStyle.Fill
+        root.Controls.Add(list, 0, 3)
+        _content.Controls.Add(root)
+        Return root
+    End Function
+
+    ''' <summary>The field area of a small dialog. The dialog sizes its height to its content, has no status bar, and keeps a message line above the buttons.</summary>
+    Protected Function CreateDialogLayout() As TableLayoutPanel
+        EnsureDialogRoot()
+        Return _dialogFields
+    End Function
+
+    ''' <summary>The right-aligned button row of a small dialog. Add the primary button first.</summary>
+    Protected Function CreateDialogButtonBar() As FlowLayoutPanel
+        EnsureDialogRoot()
+        Return _dialogButtons
+    End Function
+
+    Private Sub EnsureDialogRoot()
+        If _dialogRoot IsNot Nothing Then
+            Return
+        End If
+        _dialogRoot = NewRoot(3)
+        For rowIndex As Integer = 1 To 3
+            _dialogRoot.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Next
+        _dialogFields = New TableLayoutPanel With {.ColumnCount = 1, .Dock = DockStyle.Fill, .AutoSize = True}
+        _dialogFields.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        _dialogButtons = New FlowLayoutPanel With {
+            .FlowDirection = FlowDirection.RightToLeft,
+            .Dock = DockStyle.Fill,
+            .AutoSize = True,
+            .WrapContents = True,
+            .Margin = New Padding(0, 0, 0, Theme.Space1)
+        }
+        _dialogRoot.Controls.Add(_dialogFields, 0, 0)
+        HostMessageLine(_dialogRoot, 1)
+        _dialogRoot.Controls.Add(_dialogButtons, 0, 2)
+        _content.Controls.Add(_dialogRoot)
+        _fitRoot = _dialogRoot
+        _status.Visible = False
+    End Sub
+
+    Private Shared Function NewRoot(rowCount As Integer) As TableLayoutPanel
+        Dim root As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = rowCount, .Margin = New Padding(0)}
+        root.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        Return root
+    End Function
+
+    ''' <summary>Moves the error line from the bottom of the window into its own row of the layout, so showing it cannot cover anything.</summary>
+    Private Sub HostMessageLine(root As TableLayoutPanel, row As Integer)
+        Controls.Remove(_validationLabel)
+        _messageInline = True
+        _messageRoot = root
+        _validationLabel.Dock = DockStyle.Fill
+        _validationLabel.AutoSize = True
+        _validationLabel.Visible = True
+        _validationLabel.Text = String.Empty
+        _validationLabel.BackColor = Color.Transparent
+        _validationLabel.Margin = New Padding(0, Theme.Space1 \ 2, 0, Theme.Space1 \ 2)
+        root.Controls.Add(_validationLabel, 0, row)
+        AddHandler root.SizeChanged, AddressOf OnMessageRootSizeChanged
+    End Sub
+
+    Private Sub OnMessageRootSizeChanged(sender As Object, e As EventArgs)
+        _validationLabel.MaximumSize = New Size(Math.Max(100, _messageRoot.ClientSize.Width), 0)
+    End Sub
+
+    ''' <summary>Sizes a dialog's height to its content, so no field or button can be cut off at any display scale.</summary>
+    Private Sub FitHeight()
+        If _fitRoot Is Nothing OrElse Not IsHandleCreated Then
+            Return
+        End If
+        Dim availableWidth As Integer = Math.Max(100, ClientSize.Width - _content.Padding.Horizontal)
+        _validationLabel.MaximumSize = New Size(availableWidth, 0)
+        Dim wanted As Size = _fitRoot.GetPreferredSize(New Size(availableWidth, 0))
+        Dim chrome As Integer = _header.Height + _content.Padding.Vertical
+        If _toolbar.Visible Then chrome += _toolbar.Height
+        If _status.Visible Then chrome += _status.Height
+        Dim needed As Integer = chrome + wanted.Height
+        If needed <> ClientSize.Height Then
+            ClientSize = New Size(ClientSize.Width, needed)
+        End If
     End Sub
 
     ''' <summary>A right-aligned button row at the bottom of Content. Add the primary button first.</summary>
@@ -176,6 +319,16 @@ Public MustInherit Class BaseForm
     Protected Overrides Sub OnLoad(e As EventArgs)
         MyBase.OnLoad(e)
         ThemeStyler.Apply(Me)
+        If _messageInline Then
+            ' One text line stays reserved for the message, so an error never moves the layout.
+            _validationLabel.MinimumSize = New Size(0, FontHeight + _validationLabel.Padding.Vertical)
+        End If
+        FitHeight()
+    End Sub
+
+    Protected Overrides Sub OnShown(e As EventArgs)
+        MyBase.OnShown(e)
+        FitHeight()
     End Sub
 
     Protected Overrides Sub Dispose(disposing As Boolean)

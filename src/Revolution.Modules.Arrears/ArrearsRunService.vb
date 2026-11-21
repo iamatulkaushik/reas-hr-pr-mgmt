@@ -113,7 +113,7 @@ Public NotInheritable Class ArrearsRunService
     End Function
 
     Private Function CheckAccess() As OperationResult
-        If Not _entitlements.IsEnabled(PlanFeature.BasicPayroll) Then Return OperationResult.Fail("Payroll is not part of your plan.")
+        If Not _entitlements.IsEnabled(PlanFeature.Arrears) Then Return OperationResult.Fail("Arrears is not part of your plan.")
         If Not _permissions.IsAllowed(ModuleKey.Payroll, PermissionAction.Create) Then Return OperationResult.Fail("You are not allowed to do this.")
         Return OperationResult.Ok()
     End Function

@@ -102,6 +102,23 @@ Public Class SalaryValidatorTests
     End Sub
 
     <Theory>
+    <InlineData(8, True)>
+    <InlineData(12, True)>
+    <InlineData(24, True)>
+    <InlineData(0, False)>
+    <InlineData(-1, False)>
+    <InlineData(25, False)>
+    Public Sub Policy_OtHoursPerDay_Limits(hours As Decimal, expected As Boolean)
+        Dim policy As New PolicySettings(1, 2D, False, False, 26D, 25D, hours)
+        Assert.Equal(expected, SalaryValidator.ValidatePolicy(policy).Succeeded)
+    End Sub
+
+    <Fact>
+    Public Sub Policy_OtHoursPerDay_DefaultsToEight()
+        Assert.Equal(8D, New PolicySettings(1, 2D, False, False, 26D, 25D).OtHoursPerDay)
+    End Sub
+
+    <Theory>
     <InlineData("BASIC", "Basic", False, False, True)>
     <InlineData("", "Basic", False, False, False)>
     <InlineData("BASIC", " ", False, False, False)>

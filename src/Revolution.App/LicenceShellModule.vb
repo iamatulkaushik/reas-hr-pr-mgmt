@@ -7,11 +7,11 @@ Public NotInheritable Class LicenceShellModule
 
     Private ReadOnly _items As IReadOnlyList(Of ShellItem)
 
-    Public Sub New(admin As ILicenceAdminService)
+    Public Sub New(admin As ILicenceAdminService, Optional issuer As ILicenceIssueService = Nothing)
         If admin Is Nothing Then Throw New ArgumentNullException(NameOf(admin))
         _items = New List(Of ShellItem) From {
             New ShellItem(New MenuEntry("licence.manage", "Administration", "Licences...", ModuleKey.Licence, sortOrder:=900),
-                          Function() New LicenceForm(admin))
+                          Function() New LicenceForm(admin, issuer))
         }
     End Sub
 

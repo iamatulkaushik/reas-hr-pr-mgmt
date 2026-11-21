@@ -30,9 +30,9 @@ Public NotInheritable Class CompanyPickerForm
         MinimizeBox = False
         _list.DisplayMember = "CompanyName"
         _list.Height = 280
-        Dim layout = CreateFormLayout()
+        Dim layout = CreateDialogLayout()
         AddField(layout, "Your companies", _list)
-        Dim bar = CreateButtonBar()
+        Dim bar = CreateDialogButtonBar()
         _open.Text = "Open"
         _newCompany.Text = "New company..."
         _addOwner.Text = "Add Owner login..."

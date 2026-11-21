@@ -11,7 +11,17 @@ Friend NotInheritable Class FieldLayout
         Return layout
     End Function
 
+    ''' <summary>Fields in up to four columns that follow the window width (see FieldGrid).</summary>
+    Public Shared Function CreateGrid() As FieldGrid
+        Return New FieldGrid() With {.MaxColumns = 4, .Dock = DockStyle.Top}
+    End Function
+
     Public Shared Sub Add(layout As TableLayoutPanel, caption As String, input As Control)
+        Dim grid = TryCast(layout, FieldGrid)
+        If grid IsNot Nothing Then
+            grid.AddField(caption, input)
+            Return
+        End If
         layout.Controls.Add(New Label With {.Text = caption, .AutoSize = True, .Margin = New Padding(0, Theme.Space1, 0, 2)})
         input.Dock = DockStyle.Fill
         input.Margin = New Padding(0, 0, 0, Theme.Space1)

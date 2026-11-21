@@ -49,6 +49,26 @@ Public Class AgentKeyServiceTests
     End Sub
 
     <Fact>
+    Public Sub Issue_AuditFailure_RetiresTheNewKey_AndGivesNoKey()
+        _audit.FailWith = "Audit store is down."
+        Dim r As OperationResult(Of IssuedAgentKey) = _service.Issue("Gate PC")
+        Assert.False(r.Succeeded)
+        Assert.Contains("not issued", r.Message, StringComparison.Ordinal)
+        Assert.Equal(71, _repo.Retired.Single())
+        Assert.Empty(_audit.Entries)
+    End Sub
+
+    <Fact>
+    Public Sub Issue_AuditFailure_AndRetireFails_SaysHowToRecover()
+        _audit.FailWith = "Audit store is down."
+        _repo.FailRetireWith = "Database busy."
+        Dim r As OperationResult(Of IssuedAgentKey) = _service.Issue("Gate PC")
+        Assert.False(r.Succeeded)
+        Assert.Contains("Retire the newest key", r.Message, StringComparison.Ordinal)
+        Assert.Empty(_repo.Retired)
+    End Sub
+
+    <Fact>
     Public Sub List_NeedsView_AndThePlan()
         _repo.Items.Add(New AgentKeyItem(1, "Gate PC", True, New Date(2026, 11, 8), Nothing, Nothing))
         Assert.Equal(1, _service.List().Value.Count)

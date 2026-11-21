@@ -72,7 +72,7 @@ End Class
 Friend NotInheritable Class FakeArrearsEntitlements
     Implements IEntitlementService
 
-    Public PayrollEnabled As Boolean = True
+    Public ArrearsEnabled As Boolean = True
 
     Public ReadOnly Property CurrentPlan As PlanTier Implements IEntitlementService.CurrentPlan
         Get
@@ -81,7 +81,7 @@ Friend NotInheritable Class FakeArrearsEntitlements
     End Property
 
     Public Function IsEnabled(feature As PlanFeature) As Boolean Implements IEntitlementService.IsEnabled
-        Return feature <> PlanFeature.BasicPayroll OrElse PayrollEnabled
+        Return feature <> PlanFeature.Arrears OrElse ArrearsEnabled
     End Function
 End Class
 

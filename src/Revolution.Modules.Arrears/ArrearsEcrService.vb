@@ -32,7 +32,7 @@ Public NotInheritable Class ArrearsEcrService
 
     ''' <param name="wageMonth">Any date in the wage month.</param>
     Public Function Build(wageMonth As Date) As OperationResult(Of FileOutput(Of String))
-        If Not _entitlements.IsEnabled(PlanFeature.BasicPayroll) Then Return OperationResult(Of FileOutput(Of String)).Fail("Payroll is not part of your plan.")
+        If Not _entitlements.IsEnabled(PlanFeature.Arrears) Then Return OperationResult(Of FileOutput(Of String)).Fail("Arrears is not part of your plan.")
         If Not _permissions.IsAllowed(ModuleKey.Statutory, PermissionAction.Export) Then Return OperationResult(Of FileOutput(Of String)).Fail("You are not allowed to do this.")
         Dim month As New Date(wageMonth.Year, wageMonth.Month, 1)
         Dim lines As List(Of ArrearsEcrLine) = _repository.EcrLines(month).Where(Function(l As ArrearsEcrLine) Not l.IsEmpty).ToList()

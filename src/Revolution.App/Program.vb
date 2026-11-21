@@ -62,7 +62,7 @@ Public Module Program
         Dim layout As New MenuLayoutModule(sources)
         Return New List(Of IShellModule) From {
             layout,
-            New LicenceShellModule(services.LicenceAdmin),
+            New LicenceShellModule(services.LicenceAdmin, services.LicenceIssue),
             New UserAdminShellModule(services.UserPasswordAdmin, services.Session),
             New IconMapShellModule(Function() layout.Items, Function() sources.SelectMany(Function(m) m.Items).ToList(), services.Permissions)}
     End Function

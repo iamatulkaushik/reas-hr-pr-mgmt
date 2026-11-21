@@ -5,6 +5,7 @@ Friend NotInheritable Class FakeRosterRepository
 
     Public ReadOnly SavedShifts As New List(Of ShiftItem)()
     Public ReadOnly SavedHolidays As New List(Of HolidayItem)()
+    Public ReadOnly Rules As New List(Of WeeklyOffRule)()
     Public ReadOnly Assigned As New List(Of String)()
     Public FailWith As String
 
@@ -33,7 +34,7 @@ Friend NotInheritable Class FakeRosterRepository
     End Sub
 
     Public Function ListWeeklyOff() As IReadOnlyList(Of WeeklyOffRule) Implements IRosterRepository.ListWeeklyOff
-        Return New List(Of WeeklyOffRule)()
+        Return Rules
     End Function
 
     Public Sub SaveWeeklyOff(rule As WeeklyOffRule) Implements IRosterRepository.SaveWeeklyOff

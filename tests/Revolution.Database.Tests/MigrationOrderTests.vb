@@ -132,6 +132,12 @@ Public Class MigrationOrderTests
     <InlineData("mst.usp_EmployeeSeparation_Save", "51008")>
     <InlineData("pay.usp_Policy_Get", "AbsenceDeductionDivisor")>
     <InlineData("pay.usp_Policy_Save", "AbsenceDeductionDivisor")>
+    <InlineData("pay.usp_Policy_Get", "OtHoursPerDay")>
+    <InlineData("pay.usp_Policy_Save", "OtHoursPerDay")>
+    <InlineData("pay.usp_RunInput_List", "fn_MonthAttendance")>
+    <InlineData("pay.usp_RunInput_List", "OtHoursPerDay")>
+    <InlineData("pay.usp_LeaveAccrual_Present", "fn_MonthAttendance")>
+    <InlineData("att.usp_Attendance_Save", "53602")>
     Public Sub TheLastDefinitionOfAPatchedProcedureKeepsThePatch(procedureName As String, token As String)
         Dim lastScript As String = Nothing
         Dim lastBody As String = Nothing

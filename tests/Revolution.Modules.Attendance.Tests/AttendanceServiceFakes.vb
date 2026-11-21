@@ -67,6 +67,7 @@ Friend NotInheritable Class FakeEntitlements
     Implements IEntitlementService
 
     Public ShiftOtEnabled As Boolean = True
+    Public DailyEnabled As Boolean = True
 
     Public ReadOnly Property CurrentPlan As PlanTier Implements IEntitlementService.CurrentPlan
         Get
@@ -75,6 +76,7 @@ Friend NotInheritable Class FakeEntitlements
     End Property
 
     Public Function IsEnabled(feature As PlanFeature) As Boolean Implements IEntitlementService.IsEnabled
+        If feature = PlanFeature.DailyAttendance Then Return DailyEnabled
         Return feature <> PlanFeature.ShiftOtLop OrElse ShiftOtEnabled
     End Function
 End Class

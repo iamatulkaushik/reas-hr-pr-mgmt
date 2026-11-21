@@ -37,10 +37,12 @@ Public Class ArrearsEcrServiceTests
     End Sub
 
     <Fact>
-    Public Sub PlanWithoutPayroll_IsRefused()
+    Public Sub PlanWithoutArrears_IsRefused_EvenWithPayroll()
         Allow()
-        _plan.PayrollEnabled = False
-        Assert.False(_service.Build(New Date(2026, 10, 1)).Succeeded)
+        _plan.ArrearsEnabled = False
+        Dim r = _service.Build(New Date(2026, 10, 1))
+        Assert.False(r.Succeeded)
+        Assert.Equal("Arrears is not part of your plan.", r.Message)
     End Sub
 
     <Fact>

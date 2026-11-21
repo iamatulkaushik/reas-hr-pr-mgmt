@@ -8,16 +8,15 @@ Imports System.Windows.Forms
 Friend MustInherit Class RosterFormBase
     Inherits BaseForm
 
-    Private Const ListWidth As Integer = 460
     Private Const FormWidth As Integer = 960
-    Private Const FormHeight As Integer = 560
+    Private Const FormHeight As Integer = 640
     Private Const NotAllowedText As String = "You are not allowed to change this."
 
     Private ReadOnly _canEdit As Boolean
     Private ReadOnly _allowDelete As Boolean
     Private ReadOnly _grid As New DataGridView()
     Private ReadOnly _topBar As New FlowLayoutPanel() With {.Dock = DockStyle.Top, .AutoSize = True}
-    Private ReadOnly _editor As New TableLayoutPanel()
+    Private ReadOnly _editor As New FieldGrid()
     Private ReadOnly _saveButton As New Button() With {.Text = "Save", .AutoSize = True}
     Private ReadOnly _newButton As New Button() With {.Text = "New", .AutoSize = True}
     Private ReadOnly _deleteButton As New Button() With {.Text = "Delete", .AutoSize = True}
@@ -74,28 +73,24 @@ Friend MustInherit Class RosterFormBase
     End Sub
 
     Private Sub BuildLayout(headers As String())
-        Dim details As New Panel With {.Dock = DockStyle.Fill, .Padding = New Padding(Theme.Space2)}
-        _editor.ColumnCount = 1
-        _editor.Dock = DockStyle.Top
-        _editor.AutoSize = True
-        _editor.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        details.Controls.Add(_editor)
-
-        Dim listPanel As New Panel With {.Dock = DockStyle.Left, .Width = ListWidth}
+        ' Editor on top, then the message line and the buttons, then the list filling the rest of the window.
         ConfigureGrid(headers)
-        listPanel.Controls.Add(_grid)
-        listPanel.Controls.Add(_topBar)
+        _topBar.Dock = DockStyle.Fill
+        _topBar.Margin = New Padding(0, 0, 0, Theme.Space1)
+        Dim listPanel As New TableLayoutPanel With {.ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
+        listPanel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        listPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
+        listPanel.Controls.Add(_topBar, 0, 0)
+        listPanel.Controls.Add(_grid, 0, 1)
 
-        Content.Controls.Add(details)
-        Content.Controls.Add(listPanel)
-        Dim bar = CreateButtonBar()
         _saveButton.Enabled = _canEdit
         _newButton.Enabled = _canEdit
         _deleteButton.Enabled = _canEdit
-        bar.Controls.Add(_saveButton)
-        bar.Controls.Add(_newButton)
-        If _allowDelete Then bar.Controls.Add(_deleteButton)
-        bar.Controls.Add(_closeButton)
+        Dim actions As New List(Of Button) From {_saveButton, _newButton}
+        If _allowDelete Then actions.Add(_deleteButton)
+        actions.Add(_closeButton)
+        BuildStandardLayout(_editor, actions, listPanel)
         CancelButton = _closeButton
         AddHandler _saveButton.Click, Sub(sender As Object, e As EventArgs) SaveCurrent()
         AddHandler _newButton.Click, Sub(sender As Object, e As EventArgs) StartNew()

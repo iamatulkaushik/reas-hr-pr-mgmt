@@ -11,7 +11,10 @@ Public NotInheritable Class AttendanceModule
         Dim repository As New SqlAttendanceRepository(host.Factory)
         Dim attendance As New AttendanceService(repository, host.Permissions, host.Entitlements, host.Audit, host.Session, today)
         Dim board As New AttendanceBoardService(New SqlAttendanceBoardRepository(host.Factory), attendance, repository, host.Permissions, today)
-        Dim roster As New RosterService(New SqlRosterRepository(host.Factory), host.Permissions, host.Entitlements, host.Audit, today)
-        Return New AttendanceServices(attendance, board, roster)
+        Dim rosterRepository As New SqlRosterRepository(host.Factory)
+        Dim roster As New RosterService(rosterRepository, host.Permissions, host.Entitlements, host.Audit, today)
+        Dim monthly As New AttendanceMonthlyService(New SqlAttendanceMonthlyRepository(host.Factory), rosterRepository, attendance, repository,
+                                                    host.Permissions, host.Entitlements, host.Audit, host.Session, today)
+        Return New AttendanceServices(attendance, board, roster, monthly)
     End Function
 End Class

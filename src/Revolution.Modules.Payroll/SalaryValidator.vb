@@ -8,6 +8,7 @@ Public NotInheritable Class SalaryValidator
     Public Const MaxAmount As Decimal = 999999999999.99D
     Public Const MaxOtMultiplier As Decimal = 10D
     Public Const MaxDailyWageDivisor As Decimal = 31D
+    Public Const MaxOtHoursPerDay As Decimal = 24D
     Public Shared ReadOnly EarliestEffectiveDate As Date = New Date(2000, 1, 1)
 
     Private Sub New()
@@ -26,6 +27,9 @@ Public NotInheritable Class SalaryValidator
         End If
         If policy.EmiCapPct < 0D OrElse policy.EmiCapPct > 100D Then
             Return OperationResult.Fail("EMI cap must be between 0 and 100 percent.")
+        End If
+        If policy.OtHoursPerDay <= 0D OrElse policy.OtHoursPerDay > MaxOtHoursPerDay Then
+            Return OperationResult.Fail("Hours in a normal day must be more than 0 and at most 24.")
         End If
         Return OperationResult.Ok()
     End Function

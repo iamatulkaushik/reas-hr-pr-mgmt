@@ -19,15 +19,18 @@ Public NotInheritable Class BulkEntryForm
     Private ReadOnly _importer As ITableImporter
     Private ReadOnly _exporter As ITableExporter
     Private ReadOnly _startWithFile As Boolean
+    Private ReadOnly _afterReport As Func(Of String)
     Private ReadOnly _grid As New DataGridView()
     Private _loading As Boolean
     Private _lastReport As ImportReport
     Private _lastRows As IReadOnlyList(Of ImportRow)
 
     ''' <param name="startWithFile">True opens the file chooser as soon as the screen shows (the Import screen); False starts with blank rows (the Multiple screen).</param>
+    ''' <param name="afterReport">Optional. Called after each Check or Save; the text it returns (when not empty) is added to the status line, for example the employees a monthly sheet did not mention (ADR 0026).</param>
     ''' <param name="initialRows">Rows to show at the start instead of blank rows, for example every employee of the company for the month with the saved values (ADR 0026).</param>
     Public Sub New(title As String, template As ImportTemplate, handler As IBulkRowHandler, importer As ITableImporter, exporter As ITableExporter,
-                   startWithFile As Boolean, signedInUserName As String, Optional initialRows As IReadOnlyList(Of ImportRow) = Nothing)
+                   startWithFile As Boolean, signedInUserName As String, Optional initialRows As IReadOnlyList(Of ImportRow) = Nothing,
+                   Optional afterReport As Func(Of String) = Nothing)
         MyBase.New(title, signedInUserName)
         If template Is Nothing Then Throw New ArgumentNullException(NameOf(template))
         If handler Is Nothing Then Throw New ArgumentNullException(NameOf(handler))
@@ -38,6 +41,7 @@ Public NotInheritable Class BulkEntryForm
         _importer = importer
         _exporter = exporter
         _startWithFile = startWithFile
+        _afterReport = afterReport
         BuildLayout()
         If initialRows IsNot Nothing Then
             Fill(initialRows)
@@ -380,7 +384,8 @@ Public NotInheritable Class BulkEntryForm
         Finally
             _loading = False
         End Try
-        ShowStatus(report.Value.Summary())
+        Dim extra As String = If(_afterReport Is Nothing, String.Empty, _afterReport())
+        ShowStatus(If(String.IsNullOrEmpty(extra), report.Value.Summary(), report.Value.Summary() & " " & extra))
     End Sub
 
     Private Sub OnSaveErrors(sender As Object, e As EventArgs)
