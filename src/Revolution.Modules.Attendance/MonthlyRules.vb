@@ -34,10 +34,10 @@ Public NotInheritable Class MonthlyRules
         If holidays Is Nothing Then Throw New ArgumentNullException(NameOf(holidays))
         Dim list = rules.ToList()
         Dim count As Integer = 0
-        For Each day In holidays.Select(Function(h) h.Day).Distinct()
-            If day < fromDay.Date OrElse day > toDay.Date Then Continue For
-            Dim rule = RuleOn(day, list)
-            If rule IsNot Nothing AndAlso rule.IsOff(day.DayOfWeek) Then Continue For
+        For Each holidayDate As Date In holidays.Select(Function(h) h.Day).Distinct()
+            If holidayDate < fromDay.Date OrElse holidayDate > toDay.Date Then Continue For
+            Dim rule = RuleOn(holidayDate, list)
+            If rule IsNot Nothing AndAlso rule.IsOff(holidayDate.DayOfWeek) Then Continue For
             count += 1
         Next
         Return count
