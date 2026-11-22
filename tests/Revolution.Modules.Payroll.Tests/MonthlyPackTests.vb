@@ -130,7 +130,7 @@ Public Class MonthlyPackTests
     End Function
 
     Private Function LineOf(kind As ComplianceKind) As MonthlyPackLine
-        Return Pack().Lines.Single(Function(l) l.Kind = kind AndAlso Not (kind = ComplianceKind.ProfessionalTax AndAlso l.StateId <> 6))
+        Return Pack().Lines.Single(Function(l) l.Kind = kind AndAlso Not (kind = ComplianceKind.ProfessionalTax AndAlso l.StateId.GetValueOrDefault(-1) <> 6))
     End Function
 
     ' ---- reading the pack ----

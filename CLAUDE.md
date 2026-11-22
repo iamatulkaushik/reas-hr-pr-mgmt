@@ -2,7 +2,7 @@
 
 Read `docs/adr/` and `docs/OWNERSHIP.md` before changing anything.
 
-- VB.NET, WinForms, .NET 10, SQL Server Standard, stored procedures only, reports in ReportStudio (ADR 0005; Crystal Reports was dropped).
+- VB.NET, WinForms, .NET 10, SQL Server Standard, stored procedures only, reports in ReportStudio (ADR 0028: pinned submodule external/ReportStudio, layouts in reports/layouts, rows from rpt procedures; Crystal Reports was dropped).
 - Layering: UI -> Services -> Data -> Core. UI never touches Data. No MessageBox in Services or Data.
 - Shared projects (Core, Data, Services, UI.Common, database/) are owned by Sigma. Do not edit them from a module task. Write a change request instead.
 - Option Strict On. Decimal for money, rounded with MidpointRounding.AwayFromZero. Dates dd-MM-yyyy. Financial year 1 April to 31 March.

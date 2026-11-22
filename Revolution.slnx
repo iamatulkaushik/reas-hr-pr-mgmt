@@ -16,7 +16,8 @@
     <Project Path="src/Revolution.Modules.Employees.UI/Revolution.Modules.Employees.UI.vbproj" />
     <Project Path="src/Revolution.Modules.Payroll/Revolution.Modules.Payroll.vbproj" />
     <Project Path="src/Revolution.Modules.Payroll.UI/Revolution.Modules.Payroll.UI.vbproj" />
-    <Project Path="src/Revolution.ReportViewer/Revolution.ReportViewer.vbproj" />
+    <Project Path="src/Revolution.Reports/Revolution.Reports.vbproj" />
+    <Project Path="src/Revolution.Reports.UI/Revolution.Reports.UI.vbproj" />
     <Project Path="src/Revolution.Services/Revolution.Services.vbproj" />
     <Project Path="src/RevolutionAssociates.Excel/RevolutionAssociates.Excel.csproj" />
     <Project Path="src/Revolution.Setup/Revolution.Setup.vbproj" />
@@ -33,6 +34,7 @@
     <Project Path="tests/Revolution.Modules.Biometric.Tests/Revolution.Modules.Biometric.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Employees.Tests/Revolution.Modules.Employees.Tests.vbproj" />
     <Project Path="tests/Revolution.Modules.Payroll.Tests/Revolution.Modules.Payroll.Tests.vbproj" />
+    <Project Path="tests/Revolution.Reports.Tests/Revolution.Reports.Tests.vbproj" />
     <Project Path="tests/Revolution.Services.Tests/Revolution.Services.Tests.vbproj" />
     <Project Path="tests/Revolution.UI.Common.Tests/Revolution.UI.Common.Tests.vbproj" />
     <Project Path="tests/RevolutionAssociates.Excel.Tests/RevolutionAssociates.Excel.Tests.csproj" />

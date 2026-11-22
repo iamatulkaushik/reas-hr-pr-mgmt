@@ -1,0 +1,576 @@
+{
+  "FormatVersion": 1,
+  "Name": "BasicReport",
+  "Title": "Basic report",
+  "Page": {
+    "Width": 1123,
+    "Height": 794,
+    "MarginLeft": 30,
+    "MarginRight": 30,
+    "MarginTop": 30,
+    "MarginBottom": 30
+  },
+  "DataSource": {
+    "Provider": "Host",
+    "ConnectionString": "",
+    "Query": "",
+    "CommandTimeoutSeconds": 60,
+    "Fields": [
+      {
+        "Name": "CompanyName",
+        "Type": "Text"
+      },
+      {
+        "Name": "FactoryID",
+        "Type": "Number"
+      },
+      {
+        "Name": "FactoryName",
+        "Type": "Text"
+      },
+      {
+        "Name": "EmployeeID",
+        "Type": "Number"
+      },
+      {
+        "Name": "EmpCode",
+        "Type": "Text"
+      },
+      {
+        "Name": "FullName",
+        "Type": "Text"
+      },
+      {
+        "Name": "FatherOrSpouseName",
+        "Type": "Text"
+      },
+      {
+        "Name": "Gender",
+        "Type": "Text"
+      },
+      {
+        "Name": "DateOfBirth",
+        "Type": "Date"
+      },
+      {
+        "Name": "JoinDate",
+        "Type": "Date"
+      },
+      {
+        "Name": "ExitDate",
+        "Type": "Date"
+      },
+      {
+        "Name": "DesignationName",
+        "Type": "Text"
+      },
+      {
+        "Name": "DepartmentName",
+        "Type": "Text"
+      },
+      {
+        "Name": "Mobile",
+        "Type": "Text"
+      },
+      {
+        "Name": "IsActive",
+        "Type": "Boolean"
+      }
+    ]
+  },
+  "Parameters": [
+    {
+      "Name": "CompanyName",
+      "Prompt": "Company name",
+      "Type": "Text",
+      "DefaultValue": ""
+    },
+    {
+      "Name": "AsOnText",
+      "Prompt": "As on",
+      "Type": "Text",
+      "DefaultValue": ""
+    }
+  ],
+  "Groups": [
+    {
+      "Expression": "FactoryName",
+      "StartNewPage": false,
+      "RestartPageNumbers": false,
+      "Header": {
+        "Kind": "GroupHeader",
+        "Name": "",
+        "Height": 22,
+        "Items": [
+          {
+            "Kind": "Text",
+            "X": 0,
+            "Y": 2,
+            "Width": 1063,
+            "Height": 18,
+            "Text": "Factory: {FactoryName}",
+            "FontSize": 9.5,
+            "Bold": true,
+            "HAlign": "Left",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true
+          }
+        ]
+      },
+      "Footer": {
+        "Kind": "GroupFooter",
+        "Name": "",
+        "Height": 24,
+        "Items": [
+          {
+            "Kind": "Line",
+            "X": 0,
+            "Y": 1,
+            "Width": 1063,
+            "Height": 0,
+            "ForeColor": "#9CA3AF",
+            "BorderColor": "#9CA3AF",
+            "BorderWidth": 1
+          },
+          {
+            "Kind": "Text",
+            "X": 0,
+            "Y": 3,
+            "Width": 400,
+            "Height": 18,
+            "Text": "Unit total: {Count()}",
+            "FontSize": 8.5,
+            "Bold": true,
+            "HAlign": "Left",
+            "VAlign": "Middle",
+            "ForeColor": "#1F2937",
+            "WordWrap": true
+          }
+        ]
+      }
+    }
+  ],
+  "SortBy": [
+    "FactoryName",
+    "EmpCode"
+  ],
+  "ReportHeader": {
+    "Kind": "ReportHeader",
+    "Name": "",
+    "Height": 0,
+    "Items": []
+  },
+  "PageHeader": {
+    "Kind": "PageHeader",
+    "Name": "",
+    "Height": 78,
+    "Items": [
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 0,
+        "Width": 800,
+        "Height": 22,
+        "Text": "{@CompanyName}",
+        "FontSize": 14,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F3A5F",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 24,
+        "Width": 1063,
+        "Height": 18,
+        "Text": "Employee list as on {@AsOnText}",
+        "FontSize": 10.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Line",
+        "X": 0,
+        "Y": 44,
+        "Width": 1063,
+        "Height": 0,
+        "ForeColor": "#9CA3AF",
+        "BorderColor": "#9CA3AF",
+        "BorderWidth": 1
+      },
+      {
+        "Kind": "Text",
+        "X": 0.0,
+        "Y": 54,
+        "Width": 65.6,
+        "Height": 20,
+        "Text": "Code",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 68.6,
+        "Y": 54,
+        "Width": 175.8,
+        "Height": 20,
+        "Text": "Name",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 247.4,
+        "Y": 54,
+        "Width": 164.1,
+        "Height": 20,
+        "Text": "Father / spouse",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 414.5,
+        "Y": 54,
+        "Width": 32.8,
+        "Height": 20,
+        "Text": "Sex",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 450.3,
+        "Y": 54,
+        "Width": 79.7,
+        "Height": 20,
+        "Text": "Born",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 533.0,
+        "Y": 54,
+        "Width": 79.7,
+        "Height": 20,
+        "Text": "Joined",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 615.7,
+        "Y": 54,
+        "Width": 79.7,
+        "Height": 20,
+        "Text": "Left on",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 698.4,
+        "Y": 54,
+        "Width": 138.3,
+        "Height": 20,
+        "Text": "Designation",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 839.7,
+        "Y": 54,
+        "Width": 128.9,
+        "Height": 20,
+        "Text": "Department",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      },
+      {
+        "Kind": "Text",
+        "X": 971.6,
+        "Y": 54,
+        "Width": 91.4,
+        "Height": 20,
+        "Text": "Mobile",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      }
+    ]
+  },
+  "Detail": {
+    "Kind": "Detail",
+    "Name": "",
+    "Height": 18,
+    "Items": [
+      {
+        "Kind": "Text",
+        "X": 0.0,
+        "Y": 0,
+        "Width": 65.6,
+        "Height": 18,
+        "Text": "{EmpCode}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 68.6,
+        "Y": 0,
+        "Width": 175.8,
+        "Height": 18,
+        "Text": "{FullName}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 247.4,
+        "Y": 0,
+        "Width": 164.1,
+        "Height": 18,
+        "Text": "{FatherOrSpouseName}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 414.5,
+        "Y": 0,
+        "Width": 32.8,
+        "Height": 18,
+        "Text": "{Gender}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 450.3,
+        "Y": 0,
+        "Width": 79.7,
+        "Height": 18,
+        "Text": "{DateOfBirth}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "dd-MM-yyyy"
+      },
+      {
+        "Kind": "Text",
+        "X": 533.0,
+        "Y": 0,
+        "Width": 79.7,
+        "Height": 18,
+        "Text": "{JoinDate}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "dd-MM-yyyy"
+      },
+      {
+        "Kind": "Text",
+        "X": 615.7,
+        "Y": 0,
+        "Width": 79.7,
+        "Height": 18,
+        "Text": "{ExitDate}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "Format": "dd-MM-yyyy"
+      },
+      {
+        "Kind": "Text",
+        "X": 698.4,
+        "Y": 0,
+        "Width": 138.3,
+        "Height": 18,
+        "Text": "{DesignationName}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 839.7,
+        "Y": 0,
+        "Width": 128.9,
+        "Height": 18,
+        "Text": "{DepartmentName}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 971.6,
+        "Y": 0,
+        "Width": 91.4,
+        "Height": 18,
+        "Text": "{Mobile}",
+        "FontSize": 8.5,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true
+      }
+    ]
+  },
+  "ReportFooter": {
+    "Kind": "ReportFooter",
+    "Name": "",
+    "Height": 48,
+    "Items": [
+      {
+        "Kind": "Line",
+        "X": 0,
+        "Y": 2,
+        "Width": 1063,
+        "Height": 0,
+        "ForeColor": "#1F2937",
+        "BorderColor": "#1F2937",
+        "BorderWidth": 1
+      },
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 5,
+        "Width": 400,
+        "Height": 20,
+        "Text": "Total employees: {Count()}",
+        "FontSize": 8.5,
+        "Bold": true,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#1F2937",
+        "WordWrap": true,
+        "BackColor": "#E5EAF2"
+      }
+    ]
+  },
+  "PageFooter": {
+    "Kind": "PageFooter",
+    "Name": "",
+    "Height": 20,
+    "Items": [
+      {
+        "Kind": "Text",
+        "X": 0,
+        "Y": 2,
+        "Width": 400,
+        "Height": 16,
+        "Text": "Generated on {Format(Today(), 'dd-MM-yyyy')}",
+        "FontSize": 8,
+        "Bold": false,
+        "HAlign": "Left",
+        "VAlign": "Middle",
+        "ForeColor": "#555555",
+        "WordWrap": true
+      },
+      {
+        "Kind": "Text",
+        "X": 663,
+        "Y": 2,
+        "Width": 400,
+        "Height": 16,
+        "Text": "Page {Page} of {PageCount}",
+        "FontSize": 8,
+        "Bold": false,
+        "HAlign": "Right",
+        "VAlign": "Middle",
+        "ForeColor": "#555555",
+        "WordWrap": true
+      }
+    ]
+  }
+}

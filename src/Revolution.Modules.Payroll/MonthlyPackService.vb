@@ -211,9 +211,9 @@ Public NotInheritable Class MonthlyPackService
                 written = _writer.SaveSheets(folder, built.Value.FileName, built.Value.Content)
                 If built.Value.Problems.Count > 0 Then note = $" ({built.Value.Problems.Count.ToString(CultureInfo.InvariantCulture)} employee(s) skipped; check the ESIC sheet in Payroll export)"
             Case Else
-                Dim single As New MonthlyPack(pack.CompanyName, periodStart, New List(Of MonthlyPackLine) From {line}, pack.PayrollMessage)
+                Dim singleFI As New MonthlyPack(pack.CompanyName, periodStart, New List(Of MonthlyPackLine) From {line}, pack.PayrollMessage)
                 Dim part = If(line.StateName.Length > 0, "_" & line.StateName.Replace(" ", String.Empty), String.Empty)
-                written = _writer.SaveSheets(folder, $"Pack_{line.Kind}{part}_{stamp}.xls", MonthlyPackSheetBuilder.Build(single))
+                written = _writer.SaveSheets(folder, $"Pack_{line.Kind}{part}_{stamp}.xls", MonthlyPackSheetBuilder.Build(singleFI))
         End Select
         If Not written.Succeeded Then Return OperationResult(Of String).Fail(written.Message)
         Try

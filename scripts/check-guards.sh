@@ -91,5 +91,15 @@ for gone in database/migrations/0030_sec_agent_registration.sql database/migrati
   [ -e "$gone" ] && err "Delete $gone (git rm). It was replaced: it changes an object before a script creates it, or belongs to the biometric special build (ADR 0021, ADR 0024)."
 done
 
+# 11. ReportStudio is a pinned submodule (external/ReportStudio, ADR 0028) and replaced the Crystal helper and the stale copy in reports/ReportStudio.
+# Only Revolution.Reports.UI references it, and never its database drivers (ADR 0001), designer, web host or command line.
+for gone in src/Revolution.ReportViewer reports/ReportStudio; do
+  [ -e "$gone" ] && err "Delete $gone (git rm -r). Crystal Reports was dropped and ReportStudio now comes from external/ReportStudio (ADR 0028)."
+done
+badref=$(grep -rlE --include='*.vbproj' --include='*.csproj' 'ReportStudio\.(Data|Designer|Web|Cli|Viewer)' src tests tools 2>/dev/null | tr -d '\r')
+[ -n "$badref" ] && err "A project references a ReportStudio part the app must not use (ADR 0028): $(echo $badref)"
+otherref=$(grep -rl --include='*.vbproj' 'ReportStudio' src tests tools 2>/dev/null | grep -v 'src/Revolution.Reports.UI/' | tr -d '\r')
+[ -n "$otherref" ] && err "Only Revolution.Reports.UI may reference ReportStudio (ADR 0028): $(echo $otherref)"
+
 [ "$fail" -eq 0 ] && echo "All guards passed."
 exit "$fail"

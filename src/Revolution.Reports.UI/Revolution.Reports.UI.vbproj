@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Revolution.Reports.UI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Import Include="Revolution.Core" />
+    <Import Include="Revolution.UI.Common" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
+    <ProjectReference Include="..\Revolution.UI.Common\Revolution.UI.Common.vbproj" />
+    <ProjectReference Include="..\Revolution.Reports\Revolution.Reports.vbproj" />
+    <ProjectReference Include="..\..\external\ReportStudio\src\ReportStudio.UI\ReportStudio.UI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\reports\layouts\*.rsr" Link="Reports\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

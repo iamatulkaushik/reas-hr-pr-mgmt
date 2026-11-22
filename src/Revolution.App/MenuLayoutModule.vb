@@ -1,3 +1,5 @@
+Imports Revolution.Reports
+Imports Revolution.Reports.UI
 Imports Revolution.UI.Common
 
 ''' <summary>
@@ -165,10 +167,13 @@ Public NotInheritable Class MenuLayoutModule
         AddPlanned("compliance.annual.formd", AnnualGroup, "Form D", ModuleKey.Statutory, Nothing, 670)
     End Sub
 
-    ''' <summary>Reports (agreed 2026-10-31). Layouts wait for the Owner's own design and ADR 0005, so only Payslip has a screen (the payslip list).</summary>
+    ''' <summary>Reports (agreed 2026-10-31). The ReportStudio screens (ADR 0028) are Basic Report, Salary Sheet, Wage Register, Abstract and Muster Roll; Payslip is still the payslip list.</summary>
     Private Sub AddReports()
-        AddPlanned("reports.salarysheet", ReportsGroup, "Salary Sheet", ModuleKey.Reports, PlanFeature.BasicPayroll, 700)
-        AddPlanned("reports.abstract", ReportsGroup, "Abstract", ModuleKey.Reports, PlanFeature.BasicPayroll, 710)
+        AddScreen("reports.basic", ReportsGroup, "Basic Report", ModuleKey.Reports, Nothing, 690, ReportsShellModule.ScreenKey(ReportCatalog.Basic))
+        AddScreen("reports.salarysheet", ReportsGroup, "Salary Sheet", ModuleKey.Reports, PlanFeature.BasicPayroll, 700, ReportsShellModule.ScreenKey(ReportCatalog.SalarySheet))
+        AddScreen("reports.wageregister", ReportsGroup, "Wage Register", ModuleKey.Reports, PlanFeature.BasicPayroll, 705, ReportsShellModule.ScreenKey(ReportCatalog.WageRegister))
+        AddScreen("reports.abstract", ReportsGroup, "Abstract", ModuleKey.Reports, PlanFeature.BasicPayroll, 710, ReportsShellModule.ScreenKey(ReportCatalog.PayrollAbstract))
+        AddScreen("reports.muster", ReportsGroup, "Muster Roll", ModuleKey.Reports, PlanFeature.Attendance, 715, ReportsShellModule.ScreenKey(ReportCatalog.Muster))
         AddDetailedReports()
         AddScreen("arrears.report", ReportsGroup, "Arrears report", ModuleKey.Payroll, PlanFeature.Arrears, 790, ArrearsReportScreen)
         AddCaReports()

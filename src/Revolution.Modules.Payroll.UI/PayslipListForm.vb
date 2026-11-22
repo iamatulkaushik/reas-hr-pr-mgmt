@@ -2,6 +2,7 @@ Imports System.Drawing
 Imports System.Globalization
 Imports System.Windows.Forms
 Imports Revolution.Modules.Payroll
+Imports Revolution.Reports.UI
 
 ''' <summary>
 ''' Payslip list screen, plain version for testing (Brave; Sigma restyles it and adds the printed layout). Type a run id, and an employee id to see one payslip or leave it at zero for all,
@@ -19,7 +20,9 @@ Friend NotInheritable Class PayslipListForm
     Private ReadOnly _runId As New NumericUpDown()
     Private ReadOnly _employeeId As New NumericUpDown()
     Private ReadOnly _grid As New DataGridView()
+    Private ReadOnly _fullIds As New CheckBox()
     Private ReadOnly _load As New Button()
+    Private ReadOnly _print As New Button()
     Private ReadOnly _exit As New Button()
 
     Public Sub New(services As PayrollServices)
@@ -42,6 +45,9 @@ Friend NotInheritable Class PayslipListForm
         Dim layout As TableLayoutPanel = CreateFormLayout()
         AddField(layout, "Run id", _runId)
         AddField(layout, "Employee id (0 for everyone)", _employeeId)
+        _fullIds.Text = "Print full ids (approved runs, needs Export)"
+        _fullIds.AutoSize = True
+        AddField(layout, "Ids", _fullIds)
 
         Dim bar As FlowLayoutPanel = CreateButtonBar()
         _exit.Text = "Exit"
@@ -50,8 +56,12 @@ Friend NotInheritable Class PayslipListForm
         _load.Text = "Load"
         _load.AutoSize = True
         bar.Controls.Add(_exit)
+        _print.Text = "Print..."
+        _print.AutoSize = True
         bar.Controls.Add(_load)
+        bar.Controls.Add(_print)
         AddHandler _load.Click, Sub(sender As Object, e As EventArgs) DoLoad()
+        AddHandler _print.Click, Sub(sender As Object, e As EventArgs) DoPrint()
     End Sub
 
     Private Sub ConfigureGrid()
@@ -80,8 +90,7 @@ Friend NotInheritable Class PayslipListForm
 
     Private Sub DoLoad()
         ClearValidation()
-        Dim employee As Integer? = If(_employeeId.Value > 0D, CType(CInt(_employeeId.Value), Integer?), Nothing)
-        Dim result As OperationResult(Of IReadOnlyList(Of Payslip)) = _services.Payslips.GetPayslips(CInt(_runId.Value), employee, False)
+        Dim result As OperationResult(Of IReadOnlyList(Of Payslip)) = _services.Payslips.GetPayslips(CInt(_runId.Value), SelectedEmployee(), False)
         If Not result.Succeeded Then
             ShowError(result.Message)
             Return
@@ -91,6 +100,24 @@ Friend NotInheritable Class PayslipListForm
         _grid.Columns(NameOf(SlipRow.Tds)).Visible = showTds
         Dim draft As Boolean = result.Value.Count > 0 AndAlso result.Value(0).IsDraft
         ShowStatus($"{result.Value.Count.ToString(CultureInfo.InvariantCulture)} payslips.{If(draft, " The run is not approved yet: these are DRAFT payslips.", String.Empty)}")
+    End Sub
+
+    Private Function SelectedEmployee() As Integer?
+        Return If(_employeeId.Value > 0D, CType(CInt(_employeeId.Value), Integer?), Nothing)
+    End Function
+
+    ''' <summary>Opens the printed payslips (payslip.rsr) in the report viewer. Full ids are asked from the service, which checks the permission and logs the reveal.</summary>
+    Private Sub DoPrint()
+        ClearValidation()
+        Dim result As OperationResult(Of IReadOnlyList(Of Payslip)) = _services.Payslips.GetPayslips(CInt(_runId.Value), SelectedEmployee(), _fullIds.Checked)
+        If Not result.Succeeded Then
+            ShowError(result.Message)
+            Return
+        End If
+        Dim values As New Dictionary(Of String, String)() From {{"ShowTds", If(PayslipReportRows.ShowTds(result.Value), "true", "false")}}
+        Using window As New ReportViewWindow("Payslips", "payslip.rsr", PayslipReportRows.Build(result.Value), values)
+            window.ShowDialog(Me)
+        End Using
     End Sub
 
     Protected Overrides Sub OnRefreshRequested()

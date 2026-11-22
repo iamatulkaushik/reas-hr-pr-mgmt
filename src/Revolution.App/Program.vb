@@ -8,6 +8,8 @@ Imports Revolution.Modules.Employees
 Imports Revolution.Modules.Employees.UI
 Imports Revolution.Modules.Payroll
 Imports Revolution.Modules.Payroll.UI
+Imports Revolution.Reports
+Imports Revolution.Reports.UI
 Imports Revolution.Services
 Imports Revolution.UI.Common
 
@@ -58,7 +60,8 @@ Public Module Program
             New EmployeesShellModule(employees, services.Permissions),
             New AttendanceShellModule(AttendanceModule.Compose(services.Host), services.Permissions, New ExcelTableImporter(), services.Host.Exporter, services.Session),
             New PayrollShellModule(PayrollModule.Compose(services.Host, employees.Export), services.Permissions),
-            New ArrearsShellModule(ArrearsModule.Compose(services.Host, employees.Export))}
+            New ArrearsShellModule(ArrearsModule.Compose(services.Host, employees.Export)),
+            New ReportsShellModule(New SqlReportDataSource(services.Factory), Function() services.Entitlements.IsEnabled(PlanFeature.Tds))}
         Dim layout As New MenuLayoutModule(sources)
         Return New List(Of IShellModule) From {
             layout,

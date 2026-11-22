@@ -280,7 +280,7 @@ Public Class AttendanceMonthlyTests
     Public Sub Template_HasTheColumnsOfThePlan()
         Dim names = AttendanceMonthlyService.BulkTemplate().Columns.Select(Function(c) c.Name).ToList()
         Assert.Equal({"Emp Code", "Present Days", "Half Days", "Weekly Off Days", "Holiday Days", "Paid Leave Days", "Absent Days", "OT Hours", "Employee Name"}, names)
-        Assert.Equal(2, AttendanceMonthlyService.BulkTemplate().Columns.Count(Function(c) c.Required))
+        Assert.Equal(2, Enumerable.Count(AttendanceMonthlyService.BulkTemplate().Columns, Function(c) c.Required))
     End Sub
 
     ' ---- handler ----
@@ -359,7 +359,7 @@ Public Class AttendanceMonthlyTests
         Assert.True(h.Save(Sheet("E001", "26")).Succeeded)
         Assert.True(h.Save(Sheet("E001", "26", overtime:="3.5")).Succeeded)
         Assert.Equal(2, _repo.Saved.Count)
-        Assert.Equal(1, _repo.Rows.Count(Function(r) r.EmpCode = "E001"))
+        Assert.Equal(1, Enumerable.Count(_repo.Rows, Function(r) r.EmpCode = "E001"))
         Assert.Equal(3.5D, _repo.Rows.First(Function(r) r.EmpCode = "E001").OvertimeHours)
     End Sub
 

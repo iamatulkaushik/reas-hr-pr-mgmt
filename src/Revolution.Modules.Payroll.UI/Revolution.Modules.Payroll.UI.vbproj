@@ -12,5 +12,6 @@
     <ProjectReference Include="..\Revolution.Core\Revolution.Core.vbproj" />
     <ProjectReference Include="..\Revolution.UI.Common\Revolution.UI.Common.vbproj" />
     <ProjectReference Include="..\Revolution.Modules.Payroll\Revolution.Modules.Payroll.vbproj" />
+    <ProjectReference Include="..\Revolution.Reports.UI\Revolution.Reports.UI.vbproj" />
   </ItemGroup>
 </Project>
