@@ -1,0 +1,3 @@
+[submodule "external/ReportStudio"]
+	path = external/ReportStudio
+	url = https://github.com/revolutionassociates/ReportStudio.git
