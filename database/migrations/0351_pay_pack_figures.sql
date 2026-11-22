@@ -59,14 +59,14 @@ BEGIN
     DECLARE @CompanyID INT = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyID'));
     IF @CompanyID IS NULL THROW 50002, N'No company in session.', 1;
     IF @PeriodStart IS NULL OR DAY(@PeriodStart) <> 1 THROW 53650, N'The month must start on the first day.', 1;
-    SELECT st.StateID, st.StateName, CAST(rule.Verified AS BIT) AS Verified
+    SELECT st.StateID, st.StateName, CAST(lw.Verified AS BIT) AS Verified
     FROM (SELECT DISTINCT f.StateID FROM mst.Factory f WHERE f.CompanyID = @CompanyID AND f.IsActive = 1) fs
     JOIN mst.[State] st ON st.StateID = fs.StateID
     CROSS APPLY (SELECT TOP (1) r.Verified, r.DueMonths
                  FROM stat.LabourWelfareRule r
                  WHERE r.StateID = fs.StateID AND r.EffectiveFrom <= EOMONTH(@PeriodStart)
-                 ORDER BY r.EffectiveFrom DESC) rule
-    WHERE N',' + rule.DueMonths + N',' LIKE N'%,' + CAST(MONTH(@PeriodStart) AS NVARCHAR(2)) + N',%'
+                 ORDER BY r.EffectiveFrom DESC) lw
+    WHERE N',' + lw.DueMonths + N',' LIKE N'%,' + CAST(MONTH(@PeriodStart) AS NVARCHAR(2)) + N',%'
     ORDER BY st.StateName;
 END
 GO
